@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0F0F23">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>WordWeft - Collaborative Storytelling</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <!-- Landing / Home Screen -->
+    <div id="screen-home" class="screen active">
+        <div class="home-container">
+            <div class="logo-section">
+                <div class="logo-placeholder">W</div>
+                <h1>WordWeft</h1>
+                <p class="tagline">Move the story forward.</p>
+            </div>
+
+            <!-- User info bar (shown when signed in) -->
+            <div id="user-bar" class="user-bar hidden">
+                <span id="user-avatar" class="user-avatar"></span>
+                <div class="user-info">
+                    <span id="user-name" class="user-name"></span>
+                    <span id="user-level" class="user-level"></span>
+                </div>
+                <div id="xp-bar-container" class="xp-bar-container">
+                    <div id="xp-bar" class="xp-bar"></div>
+                </div>
+                <span id="xp-text" class="xp-text"></span>
+            </div>
+
+            <div class="button-group">
+                <button id="btn-join" class="btn btn-primary btn-large">
+                    <span class="btn-icon">&#9729;</span> Join Game
+                </button>
+                <button id="btn-create" class="btn btn-secondary btn-large">
+                    <span class="btn-icon">+</span> Create Room
+                </button>
+            </div>
+
+            <!-- Join dialog -->
+            <div id="join-dialog" class="dialog hidden">
+                <div class="dialog-content">
+                    <h3>Enter Room Code</h3>
+                    <p class="dialog-subtitle">Ask the host for the code</p>
+                    <input type="text" id="room-code-input" class="input-field"
+                           placeholder="WEFT-1234" maxlength="9" autocomplete="off"
+                           style="text-transform: uppercase; text-align: center; font-size: 24px; letter-spacing: 3px;">
+                    <div class="dialog-buttons">
+                        <button id="btn-join-cancel" class="btn btn-ghost">Cancel</button>
+                        <button id="btn-join-confirm" class="btn btn-primary" disabled>Join</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Name dialog -->
+            <div id="name-dialog" class="dialog hidden">
+                <div class="dialog-content">
+                    <h3>What's your name?</h3>
+                    <p class="dialog-subtitle">Pick a name to play with</p>
+                    <input type="text" id="player-name-input" class="input-field"
+                           placeholder="Your name" maxlength="20" autocomplete="off">
+                    <div class="avatar-grid" id="avatar-grid"></div>
+                    <div class="dialog-buttons">
+                        <button id="btn-name-cancel" class="btn btn-ghost">Cancel</button>
+                        <button id="btn-name-confirm" class="btn btn-primary" disabled>Let's Go!</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="auth-section">
+                <button id="btn-google-signin" class="btn btn-google hidden">
+                    Sign in with Google
+                </button>
+                <p id="auth-status" class="auth-status"></p>
+            </div>
+
+            <div class="how-to-play">
+                <h4>How to Play</h4>
+                <ol>
+                    <li>Join or create a room</li>
+                    <li>Take turns adding words or sentences</li>
+                    <li>Build a story together</li>
+                    <li>See your story graded & stats</li>
+                </ol>
+            </div>
+
+            <div class="footer">
+                <a href="#" id="btn-leaderboard">Leaderboard</a>
+                <span class="footer-dot">&bull;</span>
+                <a href="#" id="btn-profile">Profile</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="screen-lobby" class="screen">
+        <div class="lobby-container">
+            <button id="btn-lobby-back" class="btn-back">&larr;</button>
+            <h2>Game Lobby</h2>
+
+            <div id="room-code-display" class="room-code-display">
+                <span class="room-code-label">Room Code</span>
+                <span id="lobby-room-code" class="room-code-value"></span>
+                <button id="btn-copy-code" class="btn btn-small">Copy</button>
+            </div>
+
+            <div class="players-section">
+                <h4>Players <span id="player-count">(0/8)</span></h4>
+                <div id="player-list" class="player-list"></div>
+            </div>
+
+            <div id="lobby-status" class="lobby-status">
+                Waiting for host to start...
+            </div>
+
+            <div id="lobby-host-controls" class="hidden">
+                <button id="btn-start-game" class="btn btn-primary btn-large" disabled>
+                    Start Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="screen-game" class="screen">
+        <div class="game-container">
+            <div class="game-header">
+                <div class="game-header-left">
+                    <span id="game-room-code" class="game-room-code"></span>
+                    <span id="game-mode-label" class="game-mode-label"></span>
+                </div>
+                <div class="game-header-right">
+                    <button id="btn-vote-finish" class="btn btn-small btn-ghost">
+                        End Story <span id="vote-count"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Story display -->
+            <div id="story-area" class="story-area">
+                <div id="story-text" class="story-text">
+                    <span class="story-placeholder">The story begins when someone submits a word...</span>
+                </div>
+            </div>
+
+            <!-- Turn info -->
+            <div class="turn-info">
+                <div id="turn-indicator" class="turn-indicator"></div>
+                <div id="timer-display" class="timer-display hidden"></div>
+            </div>
+
+            <!-- Typing indicator -->
+            <div id="typing-indicator" class="typing-indicator hidden">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span id="typing-name" class="typing-name"></span>
+            </div>
+
+            <!-- Word input -->
+            <div id="input-section" class="input-section">
+                <div class="input-row">
+                    <input type="text" id="word-input" class="word-input"
+                           placeholder="Type your word..." autocomplete="off"
+                           autocapitalize="off" autocorrect="off" spellcheck="false">
+                    <button id="btn-submit-word" class="btn btn-primary btn-submit">Send</button>
+                </div>
+            </div>
+
+            <!-- Secret word (hidden objectives) -->
+            <div id="secret-word-area" class="secret-word-area hidden">
+                <span class="secret-label">Your secret word:</span>
+                <span id="secret-word" class="secret-word"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="screen-results" class="screen">
+        <div class="results-container">
+            <h2>Story Complete!</h2>
+
+            <div class="story-grade-section">
+                <div id="result-grade" class="result-grade"></div>
+                <div id="result-genre" class="result-genre"></div>
+            </div>
+
+            <div class="result-story-card">
+                <h4>The Story</h4>
+                <p id="result-story-text" class="result-story-text"></p>
+            </div>
+
+            <div class="score-bars">
+                <div class="score-bar-item">
+                    <span class="score-label">Coherence</span>
+                    <div class="score-bar"><div id="bar-coherence" class="score-fill"></div></div>
+                    <span id="score-coherence" class="score-value"></span>
+                </div>
+                <div class="score-bar-item">
+                    <span class="score-label">Creativity</span>
+                    <div class="score-bar"><div id="bar-creativity" class="score-fill"></div></div>
+                    <span id="score-creativity" class="score-value"></span>
+                </div>
+                <div class="score-bar-item">
+                    <span class="score-label">Humor</span>
+                    <div class="score-bar"><div id="bar-humor" class="score-fill"></div></div>
+                    <span id="score-humor" class="score-value"></span>
+                </div>
+                <div class="score-bar-item">
+                    <span class="score-label">Vocabulary</span>
+                    <div class="score-bar"><div id="bar-vocabulary" class="score-fill"></div></div>
+                    <span id="score-vocabulary" class="score-value"></span>
+                </div>
+                <div class="score-bar-item">
+                    <span class="score-label">Flow</span>
+                    <div class="score-bar"><div id="bar-flow" class="score-fill"></div></div>
+                    <span id="score-flow" class="score-value"></span>
+                </div>
+            </div>
+
+            <h4>Player Stats</h4>
+            <div id="player-stats-list" class="player-stats-list"></div>
+
+            <div id="xp-earned-section" class="xp-earned-section hidden">
+                <span id="xp-earned-text" class="xp-earned-text"></span>
+            </div>
+
+            <div class="result-buttons">
+                <button id="btn-play-again" class="btn btn-primary btn-large">Play Again</button>
+                <button id="btn-go-home" class="btn btn-ghost">Home</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <!-- App scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+    <script src="room.js"></script>
+    <script src="game.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>
