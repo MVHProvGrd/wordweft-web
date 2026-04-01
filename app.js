@@ -79,8 +79,18 @@ const App = (() => {
             });
         });
 
+        // Game mode selector
+        let selectedMode = 'ONE_WORD';
+        document.querySelectorAll('.btn-mode').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedMode = btn.dataset.mode;
+            });
+        });
+
         document.getElementById('btn-start-game').addEventListener('click', () => {
-            Room.startGame('ONE_WORD', 0);
+            Room.startGame(selectedMode, 0);
         });
 
         // Game input
@@ -107,6 +117,31 @@ const App = (() => {
 
         document.getElementById('btn-vote-finish').addEventListener('click', () => {
             Game.toggleFinishVote();
+        });
+
+        // Profile & Leaderboard
+        document.getElementById('btn-profile').addEventListener('click', (e) => {
+            e.preventDefault();
+            loadProfile();
+            showScreen('profile');
+        });
+        document.getElementById('btn-profile-back').addEventListener('click', () => {
+            showScreen('home');
+        });
+        document.getElementById('btn-leaderboard').addEventListener('click', (e) => {
+            e.preventDefault();
+            loadLeaderboard('alltime');
+            showScreen('leaderboard');
+        });
+        document.getElementById('btn-leaderboard-back').addEventListener('click', () => {
+            showScreen('home');
+        });
+        document.querySelectorAll('.btn-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadLeaderboard(btn.dataset.tab);
+            });
         });
 
         // Results
@@ -222,6 +257,76 @@ const App = (() => {
         // Clean up URL params when leaving game
         if (name === 'home') {
             window.history.replaceState({}, '', window.location.pathname);
+        }
+    }
+
+    async function loadProfile() {
+        document.getElementById('profile-avatar').textContent = Auth.avatar || '\u{1F60A}';
+        document.getElementById('profile-name').textContent = Auth.name || 'Guest';
+
+        if (!Auth.uid) return;
+        try {
+            const snap = await db.ref('users/' + Auth.uid + '/stats').once('value');
+            const stats = snap.val() || {};
+            const xp = stats.totalXp || 0;
+            const level = Auth.calculateLevel(xp);
+            const rank = Auth.getRank(level);
+            const currentLevelXp = xp - Auth.xpForLevel(level);
+            const nextLevelXp = Auth.xpForLevel(level + 1) - Auth.xpForLevel(level);
+            const progress = nextLevelXp > 0 ? (currentLevelXp / nextLevelXp * 100) : 0;
+
+            document.getElementById('profile-rank').textContent = 'Lv.' + level + ' — ' + rank;
+            document.getElementById('profile-xp-fill').style.width = progress + '%';
+            document.getElementById('profile-xp-text').textContent = xp + ' / ' + Auth.xpForLevel(level + 1) + ' XP';
+            document.getElementById('stat-games').textContent = stats.gamesPlayed || 0;
+            document.getElementById('stat-wins').textContent = stats.gamesWon || 0;
+            document.getElementById('stat-words').textContent = stats.totalWordsWritten || 0;
+            document.getElementById('stat-best-grade').textContent = stats.bestGrade || '—';
+            document.getElementById('stat-avg-score').textContent = stats.gamesPlayed
+                ? Math.round((stats.totalScore || 0) / stats.gamesPlayed) : 0;
+            document.getElementById('stat-streak').textContent = stats.currentStreak || 0;
+        } catch (e) {
+            console.error('Failed to load profile stats:', e);
+        }
+    }
+
+    async function loadLeaderboard(tab) {
+        const list = document.getElementById('leaderboard-list');
+        list.innerHTML = '<div class="leaderboard-empty">Loading...</div>';
+
+        try {
+            const path = tab === 'weekly' ? 'leaderboard/weekly' : 'leaderboard/allTime';
+            const snap = await db.ref(path).orderByChild('xp').limitToLast(50).once('value');
+            const entries = [];
+            snap.forEach(child => {
+                entries.push({ uid: child.key, ...child.val() });
+            });
+            entries.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+
+            if (entries.length === 0) {
+                list.innerHTML = '<div class="leaderboard-empty">No players yet. Play a game to get on the board!</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            entries.forEach((entry, i) => {
+                const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+                const isMe = entry.uid === Auth.uid;
+                const div = document.createElement('div');
+                div.className = 'lb-entry' + (isMe ? ' me' : '');
+                div.innerHTML =
+                    '<div class="lb-rank ' + rankClass + '">' + (i + 1) + '</div>' +
+                    '<div class="lb-avatar">' + (entry.avatar || '\u{1F60A}') + '</div>' +
+                    '<div class="lb-info">' +
+                        '<div class="lb-name">' + (entry.displayName || 'Anonymous') + '</div>' +
+                        '<div class="lb-level">Lv.' + Auth.calculateLevel(entry.xp || 0) + ' ' + Auth.getRank(Auth.calculateLevel(entry.xp || 0)) + '</div>' +
+                    '</div>' +
+                    '<div class="lb-xp">' + (entry.xp || 0) + ' XP</div>';
+                list.appendChild(div);
+            });
+        } catch (e) {
+            console.error('Failed to load leaderboard:', e);
+            list.innerHTML = '<div class="leaderboard-empty">Failed to load leaderboard</div>';
         }
     }
 

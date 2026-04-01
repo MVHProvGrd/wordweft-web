@@ -101,6 +101,66 @@
 
     <!-- Lobby Screen -->
     <div id="screen-lobby" class="screen">
+
+    <!-- Profile Screen -->
+    <div id="screen-profile" class="screen">
+        <div class="profile-container">
+            <button id="btn-profile-back" class="btn-back">&larr;</button>
+            <h2>Profile</h2>
+            <div class="profile-card">
+                <div class="profile-avatar" id="profile-avatar"></div>
+                <div class="profile-name" id="profile-name"></div>
+                <div class="profile-rank" id="profile-rank"></div>
+                <div class="profile-xp-bar">
+                    <div class="profile-xp-fill" id="profile-xp-fill"></div>
+                </div>
+                <div class="profile-xp-text" id="profile-xp-text"></div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-games">0</div>
+                    <div class="stat-label">Games Played</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-wins">0</div>
+                    <div class="stat-label">Wins</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-words">0</div>
+                    <div class="stat-label">Words Written</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-best-grade">—</div>
+                    <div class="stat-label">Best Grade</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-avg-score">0</div>
+                    <div class="stat-label">Avg Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-streak">0</div>
+                    <div class="stat-label">Current Streak</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Screen -->
+    <div id="screen-leaderboard" class="screen">
+        <div class="leaderboard-container">
+            <button id="btn-leaderboard-back" class="btn-back">&larr;</button>
+            <h2>Leaderboard</h2>
+            <div class="leaderboard-tabs">
+                <button class="btn btn-tab active" data-tab="alltime">All Time</button>
+                <button class="btn btn-tab" data-tab="weekly">This Week</button>
+            </div>
+            <div id="leaderboard-list" class="leaderboard-list">
+                <div class="leaderboard-empty">No players yet. Play a game to get on the board!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Screen -->
         <div class="lobby-container">
             <button id="btn-lobby-back" class="btn-back">&larr;</button>
             <h2>Game Lobby</h2>
@@ -121,6 +181,15 @@
             </div>
 
             <div id="lobby-host-controls" class="hidden">
+                <div class="game-mode-selector">
+                    <label>Words per turn</label>
+                    <div class="mode-options">
+                        <button class="btn btn-mode active" data-mode="ONE_WORD">1 Word</button>
+                        <button class="btn btn-mode" data-mode="THREE_WORDS">3 Words</button>
+                        <button class="btn btn-mode" data-mode="FIVE_WORDS">5 Words</button>
+                        <button class="btn btn-mode" data-mode="SENTENCE">Sentence</button>
+                    </div>
+                </div>
                 <button id="btn-start-game" class="btn btn-primary btn-large" disabled>
                     Start Game
                 </button>
