@@ -124,6 +124,131 @@ html, body {
     background: var(--accent-purple);
     color: white;
 }
+
+/* Color picker grid */
+.color-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 8px 0;
+}
+.color-option {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.color-option:hover { transform: scale(1.15); }
+.color-option.selected { border-color: white; transform: scale(1.15); }
+.color-option.taken { opacity: 0.3; cursor: not-allowed; }
+
+/* Lobby settings */
+.lobby-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+.setting-group {
+    background: rgba(255,255,255,0.04);
+    border-radius: var(--radius-md);
+    padding: 12px;
+}
+.setting-group > label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.setting-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+/* Story starter pills */
+.starter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.btn-starter {
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.btn-starter.active {
+    background: var(--accent-purple);
+    color: white;
+    border-color: var(--accent-purple);
+}
+
+/* Timer buttons */
+.btn-timer {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 2px solid var(--accent-purple);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+}
+.btn-timer.active {
+    background: var(--accent-purple);
+    color: white;
+}
+
+/* Toggle switch */
+.toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    text-transform: none !important;
+    font-weight: normal !important;
+}
+.toggle-input {
+    display: none;
+}
+.toggle-slider {
+    width: 44px;
+    height: 24px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.toggle-input:checked + .toggle-slider {
+    background: var(--accent-purple);
+}
+.toggle-input:checked + .toggle-slider::after {
+    transform: translateX(20px);
+}
+
 .btn-green {
     background: var(--accent-green);
     color: white;
@@ -961,4 +1086,154 @@ html, body {
 }
 .lb-entry.me {
     border: 2px solid var(--accent-purple);
+}
+
+/* ─── Achievements Screen ────────────────────────────── */
+.achievements-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+.achievement-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+    transition: opacity 0.3s;
+}
+.achievement-card.locked {
+    opacity: 0.35;
+}
+.achievement-card .ach-icon {
+    font-size: 32px;
+    margin-bottom: 6px;
+}
+.achievement-card .ach-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.achievement-card .ach-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+.achievement-card .ach-date {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* Achievement toast */
+.achievement-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
+    color: white;
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 200;
+    animation: toastSlideIn 0.4s ease, toastSlideOut 0.4s ease 2.6s forwards;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    white-space: nowrap;
+}
+@keyframes toastSlideIn {
+    from { transform: translateX(-50%) translateY(-60px); opacity: 0; }
+    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+@keyframes toastSlideOut {
+    from { transform: translateX(-50%) translateY(0); opacity: 1; }
+    to { transform: translateX(-50%) translateY(-60px); opacity: 0; }
+}
+
+/* ─── Story History Screen ───────────────────────────── */
+.history-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.history-entry {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+}
+.history-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.history-grade-badge {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent-purple);
+    min-width: 36px;
+}
+.history-meta {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.history-preview {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+.history-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.history-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(99,102,241,0.15);
+    color: var(--accent-indigo);
+}
+.history-actions {
+    display: flex;
+    gap: 8px;
+}
+.history-actions .btn {
+    font-size: 12px;
+    height: 30px;
+    padding: 0 12px;
+}
+
+/* ─── Confetti ───────────────────────────────────────── */
+.confetti-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 150;
+    overflow: hidden;
+}
+.confetti-particle {
+    position: absolute;
+    top: -10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    animation: confettiFall 2s ease-out forwards;
+}
+@keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg) translateX(var(--sway, 0px)); opacity: 0; }
 }

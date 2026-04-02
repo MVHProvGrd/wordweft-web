@@ -63,10 +63,12 @@
             <div id="name-dialog" class="dialog hidden">
                 <div class="dialog-content">
                     <h3>What's your name?</h3>
-                    <p class="dialog-subtitle">Pick a name to play with</p>
+                    <p class="dialog-subtitle">Pick a name and style</p>
                     <input type="text" id="player-name-input" class="input-field"
                            placeholder="Your name" maxlength="20" autocomplete="off">
                     <div class="avatar-grid" id="avatar-grid"></div>
+                    <p class="dialog-subtitle" style="margin-top:8px">Pick your color</p>
+                    <div class="color-grid" id="color-grid"></div>
                     <div class="dialog-buttons">
                         <button id="btn-name-cancel" class="btn btn-ghost">Cancel</button>
                         <button id="btn-name-confirm" class="btn btn-primary" disabled>Let's Go!</button>
@@ -95,6 +97,10 @@
                 <a href="#" id="btn-leaderboard">Leaderboard</a>
                 <span class="footer-dot">&bull;</span>
                 <a href="#" id="btn-profile">Profile</a>
+                <span class="footer-dot">&bull;</span>
+                <a href="#" id="btn-achievements">Achievements</a>
+                <span class="footer-dot">&bull;</span>
+                <a href="#" id="btn-history">History</a>
             </div>
         </div>
     </div>
@@ -160,6 +166,26 @@
         </div>
     </div>
 
+    <!-- Achievements Screen -->
+    <div id="screen-achievements" class="screen">
+        <div class="achievements-container">
+            <button id="btn-achievements-back" class="btn-back">&larr;</button>
+            <h2>Achievements</h2>
+            <div id="achievements-grid" class="achievements-grid"></div>
+        </div>
+    </div>
+
+    <!-- Story History Screen -->
+    <div id="screen-history" class="screen">
+        <div class="history-container">
+            <button id="btn-history-back" class="btn-back">&larr;</button>
+            <h2>Story History</h2>
+            <div id="history-list" class="history-list">
+                <div class="leaderboard-empty">No stories yet. Play a game!</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Lobby Screen -->
         <div class="lobby-container">
             <button id="btn-lobby-back" class="btn-back">&larr;</button>
@@ -181,14 +207,57 @@
             </div>
 
             <div id="lobby-host-controls" class="hidden">
-                <div class="game-mode-selector">
-                    <label>Words per turn</label>
-                    <div class="mode-options">
-                        <button class="btn btn-mode active" data-mode="ONE_WORD">1 Word</button>
-                        <button class="btn btn-mode" data-mode="THREE_WORDS">3 Words</button>
-                        <button class="btn btn-mode" data-mode="FIVE_WORDS">5 Words</button>
-                        <button class="btn btn-mode" data-mode="SENTENCE">Sentence</button>
+                <div class="lobby-settings">
+                    <div class="setting-group">
+                        <label>Words per turn</label>
+                        <div class="mode-options">
+                            <button class="btn btn-mode active" data-mode="ONE_WORD">1 Word</button>
+                            <button class="btn btn-mode" data-mode="THREE_WORDS">3 Words</button>
+                            <button class="btn btn-mode" data-mode="FIVE_WORDS">5 Words</button>
+                            <button class="btn btn-mode" data-mode="SENTENCE">Sentence</button>
+                        </div>
                     </div>
+
+                    <div class="setting-group">
+                        <label>Story Starter</label>
+                        <div class="starter-options" id="starter-options">
+                            <button class="btn btn-starter active" data-starter="">&#127922; Free Play</button>
+                            <button class="btn btn-starter" data-starter="Once upon a time">&#128081; Once Upon a Time</button>
+                            <button class="btn btn-starter" data-starter="The spaceship launched into">&#128640; Space Adventure</button>
+                            <button class="btn btn-starter" data-starter="The detective found a">&#128269; Mystery</button>
+                            <button class="btn btn-starter" data-starter="In the dark forest">&#127769; Horror Night</button>
+                            <button class="btn btn-starter" data-starter="They first met at">&#10084;&#65039; Love Story</button>
+                            <button class="btn btn-starter" data-starter="The warrior raised their">&#9876;&#65039; Epic Battle</button>
+                            <button class="btn btn-starter" data-starter="The time machine activated and">&#8987; Time Travel</button>
+                            <button class="btn btn-starter" data-starter="The chef accidentally added">&#128104;&#8205;&#127859; Cooking Disaster</button>
+                            <button class="btn btn-starter" data-starter="The clever fox decided to">&#129418; Animal Kingdom</button>
+                            <button class="btn btn-starter" data-starter="The ordinary person suddenly gained">&#129464; Superhero Origin</button>
+                            <button class="btn btn-starter" data-starter="Stranded on the island they">&#127965;&#65039; Desert Island</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>Turn Timer</label>
+                        <div class="mode-options">
+                            <button class="btn btn-timer active" data-timer="0">Off</button>
+                            <button class="btn btn-timer" data-timer="15">15s</button>
+                            <button class="btn btn-timer" data-timer="30">30s</button>
+                            <button class="btn btn-timer" data-timer="60">60s</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="toggle-label">
+                            <span>Hidden Objectives</span>
+                            <input type="checkbox" id="toggle-objectives" class="toggle-input">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <p class="setting-desc">Each player gets a secret word to sneak into the story</p>
+                    </div>
+
+                    <button id="btn-add-bot" class="btn btn-secondary" style="margin-top:8px">
+                        &#129302; Add Bot
+                    </button>
                 </div>
                 <button id="btn-start-game" class="btn btn-primary btn-large" disabled>
                     Start Game
@@ -266,6 +335,10 @@
                 <p id="result-story-text" class="result-story-text"></p>
             </div>
 
+            <button id="btn-read-story" class="btn btn-small btn-secondary" style="margin-bottom:12px">
+                &#128264; Read Story
+            </button>
+
             <div class="score-bars">
                 <div class="score-bar-item">
                     <span class="score-label">Coherence</span>
@@ -308,6 +381,9 @@
         </div>
     </div>
 
+    <!-- Achievement toast -->
+    <div id="achievement-toast" class="achievement-toast hidden"></div>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -317,6 +393,8 @@
     <script src="firebase-config.js"></script>
     <script src="auth.js"></script>
     <script src="room.js"></script>
+    <script src="sound.js"></script>
+    <script src="analyzer.js"></script>
     <script src="game.js"></script>
     <script src="app.js"></script>
     <script>
