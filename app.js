@@ -7,6 +7,18 @@ const App = (() => {
         await Auth.ensureSignedIn();
         Auth.updateUI();
 
+        // Load saved preferences
+        const savedColor = localStorage.getItem('wordweft_color');
+        if (savedColor) selectedColor = parseInt(savedColor);
+        if (Auth.uid) {
+            try {
+                const profSnap = await db.ref('users/' + Auth.uid + '/profile').once('value');
+                const prof = profSnap.val() || {};
+                if (prof.color) { selectedColor = prof.color; localStorage.setItem('wordweft_color', prof.color); }
+                if (prof.musicStyle) { selectedMusicStyle = prof.musicStyle; localStorage.setItem('wordweft_music', prof.musicStyle); }
+            } catch (e) {}
+        }
+
         // Check URL params for room code (shared link)
         const params = new URLSearchParams(window.location.search);
         const roomParam = params.get('room');
@@ -67,6 +79,7 @@ const App = (() => {
 
         // Lobby
         document.getElementById('btn-lobby-back').addEventListener('click', () => {
+            if (typeof Sound !== 'undefined') Sound.stopMusic();
             Room.leave();
             Game.cleanup();
             showScreen('home');
@@ -115,13 +128,8 @@ const App = (() => {
             objectivesEnabled = e.target.checked;
         });
 
-        // Add bot button
-        document.getElementById('btn-add-bot').addEventListener('click', () => {
-            Room.addBot();
-        });
-
         document.getElementById('btn-start-game').addEventListener('click', () => {
-            if (typeof Sound !== 'undefined') Sound.playGameStart();
+            if (typeof Sound !== 'undefined') { Sound.stopMusic(); Sound.playGameStart(); }
             // Submit story starter words first
             if (selectedStarter) {
                 const starterWords = selectedStarter.split(/\s+/);
@@ -261,6 +269,7 @@ const App = (() => {
     };
 
     let selectedColor = PLAYER_COLORS[0].value;
+    let selectedMusicStyle = localStorage.getItem('wordweft_music') || 'jazz';
     let selectedStarter = '';
     let selectedTimer = 0;
     let objectivesEnabled = false;
@@ -369,6 +378,7 @@ const App = (() => {
             document.getElementById('lobby-status').textContent = 'Share the room code with friends!';
             Game.startListening();
             showScreen('lobby');
+            if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
         } else {
             alert('Failed to create room. Please try again.');
         }
@@ -383,6 +393,7 @@ const App = (() => {
             document.getElementById('lobby-status').textContent = 'Waiting for host to start...';
             Game.startListening();
             showScreen('lobby');
+            if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
         } catch (e) {
             alert(e.message || 'Failed to join room');
         }
@@ -429,6 +440,61 @@ const App = (() => {
             document.getElementById('stat-streak').textContent = stats.currentStreak || 0;
         } catch (e) {
             console.error('Failed to load profile stats:', e);
+        }
+
+        // Avatar picker
+        const avatarGrid = document.getElementById('profile-avatar-grid');
+        if (avatarGrid && !avatarGrid.hasChildNodes()) {
+            Auth.AVATARS.forEach(emoji => {
+                const opt = document.createElement('div');
+                opt.className = 'avatar-option' + (emoji === Auth.avatar ? ' selected' : '');
+                opt.textContent = emoji;
+                opt.addEventListener('click', () => {
+                    avatarGrid.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    Auth.saveLocalProfile(Auth.name, emoji);
+                    Auth.saveProfileToFirebase();
+                    document.getElementById('profile-avatar').textContent = emoji;
+                });
+                avatarGrid.appendChild(opt);
+            });
+        }
+
+        // Color picker
+        const colorGrid = document.getElementById('profile-color-grid');
+        if (colorGrid && !colorGrid.hasChildNodes()) {
+            PLAYER_COLORS.forEach(c => {
+                const opt = document.createElement('div');
+                opt.className = 'color-option' + (c.value === selectedColor ? ' selected' : '');
+                opt.style.background = c.hex;
+                opt.addEventListener('click', () => {
+                    colorGrid.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    selectedColor = c.value;
+                    localStorage.setItem('wordweft_color', c.value);
+                    if (Auth.uid) {
+                        db.ref('users/' + Auth.uid + '/profile/color').set(c.value);
+                    }
+                });
+                colorGrid.appendChild(opt);
+            });
+        }
+
+        // Music style selector
+        const musicGrid = document.getElementById('music-style-grid');
+        if (musicGrid) {
+            musicGrid.querySelectorAll('.btn-mode').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.music === selectedMusicStyle);
+                btn.onclick = () => {
+                    musicGrid.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedMusicStyle = btn.dataset.music;
+                    localStorage.setItem('wordweft_music', selectedMusicStyle);
+                    if (Auth.uid) {
+                        db.ref('users/' + Auth.uid + '/profile/musicStyle').set(selectedMusicStyle);
+                    }
+                };
+            });
         }
     }
 

@@ -225,7 +225,8 @@ html, body {
 .toggle-slider {
     width: 44px;
     height: 24px;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.3);
+    border: 1px solid rgba(255,255,255,0.2);
     border-radius: 12px;
     position: relative;
     transition: background 0.2s;
@@ -398,6 +399,13 @@ html, body {
     font-weight: bold;
     color: white;
     margin: 0 auto 16px;
+}
+.logo-img {
+    width: 100px;
+    height: 100px;
+    border-radius: 24px;
+    margin: 0 auto 16px;
+    display: block;
 }
 .logo-section h1 {
     font-size: 42px;
@@ -633,6 +641,7 @@ html, body {
 .story-area {
     flex: 1;
     overflow-y: auto;
+    overflow-anchor: none;
     padding: 20px 16px;
     -webkit-overflow-scrolling: touch;
 }
@@ -809,6 +818,50 @@ html, body {
     color: var(--text-secondary);
     margin-top: 4px;
 }
+.result-illustration {
+    font-size: 48px;
+    text-align: center;
+}
+.result-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 8px;
+}
+.result-tag {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    background: rgba(99,102,241,0.15);
+    color: var(--accent-indigo);
+}
+.result-objectives {
+    margin-top: 16px;
+}
+.result-objectives h4 {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.objective-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border-radius: var(--radius-xs);
+    margin-bottom: 6px;
+}
+.objective-word {
+    font-style: italic;
+    color: var(--accent-amber);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 13px;
+}
+.obj-success { color: var(--accent-green); font-weight: 600; }
+.obj-fail { color: var(--accent-red); font-weight: 600; }
 
 .result-story-card {
     background: var(--bg-card);
@@ -1009,6 +1062,14 @@ html, body {
     font-size: 11px;
     color: var(--text-secondary);
     margin-top: 4px;
+}
+.profile-settings {
+    margin-top: 20px;
+}
+.profile-settings h4 {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 16px 0 8px;
 }
 
 /* Leaderboard Screen */

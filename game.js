@@ -11,17 +11,18 @@ const Game = (() => {
     let timerRemaining = 0;
     let hasVotedToFinish = false;
     let finishVoteCount = 0;
+    let hasVotedToExtend = false;
 
     // Player color hex values for display
     const COLOR_MAP = {
-        [0xFFFF6B6B]: '#FF6B6B',
-        [0xFF4ECDC4]: '#4ECDC4',
-        [0xFF45B7D1]: '#45B7D1',
-        [0xFF96CEB4]: '#96CEB4',
-        [0xFFFFEAA7]: '#FFEAA7',
-        [0xFFDDA0DD]: '#DDA0DD',
-        [0xFF98D8C8]: '#98D8C8',
-        [0xFFF7DC6F]: '#F7DC6F'
+        [0xFF6366F1]: '#6366F1', // Indigo
+        [0xFFEC4899]: '#EC4899', // Pink
+        [0xFF10B981]: '#10B981', // Emerald
+        [0xFFF59E0B]: '#F59E0B', // Amber
+        [0xFF8B5CF6]: '#8B5CF6', // Violet
+        [0xFF06B6D4]: '#06B6D4', // Cyan
+        [0xFFEF4444]: '#EF4444', // Red
+        [0xFF84CC16]: '#84CC16'  // Lime
     };
 
     function getPlayerColor(colorValue) {
@@ -83,12 +84,20 @@ const Game = (() => {
             if (oldIndex !== currentPlayerIndex) {
                 if (typeof Sound !== 'undefined') Sound.playTurnChange();
                 if (turnTimerSeconds > 0) startTimer();
+                hasVotedToExtend = false;
+            }
+            // Show +30s button for non-active players when timer is on
+            const extendBtn = document.getElementById('btn-time-extend');
+            if (extendBtn) {
+                const isMyTurn = currentPlayerIndex === Room.myIndex;
+                extendBtn.classList.toggle('hidden', isMyTurn || turnTimerSeconds <= 0);
             }
         });
 
         // Game started
         Room.listen('meta/isStarted', (snap) => {
             if (snap.val() === true) {
+                if (typeof Sound !== 'undefined') Sound.stopMusic();
                 App.showScreen('game');
             }
         });
@@ -124,6 +133,26 @@ const Game = (() => {
             if (finishVoteCount >= humanCount && humanCount > 0 && Room.isHost) {
                 finishGame();
             }
+        });
+
+        // Time extension votes
+        Room.listen('meta/timeExtensionVotes', (snap) => {
+            const votes = snap.numChildren();
+            const humanCount = players.filter(p => !p.isAI).length;
+            const eligible = Math.max(1, humanCount - 1);
+            const el = document.getElementById('extend-vote-count');
+            if (el) el.textContent = votes > 0 ? '(' + votes + '/' + eligible + ')' : '';
+            if (eligible > 0 && votes > eligible / 2) {
+                timerRemaining += 30;
+                if (Room.ref) Room.ref.child('meta/timeExtensionVotes').remove();
+                hasVotedToExtend = false;
+            }
+        });
+
+        document.getElementById('btn-time-extend').addEventListener('click', () => {
+            if (hasVotedToExtend || !Room.ref) return;
+            hasVotedToExtend = true;
+            Room.ref.child('meta/timeExtensionVotes/' + Room.myIndex).set(true);
         });
 
         // Typing indicators
@@ -211,6 +240,9 @@ const Game = (() => {
         const textEl = document.getElementById('story-text');
         if (!textEl) return;
 
+        // Preserve viewport position on mobile
+        const scrollY = window.scrollY;
+
         if (words.length === 0) {
             textEl.innerHTML = '<span class="story-placeholder">The story begins when someone submits a word...</span>';
             return;
@@ -235,11 +267,12 @@ const Game = (() => {
             textEl.appendChild(span);
         });
 
-        // Auto-scroll to bottom
+        // Auto-scroll story area to bottom, restore viewport
         const storyArea = document.getElementById('story-area');
         if (storyArea) {
             storyArea.scrollTop = storyArea.scrollHeight;
         }
+        window.scrollTo(0, scrollY);
     }
 
     function updateTurnIndicator() {
@@ -417,10 +450,36 @@ const Game = (() => {
 
         App.showScreen('results');
 
+        // Illustration + Grade + Genre + Tags
+        const illustrationEl = document.getElementById('result-illustration');
+        if (illustrationEl) illustrationEl.textContent = data.illustration || '';
+
         document.getElementById('result-grade').textContent = data.storyGrade || 'C';
         document.getElementById('result-genre').textContent =
             (data.genreDetected || '') + (data.moodDetected ? ' \u2022 ' + data.moodDetected : '');
-        document.getElementById('result-story-text').textContent = data.fullStory || '';
+
+        const tagsEl = document.getElementById('result-tags');
+        if (tagsEl && data.tags && data.tags.length > 0) {
+            tagsEl.innerHTML = data.tags.map(t => '<span class="result-tag">' + t + '</span>').join('');
+        } else if (tagsEl) {
+            tagsEl.innerHTML = '';
+        }
+
+        // Player-colored story words
+        const resultStoryEl = document.getElementById('result-story-text');
+        resultStoryEl.innerHTML = '';
+        if (words.length > 0) {
+            words.forEach((w, i) => {
+                const span = document.createElement('span');
+                const player = players.find(p => p.id === w.playerId);
+                if (player) span.style.color = getPlayerColor(player.color);
+                else if (w.playerId === -1) { span.style.color = '#666680'; span.style.fontStyle = 'italic'; }
+                span.textContent = (i > 0 ? ' ' : '') + w.word;
+                resultStoryEl.appendChild(span);
+            });
+        } else {
+            resultStoryEl.textContent = data.fullStory || '';
+        }
 
         // Score bars
         const scores = [
@@ -481,6 +540,43 @@ const Game = (() => {
         if (readBtn) {
             readBtn.onclick = toggleTTS;
             readBtn.innerHTML = '&#128264; Read Story';
+        }
+
+        // Copy button
+        const copyBtn = document.getElementById('btn-copy-story');
+        if (copyBtn) {
+            copyBtn.onclick = () => {
+                const text = document.getElementById('result-story-text').textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyBtn.innerHTML = '&#128203; Copy Story'; }, 2000);
+                });
+            };
+        }
+
+        // Hidden objectives results
+        if (Room.ref) {
+            Room.ref.child('objectives').once('value').then(snap => {
+                const objectives = snap.val();
+                if (!objectives) return;
+                const container = document.getElementById('result-objectives');
+                if (!container) return;
+                container.innerHTML = '<h4>Hidden Objectives</h4>';
+                container.classList.remove('hidden');
+                Object.entries(objectives).forEach(([idx, obj]) => {
+                    const player = players[parseInt(idx)];
+                    if (!player || !obj.word) return;
+                    const status = obj.completed ? (obj.busted ? 'Busted!' : 'Snuck it in!') : 'Failed';
+                    const cls = obj.completed && !obj.busted ? 'obj-success' : 'obj-fail';
+                    const item = document.createElement('div');
+                    item.className = 'objective-result-item';
+                    item.innerHTML = '<span class="player-stat-avatar">' + (player.avatar || '\u{1F60A}') + '</span>' +
+                        '<span style="flex:1">' + player.name + '</span>' +
+                        '<span class="objective-word">' + obj.word + '</span>' +
+                        '<span class="' + cls + '">' + status + '</span>';
+                    container.appendChild(item);
+                });
+            });
         }
     }
 
@@ -623,7 +719,10 @@ const Game = (() => {
             }
         } catch(e) {}
 
-        xp = Math.max(0, xp);
+        // Scale XP by story length — short stories earn less
+        const totalWords = data.totalWords || words.length || 0;
+        xp = Math.round(xp * Math.min(1.0, totalWords / 20));
+        xp = Math.max(5, xp);
 
         // Update Firebase stats
         try {

@@ -17,7 +17,7 @@
     <div id="screen-home" class="screen active">
         <div class="home-container">
             <div class="logo-section">
-                <div class="logo-placeholder">W</div>
+                <img src="wordweft_logo.png" alt="WordWeft" class="logo-img">
                 <h1>WordWeft</h1>
                 <p class="tagline">Move the story forward.</p>
             </div>
@@ -50,7 +50,7 @@
                     <h3>Enter Room Code</h3>
                     <p class="dialog-subtitle">Ask the host for the code</p>
                     <input type="text" id="room-code-input" class="input-field"
-                           placeholder="WEFT-1234" maxlength="9" autocomplete="off"
+                           placeholder="WEFT1234" maxlength="8" autocomplete="off"
                            style="text-transform: uppercase; text-align: center; font-size: 24px; letter-spacing: 3px;">
                     <div class="dialog-buttons">
                         <button id="btn-join-cancel" class="btn btn-ghost">Cancel</button>
@@ -143,6 +143,23 @@
                 <div class="stat-card">
                     <div class="stat-value" id="stat-streak">0</div>
                     <div class="stat-label">Current Streak</div>
+                </div>
+            </div>
+
+            <div class="profile-settings">
+                <h4>Avatar</h4>
+                <div class="avatar-grid" id="profile-avatar-grid"></div>
+
+                <h4>Color</h4>
+                <div class="color-grid" id="profile-color-grid"></div>
+
+                <h4>Lobby Music</h4>
+                <div class="mode-options" id="music-style-grid">
+                    <button class="btn btn-mode" data-music="jazz">Jazz</button>
+                    <button class="btn btn-mode" data-music="lullaby">Lullaby</button>
+                    <button class="btn btn-mode" data-music="bossa">Bossa</button>
+                    <button class="btn btn-mode" data-music="blues">Blues</button>
+                    <button class="btn btn-mode" data-music="chiptune">Chiptune</button>
                 </div>
             </div>
         </div>
@@ -253,9 +270,6 @@
                         <p class="setting-desc">Each player gets a secret word to sneak into the story</p>
                     </div>
 
-                    <button id="btn-add-bot" class="btn btn-secondary" style="margin-top:8px">
-                        &#129302; Add Bot
-                    </button>
                 </div>
                 <button id="btn-start-game" class="btn btn-primary btn-large" disabled>
                     Start Game
@@ -290,6 +304,7 @@
             <div class="turn-info">
                 <div id="turn-indicator" class="turn-indicator"></div>
                 <div id="timer-display" class="timer-display hidden"></div>
+                <button id="btn-time-extend" class="btn btn-small btn-ghost hidden" style="color:#10B981">+30s <span id="extend-vote-count"></span></button>
             </div>
 
             <!-- Typing indicator -->
@@ -324,8 +339,10 @@
             <h2>Story Complete!</h2>
 
             <div class="story-grade-section">
+                <div id="result-illustration" class="result-illustration"></div>
                 <div id="result-grade" class="result-grade"></div>
                 <div id="result-genre" class="result-genre"></div>
+                <div id="result-tags" class="result-tags"></div>
             </div>
 
             <div class="result-story-card">
@@ -333,9 +350,14 @@
                 <p id="result-story-text" class="result-story-text"></p>
             </div>
 
-            <button id="btn-read-story" class="btn btn-small btn-secondary" style="margin-bottom:12px">
-                &#128264; Read Story
-            </button>
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+                <button id="btn-read-story" class="btn btn-small btn-secondary">
+                    &#128264; Read Story
+                </button>
+                <button id="btn-copy-story" class="btn btn-small btn-secondary">
+                    &#128203; Copy Story
+                </button>
+            </div>
 
             <div class="score-bars">
                 <div class="score-bar-item">
@@ -367,6 +389,8 @@
 
             <h4>Player Stats</h4>
             <div id="player-stats-list" class="player-stats-list"></div>
+
+            <div id="result-objectives" class="result-objectives hidden"></div>
 
             <div id="xp-earned-section" class="xp-earned-section hidden">
                 <span id="xp-earned-text" class="xp-earned-text"></span>

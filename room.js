@@ -11,7 +11,7 @@ const Room = (() => {
     function generateCode() {
         const prefix = PREFIXES[Math.floor(Math.random() * PREFIXES.length)];
         const suffix = Math.floor(1000 + Math.random() * 9000);
-        return prefix + '-' + suffix;
+        return prefix + suffix;
     }
 
     async function create(name, avatar, color) {
@@ -87,6 +87,14 @@ const Room = (() => {
                 throw new Error('Room is full');
             }
 
+            // Auto-switch color if already taken
+            const existingPlayers = playersSnap.val() || {};
+            const takenColors = new Set(Object.values(existingPlayers).map(p => p.color));
+            if (takenColors.has(color)) {
+                const ALL_COLORS = [0xFF6366F1, 0xFFEC4899, 0xFF10B981, 0xFFF59E0B, 0xFF8B5CF6, 0xFF06B6D4, 0xFFEF4444, 0xFF84CC16];
+                color = ALL_COLORS.find(c => !takenColors.has(c)) || color;
+            }
+
             const playerIndex = existingCount;
             await ref.child('players/' + playerIndex).set({
                 uid: uid,
@@ -112,30 +120,7 @@ const Room = (() => {
         }
     }
 
-    const AI_NAMES = ['Wordbot', 'Storya', 'Narrator', 'Penelope', 'Inkwell'];
-    const AI_AVATARS = ['\u{1F916}', '\u{1F9D9}', '\u{1F4D6}', '\u270D\uFE0F', '\u{1F58B}\uFE0F'];
-    let botCount = 0;
 
-    async function addBot() {
-        if (!roomRef || !isHost) return;
-        if (botCount >= 3) return;
-
-        const playersSnap = await roomRef.child('players').once('value');
-        const nextIndex = playersSnap.numChildren();
-        if (nextIndex >= 8) return;
-
-        const colors = [0xFF6366F1, 0xFFEC4899, 0xFF10B981, 0xFFF59E0B, 0xFF8B5CF6, 0xFF06B6D4, 0xFFEF4444, 0xFF84CC16];
-        await roomRef.child('players/' + nextIndex).set({
-            uid: 'bot_' + botCount,
-            name: AI_NAMES[botCount] || 'Bot',
-            color: colors[(nextIndex + 3) % colors.length],
-            avatar: AI_AVATARS[botCount] || '\u{1F916}',
-            isAI: true,
-            isHost: false,
-            isConnected: true
-        });
-        botCount++;
-    }
 
     function listen(path, callback) {
         if (!roomRef) return;
@@ -239,7 +224,6 @@ const Room = (() => {
     return {
         create,
         join,
-        addBot,
         listen,
         stopListening,
         submitWord,
