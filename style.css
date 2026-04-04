@@ -627,6 +627,23 @@ html, body {
     border-radius: 10px;
     font-weight: 600;
 }
+.btn-lobby-music {
+    float: right;
+    background: rgba(139,92,246,0.15);
+    border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--accent-purple);
+    margin-top: 4px;
+    transition: opacity 0.2s;
+}
+.btn-lobby-music.muted {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
 .lobby-invite-hint {
     text-align: center;
     color: var(--accent-purple);

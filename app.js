@@ -99,6 +99,20 @@ const App = (() => {
             showScreen('home');
         });
 
+        // Lobby music toggle
+        let lobbyMusicOn = true;
+        document.getElementById('btn-lobby-music').addEventListener('click', () => {
+            lobbyMusicOn = !lobbyMusicOn;
+            const btn = document.getElementById('btn-lobby-music');
+            if (lobbyMusicOn) {
+                btn.classList.remove('muted');
+                if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
+            } else {
+                btn.classList.add('muted');
+                if (typeof Sound !== 'undefined') Sound.stopMusic();
+            }
+        });
+
         document.getElementById('btn-copy-code').addEventListener('click', () => {
             if (typeof Sound !== 'undefined') Sound.playClick();
             const code = document.getElementById('lobby-room-code').textContent;
