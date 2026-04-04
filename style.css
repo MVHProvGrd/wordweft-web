@@ -505,22 +505,25 @@ html, body {
     line-height: 1.8;
 }
 
-.footer {
+.footer-nav {
     margin-top: 20px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
 }
-.footer a {
-    color: var(--text-muted);
-    text-decoration: none;
+.footer-btn {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
     font-size: 14px;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
 }
-.footer a:hover {
+.footer-btn:hover {
+    background: rgba(99,102,241,0.15);
     color: var(--accent-indigo);
-}
-.footer-dot {
-    color: var(--text-dim);
 }
 
 /* ─── Lobby Screen ────────────────────────────────────── */

@@ -15,48 +15,66 @@ const Sound = (() => {
     return audioCtx;
   }
 
-  function playTone(freq, duration, volume = 0.1) {
+  // 3-overtone synthesis matching Android's SoundManager
+  function playTone(freq, durationMs, volume, overtone2, overtone3) {
     return new Promise((resolve) => {
       try {
         const ctx = ensureContext();
         if (!ctx) { resolve(); return; }
 
         const now = ctx.currentTime;
-        const durSec = duration / 1000;
-        const attackTime = 0.01;
-        const releaseTime = 0.02;
+        const dur = durationMs / 1000;
+        const attack = dur * 0.1;
+        const release = dur * 0.1;
 
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(volume, now + attackTime);
-        gain.gain.setValueAtTime(volume, now + durSec - releaseTime);
-        gain.gain.linearRampToValueAtTime(0, now + durSec);
-        gain.connect(ctx.destination);
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0, now);
+        masterGain.gain.linearRampToValueAtTime(volume, now + attack);
+        masterGain.gain.setValueAtTime(volume, now + dur - release);
+        masterGain.gain.linearRampToValueAtTime(0, now + dur);
+        masterGain.connect(ctx.destination);
 
+        // Fundamental
         const osc1 = ctx.createOscillator();
         osc1.type = 'sine';
         osc1.frequency.setValueAtTime(freq, now);
-        osc1.connect(gain);
+        const g1 = ctx.createGain();
+        g1.gain.setValueAtTime(0.7, now);
+        osc1.connect(g1);
+        g1.connect(masterGain);
         osc1.start(now);
-        osc1.stop(now + durSec);
+        osc1.stop(now + dur);
 
-        const harmonicGain = ctx.createGain();
-        harmonicGain.gain.setValueAtTime(0.1, now);
-        harmonicGain.connect(gain);
-
+        // 2nd overtone
+        const o2amp = overtone2 !== undefined ? overtone2 : 0.15;
         const osc2 = ctx.createOscillator();
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(freq * 2, now);
-        osc2.connect(harmonicGain);
+        const g2 = ctx.createGain();
+        g2.gain.setValueAtTime(o2amp, now);
+        osc2.connect(g2);
+        g2.connect(masterGain);
         osc2.start(now);
-        osc2.stop(now + durSec);
+        osc2.stop(now + dur);
 
-        musicOscillators.push(osc1, osc2);
+        // 3rd overtone
+        const o3amp = overtone3 !== undefined ? overtone3 : 0.08;
+        const osc3 = ctx.createOscillator();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(freq * 3, now);
+        const g3 = ctx.createGain();
+        g3.gain.setValueAtTime(o3amp, now);
+        osc3.connect(g3);
+        g3.connect(masterGain);
+        osc3.start(now);
+        osc3.stop(now + dur);
+
+        musicOscillators.push(osc1, osc2, osc3);
         osc1.onended = () => {
-          musicOscillators = musicOscillators.filter(o => o !== osc1 && o !== osc2);
+          musicOscillators = musicOscillators.filter(o => o !== osc1 && o !== osc2 && o !== osc3);
         };
 
-        setTimeout(resolve, duration);
+        setTimeout(resolve, durationMs);
       } catch (e) {
         resolve();
       }
@@ -67,68 +85,85 @@ const Sound = (() => {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  // Sound effects matching Android volumes/durations
   async function playClick() {
     await playTone(800, 30, 0.15);
   }
 
   async function playTurnChange() {
-    await playTone(660, 80, 0.1);
-    await playTone(880, 120, 0.1);
+    await playTone(660, 80, 0.10);
+    await playTone(880, 120, 0.10);
   }
 
   async function playWordSubmit() {
-    await playTone(523, 60, 0.2);
+    await playTone(523, 60, 0.08);
   }
 
   async function playGameStart() {
-    await playTone(523, 100, 0.1);
-    await playTone(659, 100, 0.1);
-    await playTone(784, 150, 0.1);
+    await playTone(523, 100, 0.12);
+    await playTone(659, 100, 0.12);
+    await playTone(784, 150, 0.12);
   }
 
   async function playGameEnd() {
-    await playTone(784, 120, 0.1);
-    await playTone(659, 120, 0.1);
-    await playTone(523, 120, 0.1);
-    await playTone(784, 200, 0.1);
+    await playTone(784, 120, 0.12);
+    await playTone(659, 120, 0.12);
+    await playTone(523, 120, 0.12);
+    await playTone(784, 200, 0.14);
   }
 
   async function playTimerWarning() {
-    await playTone(880, 60, 0.1);
+    await playTone(880, 50, 0.08);
     await pause(100);
-    await playTone(880, 60, 0.1);
+    await playTone(880, 50, 0.08);
   }
 
+  // Melodies matching Android SoundManager exactly
   const melodies = {
     jazz: {
-      notes: [392, 440, 494, 523, 587, 659, 698, 784, 659, 587, 523, 494, 440, 392, 349, 330],
-      durations: Array(16).fill(300),
-      volume: 0.08,
-      gap: 50
+      notes:     [262, 294, 330, 392, 440, 392, 330, 349, 392, 330, 294, 330, 262, 294, 330, 392, 440, 392, 330, 294],
+      durations: [400, 300, 500, 300, 600, 300, 400, 300, 500, 400, 300, 500, 600, 300, 400, 300, 500, 400, 300, 600],
+      volume: 0.15,
+      overtone2: 0.15,
+      overtone3: 0.08,
+      gap: 50,
+      loopPause: 300
     },
     lullaby: {
-      notes: [262, 330, 392, 330, 262, 330, 392, 523, 494, 440, 392, 330, 294, 262, 247, 262],
-      durations: Array(16).fill(500),
-      volume: 0.06,
-      gap: 100
+      notes:     [262, 330, 392, 330, 262, 330, 392, 440, 392, 330, 294, 262, 294, 330, 294, 262],
+      durations: [600, 600, 800, 400, 600, 600, 800, 800, 600, 400, 600, 800, 600, 600, 400, 800],
+      volume: 0.12,
+      overtone2: 0.08,
+      overtone3: 0.03,
+      gap: 80,
+      loopPause: 500
     },
     bossa: {
-      notes: [330, 392, 440, 494, 523, 494, 440, 392, 349, 330, 294, 330, 349, 392, 440, 494],
-      durations: Array(16).fill(250),
-      volume: 0.07,
-      gap: 30
+      notes:     [330, 349, 392, 349, 330, 294, 330, 349, 392, 440, 494, 440, 392, 349, 330, 294, 262, 294, 330, 392],
+      durations: [300, 200, 400, 200, 300, 300, 200, 400, 300, 200, 400, 200, 300, 300, 200, 400, 500, 300, 300, 500],
+      volume: 0.14,
+      overtone2: 0.12,
+      overtone3: 0.06,
+      gap: 30,
+      loopPause: 400
     },
     blues: {
-      notes: [196, 220, 233, 262, 294, 262, 233, 220, 196, 175, 165, 175, 196, 220, 233, 262],
-      durations: Array(16).fill(400),
-      volume: 0.07,
-      gap: 80
+      notes:     [196, 220, 233, 262, 294, 262, 233, 220, 196, 262, 294, 330, 294, 262, 233, 196],
+      durations: [500, 300, 400, 600, 500, 400, 300, 500, 600, 400, 300, 500, 400, 500, 300, 700],
+      volume: 0.14,
+      overtone2: 0.20,
+      overtone3: 0.10,
+      gap: 60,
+      loopPause: 500
     },
     chiptune: {
-      notes: [523, 659, 784, 880, 784, 659, 523, 440, 523, 659, 784, 1047, 880, 784, 659, 523],
-      durations: Array(16).fill(150),
-      volume: 0.06,
-      gap: 20
+      notes:     [523, 587, 659, 784, 659, 587, 523, 494, 523, 659, 784, 880, 784, 659, 523, 494, 440, 523, 587, 659],
+      durations: [150, 150, 150, 300, 150, 150, 150, 300, 150, 150, 150, 300, 150, 150, 150, 300, 150, 150, 150, 300],
+      volume: 0.12,
+      overtone2: 0.25,
+      overtone3: 0.20,
+      gap: 20,
+      loopPause: 200
     }
   };
 
@@ -138,13 +173,21 @@ const Sound = (() => {
     if (!melody) return;
 
     let noteIndex = 0;
+    let stopped = false;
 
     function playNext() {
+      if (stopped) return;
       const freq = melody.notes[noteIndex];
       const dur = melody.durations[noteIndex];
-      playTone(freq, dur, melody.volume);
-      noteIndex = (noteIndex + 1) % melody.notes.length;
-      musicTimeoutId = setTimeout(playNext, dur + melody.gap);
+      playTone(freq, dur, melody.volume, melody.overtone2, melody.overtone3);
+      noteIndex++;
+
+      if (noteIndex >= melody.notes.length) {
+        noteIndex = 0;
+        musicTimeoutId = setTimeout(playNext, dur + melody.gap + melody.loopPause);
+      } else {
+        musicTimeoutId = setTimeout(playNext, dur + melody.gap);
+      }
     }
 
     playNext();
@@ -157,12 +200,10 @@ const Sound = (() => {
     }
     try {
       musicOscillators.forEach((osc) => {
-        try { osc.stop(); } catch (e) { /* already stopped */ }
+        try { osc.stop(); } catch (e) {}
       });
       musicOscillators = [];
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }
 
   return {

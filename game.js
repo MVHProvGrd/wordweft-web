@@ -542,15 +542,24 @@ const Game = (() => {
             readBtn.innerHTML = '&#128264; Read Story';
         }
 
-        // Copy button
-        const copyBtn = document.getElementById('btn-copy-story');
-        if (copyBtn) {
-            copyBtn.onclick = () => {
-                const text = document.getElementById('result-story-text').textContent;
-                navigator.clipboard.writeText(text).then(() => {
-                    copyBtn.textContent = 'Copied!';
-                    setTimeout(() => { copyBtn.innerHTML = '&#128203; Copy Story'; }, 2000);
-                });
+        // Share button
+        const shareBtn = document.getElementById('btn-copy-story');
+        if (shareBtn) {
+            shareBtn.innerHTML = '&#128228; Share Story';
+            shareBtn.onclick = () => {
+                const entry = {
+                    story: data.fullStory || document.getElementById('result-story-text').textContent,
+                    grade: data.storyGrade,
+                    genre: data.genreDetected,
+                    mood: data.moodDetected,
+                    illustration: data.illustration,
+                    tags: data.tags,
+                    playerNames: players.map(p => p.name),
+                    wordCount: data.totalWords || words.length
+                };
+                if (typeof App.shareStory === 'function') {
+                    App.shareStory(entry, shareBtn);
+                }
             };
         }
 

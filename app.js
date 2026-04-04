@@ -715,17 +715,13 @@ const App = (() => {
                     '<div class="history-preview">' + preview + '</div>' +
                     (tagsHtml ? '<div class="history-tags">' + tagsHtml + '</div>' : '') +
                     '<div class="history-actions">' +
-                        '<button class="btn btn-small btn-ghost btn-share-story">Copy</button>' +
+                        '<button class="btn btn-small btn-ghost btn-share-story">Share</button>' +
                         '<button class="btn btn-small btn-ghost btn-delete-story" style="color:var(--accent-red)">Delete</button>' +
                     '</div>';
 
-                // Bind copy
+                // Bind share
                 div.querySelector('.btn-share-story').addEventListener('click', () => {
-                    navigator.clipboard.writeText(entry.story || '').then(() => {
-                        const btn = div.querySelector('.btn-share-story');
-                        btn.textContent = 'Copied!';
-                        setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-                    });
+                    shareStory(entry, div.querySelector('.btn-share-story'));
                 });
 
                 // Bind delete
@@ -745,6 +741,138 @@ const App = (() => {
         }
     }
 
+    function gradeColor(grade) {
+        const g = (grade || '').charAt(0);
+        if (g === 'A') return '#10B981';
+        if (g === 'B') return '#6366F1';
+        if (g === 'C') return '#F59E0B';
+        return '#EF4444';
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxHeight) {
+        const words = text.split(' ');
+        let line = '';
+        let currentY = y;
+        for (let i = 0; i < words.length; i++) {
+            const test = line + words[i] + ' ';
+            if (ctx.measureText(test).width > maxWidth && line) {
+                ctx.fillText(line.trim(), x, currentY);
+                line = words[i] + ' ';
+                currentY += lineHeight;
+                if (currentY - y > maxHeight) {
+                    ctx.fillText('...', x, currentY);
+                    return;
+                }
+            } else {
+                line = test;
+            }
+        }
+        if (line.trim()) ctx.fillText(line.trim(), x, currentY);
+    }
+
+    async function generateStoryCard(entry) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1080;
+        canvas.height = 1920;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        ctx.fillStyle = '#13111C';
+        ctx.fillRect(0, 0, 1080, 1920);
+
+        // Subtle border
+        ctx.strokeStyle = 'rgba(99,102,241,0.3)';
+        ctx.lineWidth = 4;
+        ctx.roundRect(20, 20, 1040, 1880, 40);
+        ctx.stroke();
+
+        // Title
+        ctx.fillStyle = '#8B5CF6';
+        ctx.font = 'bold 48px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('WordWeft', 540, 100);
+
+        // Illustration
+        if (entry.illustration) {
+            ctx.font = '100px system-ui';
+            ctx.fillText(entry.illustration, 540, 230);
+        }
+
+        // Grade
+        ctx.fillStyle = gradeColor(entry.grade);
+        ctx.font = 'bold 180px system-ui';
+        ctx.fillText(entry.grade || 'C', 540, entry.illustration ? 430 : 350);
+
+        // Genre + mood
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '36px system-ui';
+        const genreMood = (entry.genre || '') + (entry.mood ? ' \u2022 ' + entry.mood : '');
+        ctx.fillText(genreMood, 540, entry.illustration ? 490 : 410);
+
+        // Tags
+        const tags = entry.tags || [];
+        if (tags.length > 0) {
+            ctx.font = '28px system-ui';
+            ctx.fillStyle = '#6366F1';
+            ctx.fillText(tags.join('  \u2022  '), 540, entry.illustration ? 540 : 460);
+        }
+
+        // Story text
+        const storyY = entry.illustration ? 620 : 540;
+        ctx.fillStyle = '#E5E7EB';
+        ctx.font = '32px system-ui';
+        ctx.textAlign = 'left';
+        wrapText(ctx, '\u201C' + (entry.story || '') + '\u201D', 80, storyY, 920, 44, 800);
+
+        // Players
+        ctx.fillStyle = '#6B7280';
+        ctx.font = '28px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText((entry.playerNames || []).join('  \u2022  '), 540, 1780);
+
+        // Word count
+        ctx.font = '24px system-ui';
+        ctx.fillText((entry.wordCount || 0) + ' words', 540, 1820);
+
+        // Watermark
+        ctx.fillStyle = '#4B5563';
+        ctx.font = '24px system-ui';
+        ctx.fillText('wordweft.net', 540, 1870);
+
+        return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    }
+
+    async function shareStory(entry, btn) {
+        const shareText = 'WordWeft Story (Grade: ' + (entry.grade || '?') + ')\n\n' +
+            '\u201C' + (entry.story || '') + '\u201D\n\n' +
+            'Genre: ' + (entry.genre || 'Unknown') + ' | Mood: ' + (entry.mood || 'Unknown') + '\n' +
+            'Players: ' + (entry.playerNames || []).join(', ');
+
+        try {
+            const blob = await generateStoryCard(entry);
+            if (navigator.share && blob) {
+                const file = new File([blob], 'wordweft-story.png', { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ text: shareText, files: [file] });
+                    return;
+                }
+            }
+            if (navigator.share) {
+                await navigator.share({ text: shareText });
+                return;
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') return; // user cancelled
+        }
+
+        // Fallback: clipboard
+        navigator.clipboard.writeText(shareText);
+        if (btn) {
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Share'; }, 2000);
+        }
+    }
+
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
@@ -756,6 +884,7 @@ const App = (() => {
         showScreen,
         requireProfile,
         checkAchievements,
-        saveStory
+        saveStory,
+        shareStory
     };
 })();
