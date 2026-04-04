@@ -16,6 +16,7 @@ const App = (() => {
                 const prof = profSnap.val() || {};
                 if (prof.color) { selectedColor = prof.color; localStorage.setItem('wordweft_color', prof.color); }
                 if (prof.musicStyle) { selectedMusicStyle = prof.musicStyle; localStorage.setItem('wordweft_music', prof.musicStyle); }
+                if (prof.waitingMusic) { selectedWaitingMusic = prof.waitingMusic; localStorage.setItem('wordweft_waiting_music', prof.waitingMusic); }
             } catch (e) {}
         }
 
@@ -307,7 +308,22 @@ const App = (() => {
             showScreen('tutorial');
         });
 
-        // Music preview
+        // Waiting music preview
+        let waitPreviewPlaying = false;
+        document.getElementById('btn-waiting-preview').addEventListener('click', () => {
+            const btn = document.getElementById('btn-waiting-preview');
+            if (waitPreviewPlaying) {
+                Sound.stopMusic();
+                btn.innerHTML = '&#9654; Preview';
+                waitPreviewPlaying = false;
+            } else {
+                Sound.startMusic(selectedWaitingMusic || 'jazz');
+                btn.innerHTML = '&#9632; Stop';
+                waitPreviewPlaying = true;
+            }
+        });
+
+        // Lobby music preview
         let previewPlaying = false;
         document.getElementById('btn-music-preview').addEventListener('click', () => {
             const btn = document.getElementById('btn-music-preview');
@@ -391,6 +407,7 @@ const App = (() => {
 
     let selectedColor = PLAYER_COLORS[0].value;
     let selectedMusicStyle = localStorage.getItem('wordweft_music') || 'jazz';
+    let selectedWaitingMusic = localStorage.getItem('wordweft_waiting_music') || 'jazz';
     let homeMusicMode = localStorage.getItem('wordweft_home_music') || 'same';
     let selectedStarter = '';
     let selectedTimer = 0;
@@ -649,7 +666,24 @@ const App = (() => {
             });
         }
 
-        // Music style selector
+        // Waiting music selector
+        const waitGrid = document.getElementById('waiting-music-grid');
+        if (waitGrid) {
+            waitGrid.querySelectorAll('.btn-mode').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.waitmusic === selectedWaitingMusic);
+                btn.onclick = () => {
+                    waitGrid.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedWaitingMusic = btn.dataset.waitmusic;
+                    localStorage.setItem('wordweft_waiting_music', selectedWaitingMusic);
+                    if (Auth.uid) {
+                        db.ref('users/' + Auth.uid + '/profile/waitingMusic').set(selectedWaitingMusic);
+                    }
+                };
+            });
+        }
+
+        // Lobby music selector
         const musicGrid = document.getElementById('music-style-grid');
         if (musicGrid) {
             musicGrid.querySelectorAll('.btn-mode').forEach(btn => {
@@ -661,11 +695,6 @@ const App = (() => {
                     localStorage.setItem('wordweft_music', selectedMusicStyle);
                     if (Auth.uid) {
                         db.ref('users/' + Auth.uid + '/profile/musicStyle').set(selectedMusicStyle);
-                    }
-                    // Preview the selected music
-                    if (typeof Sound !== 'undefined') {
-                        Sound.stopMusic();
-                        Sound.startMusic(selectedMusicStyle);
                     }
                 };
             });
@@ -1159,6 +1188,7 @@ const App = (() => {
         checkAchievements,
         saveStory,
         shareStory,
-        get selectedMusicStyle() { return selectedMusicStyle; }
+        get selectedMusicStyle() { return selectedMusicStyle; },
+        get selectedWaitingMusic() { return selectedWaitingMusic; }
     };
 })();

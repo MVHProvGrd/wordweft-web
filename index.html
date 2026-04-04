@@ -16,6 +16,13 @@
     <!-- Landing / Home Screen -->
     <div id="screen-home" class="screen active">
         <div class="home-container">
+            <div class="top-icon-bar">
+                <button class="top-icon-btn" id="btn-leaderboard" title="Leaderboard">&#127942;</button>
+                <button class="top-icon-btn" id="btn-achievements" title="Achievements">&#127941;</button>
+                <button class="top-icon-btn" id="btn-friends" title="Friends">&#129309;</button>
+                <button class="top-icon-btn" id="btn-history" title="History">&#128214;</button>
+                <button class="top-icon-btn" id="btn-profile" title="Settings">&#9881;</button>
+            </div>
             <div class="logo-section">
                 <img src="wordweft_logo.png" alt="WordWeft" class="logo-img">
                 <h1>WordWeft</h1>
@@ -94,13 +101,6 @@
                 </ol>
             </div>
 
-            <div class="footer-nav">
-                <button class="footer-btn" id="btn-leaderboard">&#127942; Leaders</button>
-                <button class="footer-btn" id="btn-profile">&#128100; Profile</button>
-                <button class="footer-btn" id="btn-achievements">&#127941; Awards</button>
-                <button class="footer-btn" id="btn-history">&#128214; History</button>
-                <button class="footer-btn" id="btn-friends">&#129309; Friends</button>
-            </div>
         </div>
     </div>
 
@@ -154,6 +154,16 @@
 
                 <h4>Color</h4>
                 <div class="color-grid" id="profile-color-grid"></div>
+
+                <h4>Waiting Music</h4>
+                <div class="mode-options" id="waiting-music-grid">
+                    <button class="btn btn-mode" data-waitmusic="jazz">Jazz</button>
+                    <button class="btn btn-mode" data-waitmusic="lullaby">Lullaby</button>
+                    <button class="btn btn-mode" data-waitmusic="bossa">Bossa</button>
+                    <button class="btn btn-mode" data-waitmusic="blues">Blues</button>
+                    <button class="btn btn-mode" data-waitmusic="chiptune">Chiptune</button>
+                </div>
+                <button id="btn-waiting-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
 
                 <h4>Lobby Music</h4>
                 <div class="mode-options" id="music-style-grid">
@@ -245,22 +255,22 @@
         <div class="tutorial-container">
             <div class="tutorial-slides">
                 <div class="tutorial-slide" id="tutorial-slide-0">
-                    <div class="tutorial-icon">\u{1F4DD}</div>
+                    <div class="tutorial-icon">📝</div>
                     <h2>Welcome to WordWeft!</h2>
                     <p>A collaborative storytelling game where you and your friends build stories together, one word at a time.</p>
                 </div>
                 <div class="tutorial-slide hidden" id="tutorial-slide-1">
-                    <div class="tutorial-icon">\u{1F91D}</div>
+                    <div class="tutorial-icon">🤝</div>
                     <h2>Take Turns</h2>
                     <p>Each player takes turns adding words to the story. Choose wisely - your words shape the narrative!</p>
                 </div>
                 <div class="tutorial-slide hidden" id="tutorial-slide-2">
-                    <div class="tutorial-icon">\u{1F510}</div>
+                    <div class="tutorial-icon">🔐</div>
                     <h2>Secret Words</h2>
                     <p>With Hidden Objectives enabled, you get a secret word to sneak into the story. Other players can try to guess your word!</p>
                 </div>
                 <div class="tutorial-slide hidden" id="tutorial-slide-3">
-                    <div class="tutorial-icon">\u{1F3C6}</div>
+                    <div class="tutorial-icon">🏆</div>
                     <h2>Get Graded</h2>
                     <p>When the story is done, it gets graded on coherence, creativity, humor, vocabulary, and flow. Aim for an A+!</p>
                 </div>

@@ -103,8 +103,8 @@ const Game = (() => {
                 if (typeof Sound !== 'undefined') {
                     if (isMyTurn) {
                         Sound.stopMusic();
-                    } else if (typeof App !== 'undefined' && App.selectedMusicStyle) {
-                        Sound.startMusic(App.selectedMusicStyle);
+                    } else if (typeof App !== 'undefined') {
+                        Sound.startMusic(App.selectedWaitingMusic || App.selectedMusicStyle || 'jazz');
                     }
                 }
             }
