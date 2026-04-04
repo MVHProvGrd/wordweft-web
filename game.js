@@ -42,7 +42,6 @@ const Game = (() => {
                     name: p.name,
                     color: p.color,
                     avatar: p.avatar || '',
-                    isAI: p.isAI || false,
                     isHost: p.isHost || false,
                     uid: p.uid
                 });
@@ -85,6 +84,16 @@ const Game = (() => {
                 if (typeof Sound !== 'undefined') Sound.playTurnChange();
                 if (turnTimerSeconds > 0) startTimer();
                 hasVotedToExtend = false;
+
+                // Waiting-for-turn music: play when it's NOT my turn, stop when it IS
+                const isMyTurn = currentPlayerIndex === Room.myIndex;
+                if (typeof Sound !== 'undefined') {
+                    if (isMyTurn) {
+                        Sound.stopMusic();
+                    } else if (typeof App !== 'undefined' && App.selectedMusicStyle) {
+                        Sound.startMusic(App.selectedMusicStyle);
+                    }
+                }
             }
             // Show +30s button for non-active players when timer is on
             const extendBtn = document.getElementById('btn-time-extend');
@@ -125,7 +134,7 @@ const Game = (() => {
         Room.listen('votes/finish', (snap) => {
             finishVoteCount = snap.numChildren();
             const voteEl = document.getElementById('vote-count');
-            const humanCount = players.filter(p => !p.isAI).length;
+            const humanCount = players.length;
             if (voteEl) {
                 voteEl.textContent = finishVoteCount > 0 ? '(' + finishVoteCount + '/' + humanCount + ')' : '';
             }
@@ -138,7 +147,7 @@ const Game = (() => {
         // Time extension votes
         Room.listen('meta/timeExtensionVotes', (snap) => {
             const votes = snap.numChildren();
-            const humanCount = players.filter(p => !p.isAI).length;
+            const humanCount = players.length;
             const eligible = Math.max(1, humanCount - 1);
             const el = document.getElementById('extend-vote-count');
             if (el) el.textContent = votes > 0 ? '(' + votes + '/' + eligible + ')' : '';
@@ -178,6 +187,7 @@ const Game = (() => {
         });
 
         // Hidden objectives
+        let previousObjectives = {};
         Room.listen('objectives', (snap) => {
             const data = snap.val();
             const area = document.getElementById('secret-word-area');
@@ -194,9 +204,31 @@ const Game = (() => {
                 if (myObj.completed) {
                     wordEl.style.textDecoration = 'line-through';
                     wordEl.style.opacity = '0.5';
+                } else {
+                    wordEl.style.textDecoration = 'none';
+                    wordEl.style.opacity = '1';
                 }
             }
+
+            // Check for newly completed objectives (notifications)
+            Object.entries(data).forEach(([idx, obj]) => {
+                const prevObj = previousObjectives[idx];
+                if (obj.completed && (!prevObj || !prevObj.completed)) {
+                    const player = players[parseInt(idx)];
+                    if (player && parseInt(idx) !== Room.myIndex) {
+                        showObjectiveNotification(player, obj.secretWord || '???');
+                    }
+                }
+            });
+            previousObjectives = JSON.parse(JSON.stringify(data));
         });
+
+        // Guess word button
+        document.getElementById('btn-guess-word').addEventListener('click', openGuessModal);
+        document.getElementById('btn-close-guess').addEventListener('click', () => {
+            document.getElementById('guess-modal').classList.add('hidden');
+        });
+        document.getElementById('btn-submit-guess').addEventListener('click', submitGuess);
 
         // Result
         Room.listen('result', (snap) => {
@@ -219,7 +251,6 @@ const Game = (() => {
                 <span class="player-item-avatar">${p.avatar || '\u{1F60A}'}</span>
                 <span class="player-item-name" style="color: ${getPlayerColor(p.color)}">${p.name}</span>
                 ${p.isHost ? '<span class="player-item-host">Host</span>' : ''}
-                ${p.isAI ? '<span class="player-item-host" style="color:#F59E0B;background:rgba(245,158,11,0.15)">AI</span>' : ''}
             `;
             list.appendChild(item);
         });
@@ -446,15 +477,25 @@ const Game = (() => {
 
     function showResults(data) {
         if (timerInterval) clearInterval(timerInterval);
-        if (typeof Sound !== 'undefined') Sound.playGameEnd();
+        if (typeof Sound !== 'undefined') { Sound.stopMusic(); Sound.playGameEnd(); }
 
         App.showScreen('results');
+
+        // Grade color
+        const gradeChar = (data.storyGrade || 'C').charAt(0);
+        const gradeColors = { A: '#10B981', B: '#6366F1', C: '#F59E0B', D: '#EF4444', F: '#EF4444' };
+        const gradeColor = gradeColors[gradeChar] || '#F59E0B';
 
         // Illustration + Grade + Genre + Tags
         const illustrationEl = document.getElementById('result-illustration');
         if (illustrationEl) illustrationEl.textContent = data.illustration || '';
 
-        document.getElementById('result-grade').textContent = data.storyGrade || 'C';
+        const gradeEl = document.getElementById('result-grade');
+        gradeEl.textContent = data.storyGrade || 'C';
+        gradeEl.style.cssText = 'font-size:72px;font-weight:900;color:' + gradeColor;
+        gradeEl.style.webkitBackgroundClip = '';
+        gradeEl.style.webkitTextFillColor = '';
+
         document.getElementById('result-genre').textContent =
             (data.genreDetected || '') + (data.moodDetected ? ' \u2022 ' + data.moodDetected : '');
 
@@ -465,10 +506,22 @@ const Game = (() => {
             tagsEl.innerHTML = '';
         }
 
-        // Player-colored story words
+        // Summary card
+        const summaryEl = document.getElementById('result-summary');
+        if (summaryEl) {
+            summaryEl.textContent = data.summary || '';
+            summaryEl.classList.toggle('hidden', !data.summary);
+        }
+
+        // Player-colored story words with quotes
         const resultStoryEl = document.getElementById('result-story-text');
         resultStoryEl.innerHTML = '';
         if (words.length > 0) {
+            // Add opening quote
+            const openQuote = document.createElement('span');
+            openQuote.textContent = '\u201C';
+            openQuote.style.color = '#666680';
+            resultStoryEl.appendChild(openQuote);
             words.forEach((w, i) => {
                 const span = document.createElement('span');
                 const player = players.find(p => p.id === w.playerId);
@@ -477,6 +530,10 @@ const Game = (() => {
                 span.textContent = (i > 0 ? ' ' : '') + w.word;
                 resultStoryEl.appendChild(span);
             });
+            const closeQuote = document.createElement('span');
+            closeQuote.textContent = '\u201D';
+            closeQuote.style.color = '#666680';
+            resultStoryEl.appendChild(closeQuote);
         } else {
             resultStoryEl.textContent = data.fullStory || '';
         }
@@ -496,36 +553,47 @@ const Game = (() => {
                 bar.className = 'score-fill ' + s.color;
                 setTimeout(() => { bar.style.width = s.value + '%'; }, 100);
             }
-            if (val) val.textContent = s.value;
+            if (val) val.textContent = s.value + '/100';
         });
 
-        // Player stats
-        const statsList = document.getElementById('player-stats-list');
-        statsList.innerHTML = '';
-        if (data.playerStats) {
-            const statsArray = Array.isArray(data.playerStats) ? data.playerStats : Object.values(data.playerStats);
-            statsArray.sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
-            statsArray.forEach(ps => {
-                const card = document.createElement('div');
-                card.className = 'player-stat-card';
-                card.innerHTML = `
-                    <div class="player-stat-header">
-                        <span class="player-stat-avatar">${ps.playerAvatar || '\u{1F60A}'}</span>
-                        <div style="flex:1">
-                            <div class="player-stat-name">${ps.playerName || ps.player?.name || '?'}</div>
-                            <div class="player-stat-title">${ps.title || ''}</div>
-                        </div>
-                        <span class="player-stat-impact">${ps.impactScore || 0}</span>
-                    </div>
-                    <div class="player-stat-details">
-                        <span>${ps.wordCount || 0} words</span>
-                        <span>${ps.languageLevel || 'A1'} ${ps.languageLevelName || ''}</span>
-                        <span>Best: ${ps.bestWord || '-'}</span>
-                    </div>
-                `;
-                statsList.appendChild(card);
+        // Hidden objectives results
+        let objectivesData = null;
+        const objectivesPromise = Room.ref ? Room.ref.child('objectives').once('value').then(snap => {
+            objectivesData = snap.val();
+            if (!objectivesData) return;
+            const container = document.getElementById('result-objectives');
+            if (!container) return;
+            container.innerHTML = '<h4 class="result-section-title">Hidden Objectives</h4>';
+            container.classList.remove('hidden');
+            Object.entries(objectivesData).forEach(([idx, obj]) => {
+                const player = players[parseInt(idx)];
+                if (!player || !obj.secretWord) return;
+                const word = obj.secretWord || obj.word;
+                const succeeded = obj.completed && !obj.busted;
+                const status = obj.completed ? (obj.busted ? 'Busted!' : 'Snuck it in!') : 'Failed';
+                const cls = succeeded ? 'obj-success' : 'obj-fail';
+                const points = succeeded ? '+15' : '-5';
+                const pointsCls = succeeded ? 'obj-success' : 'obj-fail';
+                const item = document.createElement('div');
+                item.className = 'objective-result-item';
+                item.innerHTML = '<span class="player-stat-avatar">' + (player.avatar || '\u{1F60A}') + '</span>' +
+                    '<span style="flex:1">' + player.name + ': "' + word + '"<br><span class="' + cls + '" style="font-size:12px">' + status + '</span></span>' +
+                    '<span class="' + pointsCls + '" style="font-weight:700;font-size:16px">' + points + '</span>';
+                container.appendChild(item);
             });
-        }
+        }) : Promise.resolve();
+
+        // Process player stats
+        const statsArray = data.playerStats ?
+            (Array.isArray(data.playerStats) ? data.playerStats : Object.values(data.playerStats)) : [];
+        statsArray.sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
+
+        // XP Breakdown + Podium + Report Cards (after objectives loaded for XP calc)
+        objectivesPromise.then(() => {
+            renderXPBreakdown(data, statsArray, objectivesData);
+            renderPodium(statsArray);
+            renderReportCards(data, statsArray);
+        });
 
         // Confetti for A grades
         if ((data.storyGrade || '').startsWith('A')) {
@@ -539,13 +607,15 @@ const Game = (() => {
         const readBtn = document.getElementById('btn-read-story');
         if (readBtn) {
             readBtn.onclick = toggleTTS;
-            readBtn.innerHTML = '&#128264; Read Story';
+            readBtn.innerHTML = '&#128264;';
+            readBtn.title = 'Read Story';
         }
 
         // Share button
         const shareBtn = document.getElementById('btn-copy-story');
         if (shareBtn) {
-            shareBtn.innerHTML = '&#128228; Share Story';
+            shareBtn.innerHTML = '&#128228;';
+            shareBtn.title = 'Share Story';
             shareBtn.onclick = () => {
                 const entry = {
                     story: data.fullStory || document.getElementById('result-story-text').textContent,
@@ -562,31 +632,130 @@ const Game = (() => {
                 }
             };
         }
+    }
 
-        // Hidden objectives results
-        if (Room.ref) {
-            Room.ref.child('objectives').once('value').then(snap => {
-                const objectives = snap.val();
-                if (!objectives) return;
-                const container = document.getElementById('result-objectives');
-                if (!container) return;
-                container.innerHTML = '<h4>Hidden Objectives</h4>';
-                container.classList.remove('hidden');
-                Object.entries(objectives).forEach(([idx, obj]) => {
-                    const player = players[parseInt(idx)];
-                    if (!player || !obj.word) return;
-                    const status = obj.completed ? (obj.busted ? 'Busted!' : 'Snuck it in!') : 'Failed';
-                    const cls = obj.completed && !obj.busted ? 'obj-success' : 'obj-fail';
-                    const item = document.createElement('div');
-                    item.className = 'objective-result-item';
-                    item.innerHTML = '<span class="player-stat-avatar">' + (player.avatar || '\u{1F60A}') + '</span>' +
-                        '<span style="flex:1">' + player.name + '</span>' +
-                        '<span class="objective-word">' + obj.word + '</span>' +
-                        '<span class="' + cls + '">' + status + '</span>';
-                    container.appendChild(item);
-                });
-            });
-        }
+    function renderXPBreakdown(data, statsArray, objectivesData) {
+        const container = document.getElementById('result-xp-breakdown');
+        const list = document.getElementById('xp-breakdown-list');
+        if (!container || !list || statsArray.length === 0) return;
+        container.classList.remove('hidden');
+        list.innerHTML = '';
+
+        const maxImpact = Math.max(...statsArray.map(s => s.impactScore || 0));
+        const totalWords = data.totalWords || words.length || 0;
+
+        statsArray.forEach((ps, i) => {
+            const isWinner = (ps.impactScore || 0) === maxImpact;
+            let xp = 50;
+            xp += Math.round((ps.impactScore || 0) / 2);
+            const grade = (data.storyGrade || '').charAt(0);
+            xp += grade === 'A' ? 40 : grade === 'B' ? 25 : grade === 'C' ? 15 : 5;
+            if (isWinner) xp += 30;
+            // Objective bonus
+            const playerIdx = players.findIndex(p => p.name === ps.playerName);
+            if (objectivesData && objectivesData[playerIdx]) {
+                const obj = objectivesData[playerIdx];
+                if (obj.completed && !obj.busted) xp += 15;
+                else xp -= 5;
+            }
+            xp = Math.round(xp * Math.min(1.0, totalWords / 20));
+            xp = Math.max(5, xp);
+
+            // Calculate level
+            const level = Math.floor(xp / 100) + 1;
+
+            const row = document.createElement('div');
+            row.className = 'xp-row';
+            row.innerHTML = '<span class="xp-row-name">' + (ps.playerName || '?') + '</span>' +
+                '<span class="xp-row-value">+' + xp + ' XP</span>' +
+                '<span class="xp-row-level">Lv.' + level + '</span>';
+            list.appendChild(row);
+        });
+
+        // Also show the single XP earned text
+        const xpSection = document.getElementById('xp-earned-section');
+        if (xpSection) xpSection.classList.add('hidden');
+    }
+
+    function renderPodium(statsArray) {
+        const container = document.getElementById('result-podium');
+        const display = document.getElementById('podium-display');
+        if (!container || !display || statsArray.length < 2) return;
+        container.classList.remove('hidden');
+        display.innerHTML = '';
+
+        // Podium order: 2nd, 1st, 3rd (visual placement)
+        const sorted = [...statsArray].sort((a, b) => (b.impactScore || 0) - (a.impactScore || 0));
+        const podiumOrder = [];
+        if (sorted[1]) podiumOrder.push({ ...sorted[1], rank: 2 });
+        if (sorted[0]) podiumOrder.push({ ...sorted[0], rank: 1 });
+        if (sorted[2]) podiumOrder.push({ ...sorted[2], rank: 3 });
+
+        const heights = { 1: 120, 2: 90, 3: 70 };
+        const colors = { 1: '#B8860B', 2: '#9CA3AF', 3: '#CD7F32' };
+        const labels = { 1: '1st', 2: '2nd', 3: '3rd' };
+
+        podiumOrder.forEach(ps => {
+            const col = document.createElement('div');
+            col.className = 'podium-col';
+            const player = players.find(p => p.name === ps.playerName);
+            col.innerHTML =
+                '<div class="podium-avatar">' + (ps.playerAvatar || player?.avatar || '\u{1F60A}') + '</div>' +
+                '<div class="podium-name" style="color:' + (player ? getPlayerColor(player.color) : '#fff') + '">' +
+                    (ps.playerName || '?') + '</div>' +
+                '<div class="podium-score">' + (ps.impactScore || 0) + '</div>' +
+                '<div class="podium-bar" style="height:' + heights[ps.rank] + 'px;background:' + colors[ps.rank] + '">' +
+                    '<span class="podium-rank">' + labels[ps.rank] + '</span>' +
+                '</div>';
+            display.appendChild(col);
+        });
+    }
+
+    function renderReportCards(data, statsArray) {
+        const container = document.getElementById('result-report-cards');
+        const list = document.getElementById('report-cards-list');
+        if (!container || !list || statsArray.length === 0) return;
+        container.classList.remove('hidden');
+        list.innerHTML = '';
+
+        statsArray.forEach((ps, rank) => {
+            const player = players.find(p => p.name === ps.playerName);
+            const card = document.createElement('div');
+            card.className = 'report-card';
+            const playerColor = player ? getPlayerColor(player.color) : '#A0A0B8';
+
+            // Determine comment
+            const uniqueRatio = (ps.wordCount || 0) > 0 ? (ps.uniqueWords || 0) / (ps.wordCount || 1) : 0;
+            let comment = '';
+            if (uniqueRatio >= 1.0) comment = 'Never repeated a word. Every contribution was fresh and unique.';
+            else if (uniqueRatio >= 0.9) comment = 'Almost never repeated a word. A remarkably varied vocabulary.';
+            else if (uniqueRatio >= 0.7) comment = 'Good variety in word choices with minimal repetition.';
+            else comment = 'Contributed steadily to the story with reliable word choices.';
+
+            card.innerHTML =
+                '<div class="report-card-header">' +
+                    '<span class="report-rank">#' + (rank + 1) + '</span>' +
+                    '<span class="player-stat-avatar">' + (ps.playerAvatar || player?.avatar || '\u{1F60A}') + '</span>' +
+                    '<div style="flex:1">' +
+                        '<div class="player-stat-name" style="color:' + playerColor + '">' + (ps.playerName || '?') + '</div>' +
+                        '<div class="player-stat-title">' + (ps.title || '') + '</div>' +
+                    '</div>' +
+                    '<div class="report-impact">' + (ps.impactScore || 0) + '</div>' +
+                '</div>' +
+                '<p class="report-comment">' + comment + '</p>' +
+                '<div class="report-stats-grid">' +
+                    '<div class="report-stat"><div class="report-stat-value">' + (ps.wordCount || 0) + '</div><div class="report-stat-label">Words</div></div>' +
+                    '<div class="report-stat"><div class="report-stat-value">' + (ps.uniqueWords || ps.wordCount || 0) + '</div><div class="report-stat-label">Unique</div></div>' +
+                    '<div class="report-stat"><div class="report-stat-value">' + (ps.avgWordLength || '0') + '</div><div class="report-stat-label">Avg Len</div></div>' +
+                '</div>' +
+                '<div class="report-language">' +
+                    '<span class="lang-badge">' + (ps.languageLevel || 'A1') + '</span> ' +
+                    '<span class="lang-name">' + (ps.languageLevelName || 'Beginner') + '</span>' +
+                    (ps.bestWord ? '<span class="report-best">Best word: "' + ps.bestWord + '"</span>' : '') +
+                '</div>' +
+                (ps.longestWord ? '<div class="report-longest">Longest word: "' + ps.longestWord + '"</div>' : '');
+            list.appendChild(card);
+        });
     }
 
     // Text-to-Speech
@@ -813,6 +982,78 @@ const Game = (() => {
             container.appendChild(particle);
         }
         setTimeout(() => container.remove(), 3500);
+    }
+
+    // --- Secret word guess UI ---
+    let guessTargetIdx = null;
+    function openGuessModal() {
+        const modal = document.getElementById('guess-modal');
+        const list = document.getElementById('guess-player-list');
+        const inputArea = document.getElementById('guess-input-area');
+        inputArea.classList.add('hidden');
+        guessTargetIdx = null;
+        list.innerHTML = '';
+        players.forEach((p, i) => {
+            if (i === Room.myIndex) return;
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-ghost guess-player-btn';
+            btn.innerHTML = '<span class="player-stat-avatar">' + (p.avatar || '\u{1F60A}') + '</span> ' + p.name;
+            btn.style.color = getPlayerColor(p.color);
+            btn.addEventListener('click', () => {
+                guessTargetIdx = i;
+                list.querySelectorAll('.guess-player-btn').forEach(b => b.style.outline = 'none');
+                btn.style.outline = '2px solid ' + getPlayerColor(p.color);
+                inputArea.classList.remove('hidden');
+                document.getElementById('guess-word-input').focus();
+            });
+            list.appendChild(btn);
+        });
+        modal.classList.remove('hidden');
+    }
+
+    function submitGuess() {
+        if (guessTargetIdx === null) return;
+        const input = document.getElementById('guess-word-input');
+        const guess = input.value.trim().toLowerCase();
+        if (!guess) return;
+        input.value = '';
+
+        // Check against Firebase objectives
+        if (Room.ref) {
+            Room.ref.child('objectives/' + guessTargetIdx).once('value').then(snap => {
+                const obj = snap.val();
+                if (!obj || !obj.secretWord) return;
+                const correct = guess === obj.secretWord.toLowerCase();
+                if (correct) {
+                    Room.ref.child('objectives/' + guessTargetIdx + '/busted').set(true);
+                    Room.ref.child('objectives/' + guessTargetIdx + '/bustedBy').set(Room.myIndex);
+                    showToast('Correct! You busted ' + (players[guessTargetIdx]?.name || '?') + '\'s word!', '#10B981');
+                } else {
+                    showToast('Wrong guess! That\'s not their word.', '#EF4444');
+                }
+            });
+        }
+        document.getElementById('guess-modal').classList.add('hidden');
+    }
+
+    function showObjectiveNotification(player, word) {
+        const toast = document.createElement('div');
+        toast.className = 'objective-toast';
+        toast.innerHTML = '<span>' + (player.avatar || '\u{1F60A}') + '</span> <b>' +
+            player.name + '</b> snuck in their secret word!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+
+    function showToast(message, color) {
+        const toast = document.createElement('div');
+        toast.className = 'objective-toast';
+        toast.style.borderColor = color;
+        toast.innerHTML = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 2500);
     }
 
     function cleanup() {

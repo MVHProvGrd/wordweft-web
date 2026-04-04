@@ -27,6 +27,15 @@ const App = (() => {
         }
 
         bindEvents();
+
+        // Start home music on first user interaction (AudioContext needs gesture)
+        const startHomeMusic = () => {
+            if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
+            document.removeEventListener('click', startHomeMusic);
+            document.removeEventListener('touchstart', startHomeMusic);
+        };
+        document.addEventListener('click', startHomeMusic, { once: true });
+        document.addEventListener('touchstart', startHomeMusic, { once: true });
     }
 
     function bindEvents() {
@@ -423,6 +432,8 @@ const App = (() => {
         // Clean up URL params when leaving game
         if (name === 'home') {
             window.history.replaceState({}, '', window.location.pathname);
+            // Play home screen music
+            if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
         }
     }
 
@@ -942,6 +953,7 @@ const App = (() => {
         requireProfile,
         checkAchievements,
         saveStory,
-        shareStory
+        shareStory,
+        get selectedMusicStyle() { return selectedMusicStyle; }
     };
 })();

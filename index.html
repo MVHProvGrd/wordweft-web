@@ -223,9 +223,10 @@
             <div class="players-section">
                 <h4>Players <span id="player-count">(0/8)</span></h4>
                 <div id="player-list" class="player-list"></div>
+                <p class="lobby-invite-hint">Share the room code with friends!</p>
             </div>
 
-            <div id="lobby-status" class="lobby-status">
+            <div id="lobby-status" class="lobby-status hidden">
                 Waiting for host to start...
             </div>
 
@@ -295,8 +296,8 @@
                     <span id="game-mode-label" class="game-mode-label"></span>
                 </div>
                 <div class="game-header-right">
-                    <button id="btn-vote-finish" class="btn btn-small btn-ghost">
-                        End Story <span id="vote-count"></span>
+                    <button id="btn-vote-finish" class="btn btn-small btn-finish">
+                        Finish Story <span id="vote-count"></span>
                     </button>
                 </div>
             </div>
@@ -335,8 +336,24 @@
 
             <!-- Secret word (hidden objectives) -->
             <div id="secret-word-area" class="secret-word-area hidden">
-                <span class="secret-label">Your secret word:</span>
-                <span id="secret-word" class="secret-word"></span>
+                <div class="secret-word-row">
+                    <span class="secret-label">Your secret word:</span>
+                    <span id="secret-word" class="secret-word"></span>
+                </div>
+                <button id="btn-guess-word" class="btn btn-small btn-ghost" style="color:#F59E0B;margin-top:6px">Guess a Player's Word</button>
+            </div>
+            <!-- Guess modal -->
+            <div id="guess-modal" class="modal-overlay hidden">
+                <div class="modal-card">
+                    <h3>Guess Secret Word</h3>
+                    <p class="modal-desc">Pick a player, then guess their secret word</p>
+                    <div id="guess-player-list" class="guess-player-list"></div>
+                    <div id="guess-input-area" class="guess-input-area hidden">
+                        <input type="text" id="guess-word-input" class="word-input" placeholder="Type your guess..." autocomplete="off">
+                        <button id="btn-submit-guess" class="btn btn-primary btn-small">Guess!</button>
+                    </div>
+                    <button id="btn-close-guess" class="btn btn-ghost btn-small" style="margin-top:8px">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
@@ -353,55 +370,65 @@
                 <div id="result-tags" class="result-tags"></div>
             </div>
 
+            <div id="result-summary" class="result-summary-card"></div>
+
             <div class="result-story-card">
-                <h4>The Story</h4>
+                <div class="result-story-header">
+                    <h4>The Story</h4>
+                    <div class="result-story-actions">
+                        <button id="btn-read-story" class="btn btn-icon" title="Read aloud">&#128264;</button>
+                        <button id="btn-copy-story" class="btn btn-icon" title="Share">&#128228;</button>
+                    </div>
+                </div>
                 <p id="result-story-text" class="result-story-text"></p>
             </div>
 
-            <div style="display:flex;gap:8px;margin-bottom:12px">
-                <button id="btn-read-story" class="btn btn-small btn-secondary">
-                    &#128264; Read Story
-                </button>
-                <button id="btn-copy-story" class="btn btn-small btn-secondary">
-                    &#128228; Share Story
-                </button>
-            </div>
-
-            <div class="score-bars">
-                <div class="score-bar-item">
-                    <span class="score-label">Coherence</span>
-                    <div class="score-bar"><div id="bar-coherence" class="score-fill"></div></div>
-                    <span id="score-coherence" class="score-value"></span>
-                </div>
-                <div class="score-bar-item">
-                    <span class="score-label">Creativity</span>
-                    <div class="score-bar"><div id="bar-creativity" class="score-fill"></div></div>
-                    <span id="score-creativity" class="score-value"></span>
-                </div>
-                <div class="score-bar-item">
-                    <span class="score-label">Humor</span>
-                    <div class="score-bar"><div id="bar-humor" class="score-fill"></div></div>
-                    <span id="score-humor" class="score-value"></span>
-                </div>
-                <div class="score-bar-item">
-                    <span class="score-label">Vocabulary</span>
-                    <div class="score-bar"><div id="bar-vocabulary" class="score-fill"></div></div>
-                    <span id="score-vocabulary" class="score-value"></span>
-                </div>
-                <div class="score-bar-item">
-                    <span class="score-label">Flow</span>
-                    <div class="score-bar"><div id="bar-flow" class="score-fill"></div></div>
-                    <span id="score-flow" class="score-value"></span>
+            <div class="result-section-card">
+                <h4 class="result-section-title">Story Scores</h4>
+                <div class="score-bars">
+                    <div class="score-bar-item">
+                        <span class="score-label">Coherence</span>
+                        <div class="score-bar"><div id="bar-coherence" class="score-fill"></div></div>
+                        <span id="score-coherence" class="score-value"></span>
+                    </div>
+                    <div class="score-bar-item">
+                        <span class="score-label">Creativity</span>
+                        <div class="score-bar"><div id="bar-creativity" class="score-fill"></div></div>
+                        <span id="score-creativity" class="score-value"></span>
+                    </div>
+                    <div class="score-bar-item">
+                        <span class="score-label">Humor</span>
+                        <div class="score-bar"><div id="bar-humor" class="score-fill"></div></div>
+                        <span id="score-humor" class="score-value"></span>
+                    </div>
+                    <div class="score-bar-item">
+                        <span class="score-label">Vocabulary</span>
+                        <div class="score-bar"><div id="bar-vocabulary" class="score-fill"></div></div>
+                        <span id="score-vocabulary" class="score-value"></span>
+                    </div>
+                    <div class="score-bar-item">
+                        <span class="score-label">Flow</span>
+                        <div class="score-bar"><div id="bar-flow" class="score-fill"></div></div>
+                        <span id="score-flow" class="score-value"></span>
+                    </div>
                 </div>
             </div>
-
-            <h4>Player Stats</h4>
-            <div id="player-stats-list" class="player-stats-list"></div>
 
             <div id="result-objectives" class="result-objectives hidden"></div>
 
-            <div id="xp-earned-section" class="xp-earned-section hidden">
-                <span id="xp-earned-text" class="xp-earned-text"></span>
+            <div id="result-xp-breakdown" class="result-section-card hidden">
+                <h4 class="result-section-title">XP Earned</h4>
+                <div id="xp-breakdown-list"></div>
+            </div>
+
+            <div id="result-podium" class="result-podium-section hidden">
+                <h4 class="result-section-title" style="text-align:center">Final Rankings</h4>
+                <div id="podium-display" class="podium-display"></div>
+            </div>
+
+            <div id="result-report-cards" class="result-section-card hidden">
+                <h4 class="result-section-title">Player Report Cards</h4>
+                <div id="report-cards-list"></div>
             </div>
 
             <div class="result-buttons">
