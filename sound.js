@@ -4,11 +4,15 @@ const Sound = (() => {
   let musicOscillators = [];
 
   function ensureContext() {
-    if (audioCtx) return audioCtx;
+    if (audioCtx) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       audioCtx = new AC();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
     } catch (e) {
       audioCtx = null;
     }

@@ -506,24 +506,35 @@ html, body {
 }
 
 .footer-nav {
-    margin-top: 20px;
+    margin-top: 24px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 12px;
+    padding: 0 4px;
 }
 .footer-btn {
-    background: var(--bg-card);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(135deg, var(--bg-card), rgba(99,102,241,0.08));
+    border: 1px solid rgba(99,102,241,0.25);
     border-radius: var(--radius);
-    color: var(--text-secondary);
-    font-size: 14px;
-    padding: 12px 8px;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 16px 12px;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: all 0.2s ease;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 .footer-btn:hover {
-    background: rgba(99,102,241,0.15);
-    color: var(--accent-indigo);
+    background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15));
+    border-color: var(--accent-indigo);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99,102,241,0.25);
+}
+.footer-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 
 /* ─── Lobby Screen ────────────────────────────────────── */

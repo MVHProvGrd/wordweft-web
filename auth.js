@@ -101,11 +101,15 @@ const Auth = (() => {
             userBar.classList.add('hidden');
         }
 
+        const signOutBtn = document.getElementById('btn-sign-out');
+
         if (currentUser && !currentUser.isAnonymous) {
             googleBtn.classList.add('hidden');
+            if (signOutBtn) signOutBtn.classList.remove('hidden');
             authStatus.textContent = 'Signed in as ' + (currentUser.email || currentUser.displayName);
         } else if (currentUser) {
             googleBtn.classList.remove('hidden');
+            if (signOutBtn) signOutBtn.classList.add('hidden');
             authStatus.textContent = 'Playing as guest';
         }
     }
@@ -181,10 +185,29 @@ const Auth = (() => {
         }
     }
 
+    async function signOut() {
+        try {
+            await auth.signOut();
+            localStorage.removeItem('wordweft_name');
+            localStorage.removeItem('wordweft_avatar');
+            localStorage.removeItem('wordweft_color');
+            localStorage.removeItem('wordweft_music');
+            playerName = '';
+            playerAvatar = '';
+            currentUser = null;
+            updateUI();
+            // Re-sign in anonymously so the app still works
+            await ensureSignedIn();
+        } catch (e) {
+            console.error('Sign out failed:', e);
+        }
+    }
+
     return {
         init,
         ensureSignedIn,
         signInWithGoogle,
+        signOut,
         saveLocalProfile,
         saveProfileToFirebase,
         updateUI,

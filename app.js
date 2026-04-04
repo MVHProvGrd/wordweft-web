@@ -77,6 +77,11 @@ const App = (() => {
             await Auth.signInWithGoogle();
         });
 
+        // Sign out
+        document.getElementById('btn-sign-out').addEventListener('click', async () => {
+            await Auth.signOut();
+        });
+
         // Lobby
         document.getElementById('btn-lobby-back').addEventListener('click', () => {
             if (typeof Sound !== 'undefined') Sound.stopMusic();
@@ -88,11 +93,18 @@ const App = (() => {
         document.getElementById('btn-copy-code').addEventListener('click', () => {
             if (typeof Sound !== 'undefined') Sound.playClick();
             const code = document.getElementById('lobby-room-code').textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                const btn = document.getElementById('btn-copy-code');
-                btn.textContent = 'Copied!';
-                setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-            });
+            const inviteText = 'Hey, come play a round of WordWeft with me! \u{1F4DD}\n\nRoom code: ' + code + '\nJoin here: https://wordweft.net?room=' + code;
+
+            if (navigator.share) {
+                navigator.share({ text: inviteText }).catch(() => {
+                    navigator.clipboard.writeText(inviteText);
+                });
+            } else {
+                navigator.clipboard.writeText(inviteText);
+            }
+            const btn = document.getElementById('btn-copy-code');
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
         });
 
         // Game mode selector
@@ -179,6 +191,7 @@ const App = (() => {
             showScreen('profile');
         });
         document.getElementById('btn-profile-back').addEventListener('click', () => {
+            if (typeof Sound !== 'undefined') Sound.stopMusic();
             showScreen('home');
         });
         document.getElementById('btn-leaderboard').addEventListener('click', (e) => {
@@ -492,6 +505,11 @@ const App = (() => {
                     localStorage.setItem('wordweft_music', selectedMusicStyle);
                     if (Auth.uid) {
                         db.ref('users/' + Auth.uid + '/profile/musicStyle').set(selectedMusicStyle);
+                    }
+                    // Preview the selected music
+                    if (typeof Sound !== 'undefined') {
+                        Sound.stopMusic();
+                        Sound.startMusic(selectedMusicStyle);
                     }
                 };
             });
