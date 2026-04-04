@@ -1034,6 +1034,33 @@ html, body {
     color: var(--text-primary);
     margin-bottom: 4px;
 }
+.profile-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.profile-name-edit {
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    padding: 4px 8px;
+    width: 180px;
+    border-radius: 4px;
+    transition: border-color 0.2s;
+}
+.profile-name-edit:focus {
+    outline: none;
+    border-color: var(--accent-indigo);
+}
+.profile-auth-section {
+    text-align: center;
+    padding: 12px 0;
+}
 .profile-rank {
     font-size: 14px;
     color: var(--accent-purple);

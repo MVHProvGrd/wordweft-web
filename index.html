@@ -110,7 +110,10 @@
             <h2>Profile</h2>
             <div class="profile-card">
                 <div class="profile-avatar" id="profile-avatar"></div>
-                <div class="profile-name" id="profile-name"></div>
+                <div class="profile-name-row">
+                    <input type="text" id="profile-name-input" class="profile-name-edit" maxlength="20" placeholder="Your name">
+                    <button id="btn-save-name" class="btn btn-small btn-primary" style="display:none">Save</button>
+                </div>
                 <div class="profile-rank" id="profile-rank"></div>
                 <div class="profile-xp-bar">
                     <div class="profile-xp-fill" id="profile-xp-fill"></div>
@@ -158,6 +161,13 @@
                     <button class="btn btn-mode" data-music="bossa">Bossa</button>
                     <button class="btn btn-mode" data-music="blues">Blues</button>
                     <button class="btn btn-mode" data-music="chiptune">Chiptune</button>
+                </div>
+
+                <h4>Account</h4>
+                <div id="profile-auth-section" class="profile-auth-section">
+                    <p id="profile-auth-status" class="auth-status" style="margin-bottom:8px"></p>
+                    <button id="btn-profile-google-signin" class="btn btn-google hidden">Sign in with Google</button>
+                    <button id="btn-profile-sign-out" class="btn btn-ghost btn-small hidden" style="color:var(--accent-red)">Sign Out</button>
                 </div>
             </div>
         </div>

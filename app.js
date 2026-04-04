@@ -428,7 +428,46 @@ const App = (() => {
 
     async function loadProfile() {
         document.getElementById('profile-avatar').textContent = Auth.avatar || '\u{1F60A}';
-        document.getElementById('profile-name').textContent = Auth.name || 'Guest';
+
+        // Editable name field
+        const nameInput = document.getElementById('profile-name-input');
+        const saveBtn = document.getElementById('btn-save-name');
+        nameInput.value = Auth.name || '';
+        saveBtn.style.display = 'none';
+        nameInput.oninput = () => {
+            const changed = nameInput.value.trim() !== Auth.name;
+            saveBtn.style.display = changed ? 'inline-block' : 'none';
+        };
+        saveBtn.onclick = () => {
+            const newName = nameInput.value.trim();
+            if (!newName) return;
+            Auth.saveLocalProfile(newName, Auth.avatar);
+            Auth.saveProfileToFirebase();
+            Auth.updateUI();
+            saveBtn.style.display = 'none';
+        };
+
+        // Auth section in profile
+        const authStatus = document.getElementById('profile-auth-status');
+        const googleBtn = document.getElementById('btn-profile-google-signin');
+        const signOutBtn = document.getElementById('btn-profile-sign-out');
+        if (Auth.user && !Auth.isAnonymous) {
+            authStatus.textContent = 'Signed in as ' + (Auth.user.email || Auth.user.displayName);
+            googleBtn.classList.add('hidden');
+            signOutBtn.classList.remove('hidden');
+        } else {
+            authStatus.textContent = 'Playing as guest — sign in to sync across devices';
+            googleBtn.classList.remove('hidden');
+            signOutBtn.classList.add('hidden');
+        }
+        googleBtn.onclick = async () => {
+            await Auth.signInWithGoogle();
+            loadProfile(); // refresh
+        };
+        signOutBtn.onclick = async () => {
+            await Auth.signOut();
+            loadProfile(); // refresh
+        };
 
         if (!Auth.uid) return;
         try {
