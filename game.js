@@ -12,6 +12,7 @@ const Game = (() => {
     let hasVotedToFinish = false;
     let finishVoteCount = 0;
     let hasVotedToExtend = false;
+    let disconnectedIds = [];
 
     // Player color hex values for display
     const COLOR_MAP = {
@@ -48,6 +49,15 @@ const Game = (() => {
             });
             updatePlayerList();
             updateLobbyPlayers();
+            updateTurnIndicator();
+        });
+
+        // Track disconnected players
+        Room.listen('disconnected', (snap) => {
+            const data = snap.val();
+            disconnectedIds = data ? Object.keys(data).map(Number) : [];
+            updatePlayerList();
+            updateTurnIndicator();
         });
 
         // Words
@@ -66,6 +76,9 @@ const Game = (() => {
                 });
             }
             renderStory(oldLength);
+            // Show finish button only after 5+ words
+            const finishBtn = document.getElementById('btn-vote-finish');
+            if (finishBtn) finishBtn.classList.toggle('hidden', words.length < 5);
         });
 
         // Turn state
@@ -188,10 +201,13 @@ const Game = (() => {
 
         // Hidden objectives
         let previousObjectives = {};
+        let secretRevealed = false;
+        let mySecretWord = '';
         Room.listen('objectives', (snap) => {
             const data = snap.val();
             const area = document.getElementById('secret-word-area');
             const wordEl = document.getElementById('secret-word');
+            const statusEl = document.getElementById('secret-status');
             if (!data) {
                 area.classList.add('hidden');
                 return;
@@ -200,13 +216,31 @@ const Game = (() => {
             const myObj = data[Room.myIndex];
             if (myObj && myObj.secretWord) {
                 area.classList.remove('hidden');
-                wordEl.textContent = myObj.secretWord;
-                if (myObj.completed) {
+                mySecretWord = myObj.secretWord;
+                if (myObj.completed && myObj.busted) {
+                    wordEl.textContent = myObj.secretWord;
                     wordEl.style.textDecoration = 'line-through';
                     wordEl.style.opacity = '0.5';
-                } else {
+                    statusEl.textContent = 'BUSTED!';
+                    statusEl.style.color = '#EF4444';
+                    secretRevealed = true;
+                } else if (myObj.completed) {
+                    wordEl.textContent = myObj.secretWord;
+                    wordEl.style.textDecoration = 'line-through';
+                    wordEl.style.opacity = '0.5';
+                    statusEl.textContent = 'COMPLETE!';
+                    statusEl.style.color = '#10B981';
+                    secretRevealed = true;
+                } else if (secretRevealed) {
+                    wordEl.textContent = myObj.secretWord;
                     wordEl.style.textDecoration = 'none';
                     wordEl.style.opacity = '1';
+                    statusEl.textContent = '';
+                } else {
+                    wordEl.textContent = 'Tap to reveal';
+                    wordEl.style.textDecoration = 'none';
+                    wordEl.style.opacity = '1';
+                    statusEl.textContent = '';
                 }
             }
 
@@ -219,8 +253,24 @@ const Game = (() => {
                         showObjectiveNotification(player, obj.secretWord || '???');
                     }
                 }
+                // Wrong guess notification
+                if (obj.wrongGuessBy !== undefined && (!prevObj || prevObj.wrongGuessBy !== obj.wrongGuessBy)) {
+                    const guesser = players[obj.wrongGuessBy];
+                    const target = players[parseInt(idx)];
+                    if (guesser && target) {
+                        showToast(guesser.name + ' guessed wrong on ' + target.name + "'s word!", '#F59E0B');
+                    }
+                }
             });
             previousObjectives = JSON.parse(JSON.stringify(data));
+        });
+
+        // Tap-to-reveal secret word
+        document.getElementById('secret-word-row').addEventListener('click', () => {
+            if (!secretRevealed && mySecretWord) {
+                secretRevealed = true;
+                document.getElementById('secret-word').textContent = mySecretWord;
+            }
         });
 
         // Guess word button
@@ -318,6 +368,23 @@ const Game = (() => {
         } else {
             el.innerHTML = '<span style="color:' + getPlayerColor(player.color) + '">' +
                 (player.avatar ? player.avatar + ' ' : '') + player.name + '</span>\'s turn';
+        }
+
+        // Update player order bar
+        const bar = document.getElementById('player-order-bar');
+        if (bar && players.length > 0) {
+            bar.innerHTML = '';
+            players.forEach((p, i) => {
+                const chip = document.createElement('div');
+                const isDisconnected = disconnectedIds.includes(p.id);
+                chip.className = 'player-order-chip' + (i === currentPlayerIndex ? ' active' : '') +
+                    (i === Room.myIndex ? ' me' : '') + (isDisconnected ? ' disconnected' : '');
+                chip.style.borderColor = getPlayerColor(p.color);
+                if (i === currentPlayerIndex) chip.style.background = getPlayerColor(p.color) + '30';
+                chip.innerHTML = '<span class="po-avatar">' + (p.avatar || '\u{1F60A}') + '</span>' +
+                    '<span class="po-name" style="color:' + getPlayerColor(p.color) + '">' + p.name + '</span>';
+                bar.appendChild(chip);
+            });
         }
     }
 
@@ -432,10 +499,14 @@ const Game = (() => {
         } else {
             Room.unvoteFinish(Room.myIndex);
         }
+        // Update finishTotal so Android host knows the threshold
+        if (Room.ref) {
+            Room.ref.child('votes/finishTotal').set(players.length);
+        }
         const btn = document.getElementById('btn-vote-finish');
         if (btn) {
-            btn.style.background = hasVotedToFinish ? 'rgba(239,68,68,0.2)' : 'transparent';
-            btn.style.color = hasVotedToFinish ? '#EF4444' : 'var(--text-secondary)';
+            btn.style.background = hasVotedToFinish ? 'rgba(16,185,129,0.2)' : 'transparent';
+            btn.style.color = hasVotedToFinish ? '#10B981' : 'var(--text-secondary)';
         }
     }
 
@@ -941,6 +1012,26 @@ const Game = (() => {
             if (typeof App !== 'undefined' && App.saveStory) {
                 App.saveStory(data);
             }
+
+            // Track friends (other players in this game)
+            try {
+                const maxImpactVal = Math.max(...allStats.map(s => s.impactScore || 0));
+                const myWon = (myStats.impactScore || 0) === maxImpactVal;
+                for (const p of players) {
+                    if (!p.uid || p.uid === Auth.uid) continue;
+                    const friendRef = db.ref('users/' + Auth.uid + '/friends/' + p.uid);
+                    const fSnap = await friendRef.once('value');
+                    const existing = fSnap.val() || {};
+                    await friendRef.update({
+                        name: p.name,
+                        avatar: p.avatar || '',
+                        gamesTogether: (existing.gamesTogether || 0) + 1,
+                        wins: (existing.wins || 0) + (myWon ? 1 : 0),
+                        losses: (existing.losses || 0) + (myWon ? 0 : 1),
+                        lastPlayed: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+            } catch (e) {}
         } catch (e) {
             console.error('Failed to award XP:', e);
         }
@@ -1027,8 +1118,11 @@ const Game = (() => {
                 if (correct) {
                     Room.ref.child('objectives/' + guessTargetIdx + '/busted').set(true);
                     Room.ref.child('objectives/' + guessTargetIdx + '/bustedBy').set(Room.myIndex);
+                    Room.ref.child('objectives/' + guessTargetIdx + '/completed').set(true);
                     showToast('Correct! You busted ' + (players[guessTargetIdx]?.name || '?') + '\'s word!', '#10B981');
                 } else {
+                    // Broadcast wrong guess to all players
+                    Room.ref.child('objectives/' + guessTargetIdx + '/wrongGuessBy').set(Room.myIndex);
                     showToast('Wrong guess! That\'s not their word.', '#EF4444');
                 }
             });
@@ -1064,6 +1158,10 @@ const Game = (() => {
         turnWordCount = 0;
         hasVotedToFinish = false;
         finishVoteCount = 0;
+        disconnectedIds = [];
+        secretRevealed = false;
+        mySecretWord = '';
+        previousObjectives = {};
     }
 
     return {

@@ -265,6 +265,91 @@ const App = (() => {
         document.getElementById('btn-history-back').addEventListener('click', () => {
             showScreen('home');
         });
+
+        // Friends
+        document.getElementById('btn-friends').addEventListener('click', (e) => {
+            e.preventDefault();
+            loadFriends();
+            showScreen('friends');
+        });
+        document.getElementById('btn-friends-back').addEventListener('click', () => {
+            showScreen('home');
+        });
+
+        // Tutorial
+        let tutorialSlide = 0;
+        document.getElementById('btn-tutorial-next').addEventListener('click', () => {
+            tutorialSlide++;
+            if (tutorialSlide >= 4) {
+                localStorage.setItem('wordweft_tutorial_done', '1');
+                showScreen('home');
+                tutorialSlide = 0;
+            } else {
+                showTutorialSlide(tutorialSlide);
+            }
+        });
+        document.getElementById('btn-tutorial-skip').addEventListener('click', () => {
+            localStorage.setItem('wordweft_tutorial_done', '1');
+            showScreen('home');
+            tutorialSlide = 0;
+        });
+        document.querySelectorAll('.tutorial-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                tutorialSlide = parseInt(dot.dataset.slide);
+                showTutorialSlide(tutorialSlide);
+            });
+        });
+
+        // Replay tutorial from profile
+        document.getElementById('btn-replay-tutorial').addEventListener('click', () => {
+            tutorialSlide = 0;
+            showTutorialSlide(0);
+            showScreen('tutorial');
+        });
+
+        // Music preview
+        let previewPlaying = false;
+        document.getElementById('btn-music-preview').addEventListener('click', () => {
+            const btn = document.getElementById('btn-music-preview');
+            if (previewPlaying) {
+                Sound.stopMusic();
+                btn.innerHTML = '&#9654; Preview';
+                previewPlaying = false;
+            } else {
+                Sound.startMusic(selectedMusicStyle || 'jazz');
+                btn.innerHTML = '&#9632; Stop';
+                previewPlaying = true;
+            }
+        });
+
+        // Home music selector
+        document.querySelectorAll('[data-homemusic]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-homemusic]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                homeMusicMode = btn.dataset.homemusic;
+                localStorage.setItem('wordweft_home_music', homeMusicMode);
+            });
+        });
+
+        // Font size slider
+        const fontSlider = document.getElementById('font-size-slider');
+        const fontValue = document.getElementById('font-size-value');
+        const savedFontSize = localStorage.getItem('wordweft_font_size') || '100';
+        fontSlider.value = savedFontSize;
+        fontValue.textContent = savedFontSize + '%';
+        document.documentElement.style.fontSize = (parseInt(savedFontSize) / 100 * 16) + 'px';
+        fontSlider.addEventListener('input', () => {
+            const size = fontSlider.value;
+            fontValue.textContent = size + '%';
+            document.documentElement.style.fontSize = (parseInt(size) / 100 * 16) + 'px';
+            localStorage.setItem('wordweft_font_size', size);
+        });
+
+        // Show tutorial on first visit
+        if (!localStorage.getItem('wordweft_tutorial_done')) {
+            setTimeout(() => showScreen('tutorial'), 500);
+        }
     }
 
     // Player colors matching Android app
@@ -306,6 +391,7 @@ const App = (() => {
 
     let selectedColor = PLAYER_COLORS[0].value;
     let selectedMusicStyle = localStorage.getItem('wordweft_music') || 'jazz';
+    let homeMusicMode = localStorage.getItem('wordweft_home_music') || 'same';
     let selectedStarter = '';
     let selectedTimer = 0;
     let objectivesEnabled = false;
@@ -446,8 +532,14 @@ const App = (() => {
         // Clean up URL params when leaving game
         if (name === 'home') {
             window.history.replaceState({}, '', window.location.pathname);
-            // Play home screen music
-            if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
+            // Play home screen music (respect home music setting)
+            if (typeof Sound !== 'undefined') {
+                if (homeMusicMode === 'none') {
+                    Sound.stopMusic();
+                } else {
+                    Sound.startMusic(selectedMusicStyle || 'jazz');
+                }
+            }
         }
     }
 
@@ -599,19 +691,33 @@ const App = (() => {
             }
 
             list.innerHTML = '';
+            // Load detailed stats for each user
+            const statsPromises = entries.map(e =>
+                db.ref('users/' + e.uid + '/stats').once('value').then(s => s.val()).catch(() => null)
+            );
+            const allStats = await Promise.all(statsPromises);
+
             entries.forEach((entry, i) => {
+                const stats = allStats[i] || {};
                 const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+                const medal = i === 0 ? '\u{1F947}' : i === 1 ? '\u{1F948}' : i === 2 ? '\u{1F949}' : '#' + (i + 1);
                 const isMe = entry.uid === Auth.uid;
+                const level = Auth.calculateLevel(entry.xp || 0);
+                const wins = stats.gamesWon || 0;
+                const games = stats.gamesPlayed || 0;
+                const losses = games - wins;
+                const words = stats.totalWordsWritten || 0;
                 const div = document.createElement('div');
                 div.className = 'lb-entry' + (isMe ? ' me' : '');
                 div.innerHTML =
-                    '<div class="lb-rank ' + rankClass + '">' + (i + 1) + '</div>' +
+                    '<div class="lb-rank ' + rankClass + '">' + medal + '</div>' +
                     '<div class="lb-avatar">' + (entry.avatar || '\u{1F60A}') + '</div>' +
                     '<div class="lb-info">' +
                         '<div class="lb-name">' + (entry.displayName || 'Anonymous') + '</div>' +
-                        '<div class="lb-level">Lv.' + Auth.calculateLevel(entry.xp || 0) + ' ' + Auth.getRank(Auth.calculateLevel(entry.xp || 0)) + '</div>' +
+                        '<div class="lb-level">Lv.' + level + ' ' + Auth.getRank(level) + '</div>' +
+                        '<div class="lb-stats">' + wins + 'W ' + losses + 'L \u2022 ' + words + ' words</div>' +
                     '</div>' +
-                    '<div class="lb-xp">' + (entry.xp || 0) + ' XP</div>';
+                    '<div class="lb-xp">' + (entry.xp || 0) + '<br><span class="lb-xp-label">XP</span></div>';
                 list.appendChild(div);
             });
         } catch (e) {
@@ -709,9 +815,10 @@ const App = (() => {
             card.className = 'achievement-card' + (isUnlocked ? '' : ' locked');
             let dateStr = '';
             if (isUnlocked && unlocked[id].unlockedAt) {
-                dateStr = '<div class="ach-date">' + new Date(unlocked[id].unlockedAt).toLocaleDateString() + '</div>';
+                dateStr = '<div class="ach-date">Unlocked ' + new Date(unlocked[id].unlockedAt).toLocaleDateString() + '</div>';
             }
             card.innerHTML =
+                (isUnlocked ? '<span class="ach-check">\u2713</span>' : '') +
                 '<div class="ach-icon">' + (isUnlocked ? ach.icon : '\u{1F512}') + '</div>' +
                 '<div class="ach-name">' + ach.name + '</div>' +
                 '<div class="ach-desc">' + ach.desc + '</div>' +
@@ -960,6 +1067,90 @@ const App = (() => {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
+    }
+
+    // --- Tutorial ---
+    function showTutorialSlide(idx) {
+        for (let i = 0; i < 4; i++) {
+            const slide = document.getElementById('tutorial-slide-' + i);
+            if (slide) slide.classList.toggle('hidden', i !== idx);
+        }
+        document.querySelectorAll('.tutorial-dot').forEach((d, i) => {
+            d.classList.toggle('active', i === idx);
+        });
+        const nextBtn = document.getElementById('btn-tutorial-next');
+        if (nextBtn) nextBtn.textContent = idx >= 3 ? "Let's Go!" : 'Next';
+    }
+
+    // --- Friends ---
+    async function loadFriends() {
+        const uid = Auth.uid;
+        const card = document.getElementById('my-level-card');
+        const list = document.getElementById('friends-list');
+
+        // My level card
+        if (card && uid) {
+            try {
+                const snap = await db.ref('users/' + uid + '/stats').once('value');
+                const stats = snap.val() || {};
+                const xp = stats.totalXp || 0;
+                const level = Auth.calculateLevel(xp);
+                card.innerHTML = '<div class="my-level-avatar">' + (Auth.avatar || '\u{1F60A}') + '</div>' +
+                    '<div class="my-level-name">' + (Auth.name || 'You') + '</div>' +
+                    '<div class="my-level-rank">Lv.' + level + ' ' + Auth.getRank(level) + '</div>';
+            } catch (e) { card.innerHTML = ''; }
+        }
+
+        if (!list || !uid) return;
+        list.innerHTML = '<div class="leaderboard-empty">Loading...</div>';
+
+        try {
+            const snap = await db.ref('users/' + uid + '/friends').once('value');
+            const friends = snap.val();
+            if (!friends || Object.keys(friends).length === 0) {
+                list.innerHTML = '<div class="leaderboard-empty">No friends yet. Play games with others to see them here!</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            const entries = Object.entries(friends).sort((a, b) => (b[1].gamesTogether || 0) - (a[1].gamesTogether || 0));
+            for (const [fuid, fdata] of entries) {
+                // Load friend's profile
+                let profile = {};
+                try {
+                    const pSnap = await db.ref('users/' + fuid + '/profile').once('value');
+                    profile = pSnap.val() || {};
+                } catch (e) {}
+                let fStats = {};
+                try {
+                    const sSnap = await db.ref('users/' + fuid + '/stats').once('value');
+                    fStats = sSnap.val() || {};
+                } catch (e) {}
+
+                const fLevel = Auth.calculateLevel(fStats.totalXp || 0);
+                const wins = fdata.wins || 0;
+                const losses = fdata.losses || 0;
+                const games = fdata.gamesTogether || 0;
+
+                const div = document.createElement('div');
+                div.className = 'friend-entry';
+                div.innerHTML =
+                    '<div class="friend-avatar">' + (profile.avatar || fdata.avatar || '\u{1F60A}') + '</div>' +
+                    '<div class="friend-info">' +
+                        '<div class="friend-name">' + (profile.displayName || fdata.name || 'Player') + '</div>' +
+                        '<div class="friend-level">Lv.' + fLevel + ' ' + Auth.getRank(fLevel) + '</div>' +
+                        '<div class="friend-games">' + games + ' games together</div>' +
+                    '</div>' +
+                    '<div class="friend-record">' +
+                        '<div class="friend-wl">' + wins + 'W - ' + losses + 'L</div>' +
+                        '<div class="friend-wl-label">vs record</div>' +
+                    '</div>';
+                list.appendChild(div);
+            }
+        } catch (e) {
+            console.error('Failed to load friends:', e);
+            list.innerHTML = '<div class="leaderboard-empty">Failed to load friends</div>';
+        }
     }
 
     return {

@@ -95,10 +95,11 @@
             </div>
 
             <div class="footer-nav">
-                <button class="footer-btn" id="btn-leaderboard">&#127942; Leaderboard</button>
+                <button class="footer-btn" id="btn-leaderboard">&#127942; Leaders</button>
                 <button class="footer-btn" id="btn-profile">&#128100; Profile</button>
-                <button class="footer-btn" id="btn-achievements">&#127941; Achievements</button>
+                <button class="footer-btn" id="btn-achievements">&#127941; Awards</button>
                 <button class="footer-btn" id="btn-history">&#128214; History</button>
+                <button class="footer-btn" id="btn-friends">&#129309; Friends</button>
             </div>
         </div>
     </div>
@@ -162,6 +163,25 @@
                     <button class="btn btn-mode" data-music="blues">Blues</button>
                     <button class="btn btn-mode" data-music="chiptune">Chiptune</button>
                 </div>
+                <button id="btn-music-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
+
+                <h4>Home Screen Music</h4>
+                <div class="mode-options" id="home-music-grid">
+                    <button class="btn btn-mode active" data-homemusic="same">Same as Lobby</button>
+                    <button class="btn btn-mode" data-homemusic="none">None</button>
+                </div>
+
+                <h4>Text Size</h4>
+                <div class="font-size-row">
+                    <span class="font-size-label">A</span>
+                    <input type="range" id="font-size-slider" min="80" max="140" value="100" class="font-slider">
+                    <span class="font-size-label font-size-large">A</span>
+                    <span id="font-size-value" class="font-size-value">100%</span>
+                </div>
+
+                <div style="margin-top:12px">
+                    <button id="btn-replay-tutorial" class="btn btn-ghost btn-small">Replay Tutorial</button>
+                </div>
 
                 <h4>Account</h4>
                 <div id="profile-auth-section" class="profile-auth-section">
@@ -204,6 +224,56 @@
             <h2>Story History</h2>
             <div id="history-list" class="history-list">
                 <div class="leaderboard-empty">No stories yet. Play a game!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Friends Screen -->
+    <div id="screen-friends" class="screen">
+        <div class="friends-container">
+            <button id="btn-friends-back" class="btn-back">&larr;</button>
+            <h2>Friends</h2>
+            <div id="my-level-card" class="my-level-card"></div>
+            <div id="friends-list" class="friends-list">
+                <div class="leaderboard-empty">No friends yet. Play games with others to see them here!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutorial Screen -->
+    <div id="screen-tutorial" class="screen">
+        <div class="tutorial-container">
+            <div class="tutorial-slides">
+                <div class="tutorial-slide" id="tutorial-slide-0">
+                    <div class="tutorial-icon">\u{1F4DD}</div>
+                    <h2>Welcome to WordWeft!</h2>
+                    <p>A collaborative storytelling game where you and your friends build stories together, one word at a time.</p>
+                </div>
+                <div class="tutorial-slide hidden" id="tutorial-slide-1">
+                    <div class="tutorial-icon">\u{1F91D}</div>
+                    <h2>Take Turns</h2>
+                    <p>Each player takes turns adding words to the story. Choose wisely - your words shape the narrative!</p>
+                </div>
+                <div class="tutorial-slide hidden" id="tutorial-slide-2">
+                    <div class="tutorial-icon">\u{1F510}</div>
+                    <h2>Secret Words</h2>
+                    <p>With Hidden Objectives enabled, you get a secret word to sneak into the story. Other players can try to guess your word!</p>
+                </div>
+                <div class="tutorial-slide hidden" id="tutorial-slide-3">
+                    <div class="tutorial-icon">\u{1F3C6}</div>
+                    <h2>Get Graded</h2>
+                    <p>When the story is done, it gets graded on coherence, creativity, humor, vocabulary, and flow. Aim for an A+!</p>
+                </div>
+            </div>
+            <div class="tutorial-dots">
+                <span class="tutorial-dot active" data-slide="0"></span>
+                <span class="tutorial-dot" data-slide="1"></span>
+                <span class="tutorial-dot" data-slide="2"></span>
+                <span class="tutorial-dot" data-slide="3"></span>
+            </div>
+            <div class="tutorial-buttons">
+                <button id="btn-tutorial-skip" class="btn btn-ghost">Skip</button>
+                <button id="btn-tutorial-next" class="btn btn-primary">Next</button>
             </div>
         </div>
     </div>
@@ -310,6 +380,9 @@
                 </div>
             </div>
 
+            <!-- Player order bar -->
+            <div id="player-order-bar" class="player-order-bar"></div>
+
             <!-- Turn info -->
             <div class="turn-info">
                 <div id="turn-indicator" class="turn-indicator"></div>
@@ -337,9 +410,10 @@
 
             <!-- Secret word (hidden objectives) -->
             <div id="secret-word-area" class="secret-word-area hidden">
-                <div class="secret-word-row">
+                <div class="secret-word-row" id="secret-word-row">
                     <span class="secret-label">Your secret word:</span>
-                    <span id="secret-word" class="secret-word"></span>
+                    <span id="secret-word" class="secret-word">Tap to reveal</span>
+                    <span id="secret-status" class="secret-status"></span>
                 </div>
                 <button id="btn-guess-word" class="btn btn-small btn-ghost" style="color:#F59E0B;margin-top:6px">Guess a Player's Word</button>
             </div>

@@ -818,13 +818,53 @@ html, body {
     flex-shrink: 0;
 }
 
+/* Player order bar */
+.player-order-bar {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border);
+}
+.player-order-bar::-webkit-scrollbar { display: none; }
+.player-order-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    border: 2px solid transparent;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 13px;
+    opacity: 0.6;
+    transition: all 0.2s;
+}
+.player-order-chip.active {
+    opacity: 1;
+    transform: scale(1.05);
+}
+.player-order-chip.me { font-weight: 700; }
+.player-order-chip.disconnected { opacity: 0.3; }
+.player-order-chip.disconnected .po-name::after { content: ' (left)'; font-size: 11px; color: var(--accent-red); }
+.po-avatar { font-size: 16px; }
+.po-name { font-size: 12px; }
+
+/* Secret word area */
 .secret-word-area {
-    padding: 8px 16px;
+    padding: 10px 16px;
     background: rgba(245,158,11,0.1);
     border-top: 1px solid rgba(245,158,11,0.2);
     display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.secret-word-row {
+    display: flex;
     align-items: center;
     gap: 8px;
+    cursor: pointer;
 }
 .secret-label {
     font-size: 12px;
@@ -836,6 +876,12 @@ html, body {
     color: var(--accent-amber);
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+.secret-status {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* ─── Results Screen ──────────────────────────────────── */
@@ -1441,10 +1487,21 @@ html, body {
     font-size: 12px;
     color: var(--text-secondary);
 }
+.lb-stats {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
 .lb-xp {
     font-weight: bold;
     color: var(--accent-purple);
     font-size: 15px;
+    text-align: right;
+}
+.lb-xp-label {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-muted);
 }
 .lb-entry.me {
     border: 2px solid var(--accent-purple);
@@ -1487,8 +1544,18 @@ html, body {
 }
 .achievement-card .ach-date {
     font-size: 10px;
-    color: var(--text-muted);
+    color: var(--accent-green);
     margin-top: 6px;
+}
+.achievement-card .ach-check {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 14px;
+    color: var(--accent-green);
+}
+.achievement-card {
+    position: relative;
 }
 
 /* Achievement toast */
@@ -1577,6 +1644,122 @@ html, body {
     font-size: 12px;
     height: 30px;
     padding: 0 12px;
+}
+
+/* ─── Friends Screen ─────────────────────────────────── */
+.friends-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+.my-level-card {
+    background: linear-gradient(135deg, #2D1F5E, #3D2B7E);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+    border: 1px solid rgba(139,92,246,0.25);
+}
+.my-level-avatar { font-size: 32px; }
+.my-level-name { font-weight: 700; font-size: 16px; margin: 4px 0 2px; }
+.my-level-rank { font-size: 13px; color: var(--accent-purple); }
+.friends-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.friend-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+}
+.friend-avatar { font-size: 24px; }
+.friend-info { flex: 1; }
+.friend-name { font-weight: 600; font-size: 15px; }
+.friend-level { font-size: 12px; color: var(--text-secondary); }
+.friend-games { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.friend-record {
+    text-align: right;
+}
+.friend-wl { font-weight: 700; font-size: 14px; color: var(--accent-indigo); }
+.friend-wl-label { font-size: 10px; color: var(--text-muted); }
+
+/* ─── Tutorial Screen ────────────────────────────────── */
+.tutorial-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: linear-gradient(180deg, #0F0F23, #1A1A2E);
+}
+.tutorial-slides { width: 100%; max-width: 360px; }
+.tutorial-slide {
+    text-align: center;
+    padding: 20px;
+}
+.tutorial-slide.hidden { display: none; }
+.tutorial-icon { font-size: 64px; margin-bottom: 16px; }
+.tutorial-slide h2 { font-size: 22px; margin-bottom: 12px; }
+.tutorial-slide p { color: var(--text-secondary); font-size: 15px; line-height: 1.6; }
+.tutorial-dots {
+    display: flex;
+    gap: 8px;
+    margin: 24px 0;
+}
+.tutorial-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.2s;
+}
+.tutorial-dot.active { background: var(--accent-indigo); }
+.tutorial-buttons {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 360px;
+}
+.tutorial-buttons .btn { flex: 1; }
+
+/* ─── Font Size Slider ───────────────────────────────── */
+.font-size-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.font-size-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+.font-size-label.font-size-large { font-size: 22px; }
+.font-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--text-dim);
+    outline: none;
+}
+.font-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-indigo);
+    cursor: pointer;
+}
+.font-size-value {
+    font-size: 13px;
+    color: var(--text-secondary);
+    min-width: 40px;
+    text-align: right;
 }
 
 /* ─── Confetti ───────────────────────────────────────── */
