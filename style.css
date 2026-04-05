@@ -1,4 +1,4 @@
-/* WordWeft Web Client — Dark theme matching Android app */
+/* WordWeft Web Client — Theme support (dark/light) */
 
 * {
     margin: 0;
@@ -26,6 +26,18 @@
     --radius-xs: 8px;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-top: env(safe-area-inset-top, 0px);
+}
+
+body.light-theme {
+    --bg-primary: #F5F5FA;
+    --bg-secondary: #EEEEF5;
+    --bg-card: #FFFFFF;
+    --bg-input: #E8E8F0;
+    --text-primary: #1A1A2E;
+    --text-secondary: #555566;
+    --text-muted: #888899;
+    --text-dim: #BBBBCC;
+    --border: #D0D0DD;
 }
 
 html, body {
@@ -371,7 +383,7 @@ html, body {
 
 .home-container {
     min-height: 100%;
-    background: linear-gradient(180deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%);
+    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-input) 100%);
     padding: 24px;
     padding-top: calc(24px + var(--safe-top));
     padding-bottom: calc(24px + var(--safe-bottom));
@@ -533,7 +545,7 @@ html, body {
 
 .lobby-container {
     min-height: 100%;
-    background: linear-gradient(180deg, #0F0F23, #1A1A2E);
+    background: linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));
     padding: 24px;
     padding-top: calc(24px + var(--safe-top));
     max-width: 480px;
@@ -636,12 +648,12 @@ html, body {
     opacity: 0.4;
     text-decoration: line-through;
 }
-.lobby-invite-hint {
-    text-align: center;
-    color: var(--accent-purple);
-    font-size: 13px;
-    margin-bottom: 16px;
-    opacity: 0.8;
+.lobby-invite-btn {
+    display: block;
+    margin: 8px auto 16px;
+    color: var(--accent-green);
+    border-color: var(--accent-green);
+    font-size: 14px;
 }
 .lobby-status {
     text-align: center;
@@ -880,7 +892,7 @@ html, body {
 
 .results-container {
     min-height: 100%;
-    background: linear-gradient(180deg, #0F0F23, #1A1A2E);
+    background: linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));
     padding: 24px;
     padding-top: calc(24px + var(--safe-top));
     padding-bottom: calc(24px + var(--safe-bottom));
@@ -1256,6 +1268,51 @@ html, body {
     white-space: nowrap;
 }
 .objective-toast.show { top: 20px; }
+
+/* Host migration bar */
+.host-migration-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: linear-gradient(180deg, rgba(239,68,68,0.15), rgba(245,158,11,0.08));
+    border-bottom: 1px solid rgba(239,68,68,0.3);
+    padding: 12px 16px;
+    text-align: center;
+    animation: slideDown 0.3s ease;
+}
+.migration-text {
+    color: var(--accent-red);
+    font-weight: 600;
+    font-size: 14px;
+}
+.migration-icon { margin-right: 6px; }
+.migration-sub {
+    color: var(--accent-amber);
+    font-size: 12px;
+    margin-top: 4px;
+}
+.migration-progress {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+.migration-progress-fill {
+    height: 100%;
+    background: var(--accent-amber);
+    border-radius: 2px;
+    width: 100%;
+    transition: width 1s linear;
+}
+.migration-actions {
+    margin-top: 8px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
 
 /* Guess modal */
 .modal-overlay {
@@ -1687,7 +1744,7 @@ html, body {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(180deg, #0F0F23, #1A1A2E);
+    background: linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));
 }
 .tutorial-slides { width: 100%; max-width: 360px; }
 .tutorial-slide {
@@ -1718,6 +1775,59 @@ html, body {
     max-width: 360px;
 }
 .tutorial-buttons .btn { flex: 1; }
+
+/* ─── Theme Toggle ──────────────────────────────────── */
+.theme-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+}
+.theme-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-switch .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--text-muted);
+    border-radius: 26px;
+    transition: background 0.3s;
+    width: auto;
+    height: auto;
+    border: none;
+}
+.toggle-switch .toggle-slider::after {
+    display: none;
+}
+.toggle-switch .toggle-slider:before {
+    content: '';
+    position: absolute;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+.toggle-switch input:checked + .toggle-slider {
+    background: var(--accent-indigo);
+}
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+}
 
 /* ─── Font Size Slider ───────────────────────────────── */
 .font-size-row {
@@ -1773,4 +1883,15 @@ html, body {
 @keyframes confettiFall {
     0% { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
     100% { transform: translateY(100vh) rotate(720deg) translateX(var(--sway, 0px)); opacity: 0; }
+}
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+.replay-cursor {
+    animation: blink 0.8s step-end infinite;
 }

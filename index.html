@@ -21,7 +21,7 @@
                 <button class="top-icon-btn" id="btn-achievements" title="Achievements">&#127941;</button>
                 <button class="top-icon-btn" id="btn-friends" title="Friends">&#129309;</button>
                 <button class="top-icon-btn" id="btn-history" title="History">&#128214;</button>
-                <button class="top-icon-btn" id="btn-profile" title="Settings">&#9881;</button>
+                <button class="top-icon-btn" id="btn-profile" title="Settings">⚙️</button>
             </div>
             <div class="logo-section">
                 <img src="wordweft_logo.png" alt="WordWeft" class="logo-img">
@@ -181,6 +181,15 @@
                     <button class="btn btn-mode" data-homemusic="none">None</button>
                 </div>
 
+                <h4>Theme</h4>
+                <div class="theme-toggle-row">
+                    <span class="theme-label">Dark Theme</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="theme-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
                 <h4>Text Size</h4>
                 <div class="font-size-row">
                     <span class="font-size-label">A</span>
@@ -298,13 +307,13 @@
             <div id="room-code-display" class="room-code-display">
                 <span class="room-code-label">Room Code</span>
                 <span id="lobby-room-code" class="room-code-value"></span>
-                <button id="btn-copy-code" class="btn btn-small">Copy</button>
+                <button id="btn-copy-code" class="btn btn-small">Share</button>
             </div>
 
             <div class="players-section">
                 <h4>Players <span id="player-count">(0/8)</span></h4>
                 <div id="player-list" class="player-list"></div>
-                <p class="lobby-invite-hint">Share the room code with friends!</p>
+                <button id="btn-invite-friends" class="btn btn-ghost btn-small lobby-invite-btn">&#128228; Share with friends!</button>
             </div>
 
             <div id="lobby-status" class="lobby-status hidden">
@@ -426,6 +435,18 @@
                     <span id="secret-status" class="secret-status"></span>
                 </div>
                 <button id="btn-guess-word" class="btn btn-small btn-ghost" style="color:#F59E0B;margin-top:6px">Guess a Player's Word</button>
+            </div>
+            <!-- Host migration overlay -->
+            <div id="host-migration-bar" class="host-migration-bar hidden">
+                <div class="migration-text">
+                    <span class="migration-icon">&#9888;</span>
+                    <span>Host disconnected</span>
+                </div>
+                <div class="migration-sub">Waiting for host to reconnect...</div>
+                <div class="migration-progress"><div id="migration-progress-fill" class="migration-progress-fill"></div></div>
+                <div class="migration-actions">
+                    <button id="btn-migration-leave" class="btn btn-small" style="color:var(--accent-red)">Leave</button>
+                </div>
             </div>
             <!-- Guess modal -->
             <div id="guess-modal" class="modal-overlay hidden">

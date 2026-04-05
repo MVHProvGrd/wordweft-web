@@ -58,6 +58,11 @@ const Game = (() => {
             disconnectedIds = data ? Object.keys(data).map(Number) : [];
             updatePlayerList();
             updateTurnIndicator();
+
+            // Check if host disconnected
+            const host = players.find(p => p.isHost);
+            const hostDisconnected = host && disconnectedIds.includes(host.id);
+            showHostMigration(hostDisconnected);
         });
 
         // Words
@@ -585,28 +590,11 @@ const Game = (() => {
         }
 
         // Player-colored story words with quotes
-        const resultStoryEl = document.getElementById('result-story-text');
-        resultStoryEl.innerHTML = '';
         if (words.length > 0) {
-            // Add opening quote
-            const openQuote = document.createElement('span');
-            openQuote.textContent = '\u201C';
-            openQuote.style.color = '#666680';
-            resultStoryEl.appendChild(openQuote);
-            words.forEach((w, i) => {
-                const span = document.createElement('span');
-                const player = players.find(p => p.id === w.playerId);
-                if (player) span.style.color = getPlayerColor(player.color);
-                else if (w.playerId === -1) { span.style.color = '#666680'; span.style.fontStyle = 'italic'; }
-                span.textContent = (i > 0 ? ' ' : '') + w.word;
-                resultStoryEl.appendChild(span);
-            });
-            const closeQuote = document.createElement('span');
-            closeQuote.textContent = '\u201D';
-            closeQuote.style.color = '#666680';
-            resultStoryEl.appendChild(closeQuote);
+            renderResultStory(words.length);
         } else {
-            resultStoryEl.textContent = data.fullStory || '';
+            const resultStoryEl = document.getElementById('result-story-text');
+            if (resultStoryEl) resultStoryEl.textContent = data.fullStory || '';
         }
 
         // Score bars
@@ -829,27 +817,89 @@ const Game = (() => {
         });
     }
 
-    // Text-to-Speech
+    // Text-to-Speech with word-by-word replay
     let ttsPlaying = false;
-    function toggleTTS() {
+    let replayInterval = null;
+    let replayIndex = 0;
+
+    function stopReplay() {
+        if (replayInterval) { clearInterval(replayInterval); replayInterval = null; }
+        window.speechSynthesis.cancel();
+        ttsPlaying = false;
         const btn = document.getElementById('btn-read-story');
+        if (btn) btn.innerHTML = '&#128264;';
+        // Restore full story
+        renderResultStory(words.length);
+    }
+
+    function renderResultStory(upToIndex) {
+        const el = document.getElementById('result-story-text');
+        if (!el) return;
+        el.innerHTML = '';
+        const showWords = words.slice(0, upToIndex);
+        // Opening quote
+        const oq = document.createElement('span');
+        oq.textContent = '\u201C';
+        oq.style.color = 'var(--text-muted)';
+        el.appendChild(oq);
+        showWords.forEach((w, i) => {
+            const span = document.createElement('span');
+            const player = players.find(p => p.id === w.playerId);
+            if (player) span.style.color = getPlayerColor(player.color);
+            else if (w.playerId === -1) { span.style.color = 'var(--text-muted)'; span.style.fontStyle = 'italic'; }
+            span.textContent = (i > 0 ? ' ' : '') + w.word;
+            // Highlight the latest word during replay
+            if (i === upToIndex - 1 && ttsPlaying) {
+                span.style.textDecoration = 'underline';
+                span.style.fontWeight = '700';
+            }
+            el.appendChild(span);
+        });
+        // Blinking cursor during replay
+        if (ttsPlaying && upToIndex < words.length) {
+            const cursor = document.createElement('span');
+            cursor.textContent = ' |';
+            cursor.style.color = 'var(--accent-indigo)';
+            cursor.className = 'replay-cursor';
+            el.appendChild(cursor);
+        }
+        // Closing quote
+        if (!ttsPlaying || upToIndex >= words.length) {
+            const cq = document.createElement('span');
+            cq.textContent = '\u201D';
+            cq.style.color = 'var(--text-muted)';
+            el.appendChild(cq);
+        }
+    }
+
+    function toggleTTS() {
         if (ttsPlaying) {
-            window.speechSynthesis.cancel();
-            ttsPlaying = false;
-            if (btn) btn.innerHTML = '&#128264; Read Story';
+            stopReplay();
             return;
         }
-        const text = document.getElementById('result-story-text').textContent;
-        if (!text || !('speechSynthesis' in window)) return;
+        if (!words.length || !('speechSynthesis' in window)) return;
+
+        ttsPlaying = true;
+        replayIndex = 0;
+        const btn = document.getElementById('btn-read-story');
+        if (btn) btn.innerHTML = '&#9209;';
+
+        // Start TTS
+        const text = words.map(w => w.word).join(' ');
         const utt = new SpeechSynthesisUtterance(text);
         utt.rate = 0.9;
-        utt.onend = () => {
-            ttsPlaying = false;
-            if (btn) btn.innerHTML = '&#128264; Read Story';
-        };
+        utt.onend = () => stopReplay();
         window.speechSynthesis.speak(utt);
-        ttsPlaying = true;
-        if (btn) btn.innerHTML = '&#9209; Stop';
+
+        // Word-by-word reveal at ~300ms per word
+        replayInterval = setInterval(() => {
+            if (replayIndex >= words.length) {
+                stopReplay();
+                return;
+            }
+            replayIndex++;
+            renderResultStory(replayIndex);
+        }, 300);
     }
 
     function finishGame() {
@@ -1150,8 +1200,52 @@ const Game = (() => {
         setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 2500);
     }
 
+    // Host migration
+    let migrationTimer = null;
+    let migrationCountdown = 30;
+
+    function showHostMigration(hostGone) {
+        const bar = document.getElementById('host-migration-bar');
+        if (!bar) return;
+
+        if (!hostGone) {
+            bar.classList.add('hidden');
+            if (migrationTimer) { clearInterval(migrationTimer); migrationTimer = null; }
+            return;
+        }
+
+        bar.classList.remove('hidden');
+        migrationCountdown = 30;
+        const fill = document.getElementById('migration-progress-fill');
+        if (fill) fill.style.width = '100%';
+
+        if (migrationTimer) clearInterval(migrationTimer);
+        migrationTimer = setInterval(() => {
+            migrationCountdown--;
+            if (fill) fill.style.width = (migrationCountdown / 30 * 100) + '%';
+            const sub = bar.querySelector('.migration-sub');
+            if (sub) sub.textContent = migrationCountdown > 0
+                ? 'Waiting for host to reconnect... ' + migrationCountdown + 's'
+                : 'Host did not return';
+            if (migrationCountdown <= 0) {
+                clearInterval(migrationTimer);
+                migrationTimer = null;
+            }
+        }, 1000);
+
+        document.getElementById('btn-migration-leave').onclick = () => {
+            if (migrationTimer) { clearInterval(migrationTimer); migrationTimer = null; }
+            bar.classList.add('hidden');
+            Room.leave();
+            App.showScreen('home');
+        };
+    }
+
     function cleanup() {
         if (timerInterval) clearInterval(timerInterval);
+        if (migrationTimer) { clearInterval(migrationTimer); migrationTimer = null; }
+        if (replayInterval) { clearInterval(replayInterval); replayInterval = null; }
+        ttsPlaying = false;
         players = [];
         words = [];
         currentPlayerIndex = 0;

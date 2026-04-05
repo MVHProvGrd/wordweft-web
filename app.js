@@ -127,8 +127,12 @@ const App = (() => {
                 navigator.clipboard.writeText(inviteText);
             }
             const btn = document.getElementById('btn-copy-code');
-            btn.textContent = 'Copied!';
-            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+            btn.textContent = 'Shared!';
+            setTimeout(() => { btn.textContent = 'Share'; }, 2000);
+        });
+
+        document.getElementById('btn-invite-friends').addEventListener('click', () => {
+            document.getElementById('btn-copy-code').click();
         });
 
         // Game mode selector
@@ -348,6 +352,16 @@ const App = (() => {
             });
         });
 
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        themeToggle.checked = darkTheme;
+        themeToggle.addEventListener('change', () => {
+            darkTheme = themeToggle.checked;
+            document.body.classList.toggle('light-theme', !darkTheme);
+            localStorage.setItem('wordweft_theme', darkTheme ? 'dark' : 'light');
+            document.querySelector('meta[name="theme-color"]').content = darkTheme ? '#0F0F23' : '#F5F5FA';
+        });
+
         // Font size slider
         const fontSlider = document.getElementById('font-size-slider');
         const fontValue = document.getElementById('font-size-value');
@@ -409,6 +423,10 @@ const App = (() => {
     let selectedMusicStyle = localStorage.getItem('wordweft_music') || 'jazz';
     let selectedWaitingMusic = localStorage.getItem('wordweft_waiting_music') || 'jazz';
     let homeMusicMode = localStorage.getItem('wordweft_home_music') || 'same';
+    let darkTheme = localStorage.getItem('wordweft_theme') !== 'light';
+
+    // Apply theme on load
+    if (!darkTheme) document.body.classList.add('light-theme');
     let selectedStarter = '';
     let selectedTimer = 0;
     let objectivesEnabled = false;
