@@ -558,24 +558,6 @@ html, body {
     margin-top: 6px;
 }
 
-.how-to-play {
-    width: 100%;
-    background: var(--bg-card);
-    border-radius: var(--radius);
-    padding: 20px;
-    margin-top: 24px;
-}
-.how-to-play h4 {
-    color: var(--accent-indigo);
-    font-size: 16px;
-    margin-bottom: 12px;
-}
-.how-to-play ol {
-    list-style-position: inside;
-    color: var(--text-secondary);
-    font-size: 14px;
-    line-height: 1.8;
-}
 
 .top-icon-bar {
     display: flex;
