@@ -189,9 +189,7 @@ const Results = (() => {
         const challengeBtn = document.getElementById('btn-challenge-friends');
         if (challengeBtn) {
             challengeBtn.onclick = () => {
-                const roomCode = Room.code || '';
-                const shareText = 'I just got a ' + (data.storyGrade || '?') + ' on WordWeft! Think you can beat it?\n\n' +
-                    (roomCode ? 'Join my room: ' + roomCode + '\n' : '') + 'Play at wordweft.net';
+                const shareText = 'I just got a ' + (data.storyGrade || '?') + ' on WordWeft! Think you can beat it?\n\nPlay at wordweft.net';
                 if (navigator.share) { navigator.share({ text: shareText }).catch(() => {}); }
                 else {
                     navigator.clipboard.writeText(shareText);

@@ -27,6 +27,14 @@ const App = (() => {
             requireProfile(() => joinRoom(roomParam));
         }
 
+        // Check for rejoinable game
+        if (!roomParam) {
+            const activeRoom = Room.getActiveRoom();
+            if (activeRoom) {
+                showRejoinPrompt(activeRoom.code, activeRoom.playerIndex);
+            }
+        }
+
         bindEvents();
 
         // Start home music on first user interaction (AudioContext needs gesture)
@@ -519,6 +527,60 @@ const App = (() => {
             if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
         } else {
             alert('Failed to create room. Please try again.');
+        }
+    }
+
+    function showRejoinPrompt(code, playerIndex) {
+        // Create a simple modal overlay for the rejoin prompt
+        const overlay = document.createElement('div');
+        overlay.id = 'rejoin-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+        overlay.innerHTML = `
+            <div style="background:var(--bg-card,#1a1a2e);border-radius:16px;padding:24px;max-width:340px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+                <h3 style="margin:0 0 8px;color:var(--text-primary,#fff)">Rejoin Game?</h3>
+                <p style="color:var(--text-secondary,#a0a0b8);margin:0 0 20px;font-size:14px">
+                    You have an ongoing game in room <strong style="color:var(--accent,#6366f1)">${code}</strong>. Would you like to rejoin?
+                </p>
+                <div style="display:flex;gap:12px;justify-content:center">
+                    <button id="rejoin-dismiss" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border,#333);background:transparent;color:var(--text-secondary,#a0a0b8);cursor:pointer;font-size:14px">Leave Game</button>
+                    <button id="rejoin-confirm" style="padding:8px 20px;border-radius:8px;border:none;background:var(--accent,#6366f1);color:#fff;cursor:pointer;font-size:14px;font-weight:600">Rejoin</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        document.getElementById('rejoin-confirm').addEventListener('click', async () => {
+            overlay.remove();
+            await rejoinRoom(code, playerIndex);
+        });
+        document.getElementById('rejoin-dismiss').addEventListener('click', () => {
+            overlay.remove();
+            Room.clearActiveRoom();
+        });
+    }
+
+    async function rejoinRoom(code, playerIndex) {
+        try {
+            const success = await Room.rejoin(code, playerIndex);
+            if (!success) {
+                Room.clearActiveRoom();
+                alert('Game is no longer available.');
+                return;
+            }
+            document.getElementById('lobby-room-code').textContent = code;
+            document.getElementById('game-room-code').textContent = code;
+            Game.startListening();
+            // If game is already started, go straight to game screen
+            const meta = await db.ref('rooms/' + code + '/meta').once('value');
+            if (meta.val() && meta.val().isStarted) {
+                showScreen('game');
+            } else {
+                document.getElementById('lobby-host-controls').classList.toggle('hidden', !Room.isHost);
+                document.getElementById('lobby-status').textContent = Room.isHost ? '' : 'Waiting for host to start...';
+                showScreen('lobby');
+            }
+        } catch (e) {
+            Room.clearActiveRoom();
+            alert('Failed to rejoin: ' + (e.message || 'Unknown error'));
         }
     }
 

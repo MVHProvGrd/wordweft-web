@@ -55,6 +55,7 @@ const Room = (() => {
                 roomRef = ref;
                 isHost = true;
                 myPlayerIndex = 0;
+                saveActiveRoom();
 
                 return code;
             } catch (e) {
@@ -112,6 +113,7 @@ const Room = (() => {
             roomRef = ref;
             isHost = false;
             myPlayerIndex = playerIndex;
+            saveActiveRoom();
 
             return true;
         } catch (e) {
@@ -152,7 +154,8 @@ const Room = (() => {
         await roomRef.child('turn').set({
             currentPlayerIndex: nextPlayerIndex,
             turnWordCount: 0,
-            turnWordsNeeded: wordsNeeded
+            turnWordsNeeded: wordsNeeded,
+            timerStartedAt: firebase.database.ServerValue.TIMESTAMP
         });
         await roomRef.child('typing').remove();
     }
@@ -197,12 +200,72 @@ const Room = (() => {
             turnWordCount: 0,
             turnWordsNeeded: gameMode === 'ONE_WORD' ? 1 :
                              gameMode === 'THREE_WORDS' ? 3 :
-                             gameMode === 'FIVE_WORDS' ? 5 : 0
+                             gameMode === 'FIVE_WORDS' ? 5 : 0,
+            timerStartedAt: firebase.database.ServerValue.TIMESTAMP
         });
+    }
+
+    function saveActiveRoom() {
+        try {
+            localStorage.setItem('wordweft_active_room', JSON.stringify({
+                code: roomCode,
+                playerIndex: myPlayerIndex,
+                timestamp: Date.now()
+            }));
+        } catch (e) {}
+    }
+
+    function clearActiveRoom() {
+        try { localStorage.removeItem('wordweft_active_room'); } catch (e) {}
+    }
+
+    function getActiveRoom() {
+        try {
+            const data = JSON.parse(localStorage.getItem('wordweft_active_room'));
+            if (!data || !data.code) return null;
+            // Expire after 2 hours
+            if (Date.now() - data.timestamp > 2 * 60 * 60 * 1000) {
+                clearActiveRoom();
+                return null;
+            }
+            return data;
+        } catch (e) { return null; }
+    }
+
+    async function rejoin(code, playerIdx) {
+        const uid = Auth.uid;
+        if (!uid) return false;
+
+        const ref = db.ref('rooms/' + code);
+        try {
+            const meta = await ref.child('meta').once('value');
+            if (!meta.exists()) return false;
+            if (meta.val().isFinished) return false;
+
+            // Verify player slot
+            const playerSnap = await ref.child('players/' + playerIdx).once('value');
+            if (!playerSnap.exists()) return false;
+            if (playerSnap.val().uid !== uid) return false;
+
+            // Reconnect
+            await ref.child('players/' + playerIdx + '/isConnected').set(true);
+            ref.child('players/' + playerIdx + '/isConnected').onDisconnect().set(false);
+
+            roomCode = code;
+            roomRef = ref;
+            isHost = meta.val().hostId === uid;
+            myPlayerIndex = playerIdx;
+
+            return true;
+        } catch (e) {
+            console.error('Failed to rejoin room:', e);
+            return false;
+        }
     }
 
     function leave() {
         stopListening();
+        clearActiveRoom();
         roomRef = null;
         roomCode = '';
         isHost = false;
@@ -224,6 +287,7 @@ const Room = (() => {
     return {
         create,
         join,
+        rejoin,
         listen,
         stopListening,
         submitWord,
@@ -236,6 +300,9 @@ const Room = (() => {
         startGame,
         leave,
         deleteRoom,
+        saveActiveRoom,
+        clearActiveRoom,
+        getActiveRoom,
         get code() { return roomCode; },
         get ref() { return roomRef; },
         get isHost() { return isHost; },

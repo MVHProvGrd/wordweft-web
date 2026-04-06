@@ -13,6 +13,7 @@ const Game = (() => {
     let finishVoteCount = 0;
     let hasVotedToExtend = false;
     let disconnectedIds = [];
+    let timerStartedAt = 0;
 
     // Player color hex values for display
     const COLOR_MAP = {
@@ -98,6 +99,7 @@ const Game = (() => {
             currentPlayerIndex = data.currentPlayerIndex || 0;
             turnWordCount = data.turnWordCount || 0;
             turnWordsNeeded = data.turnWordsNeeded || 1;
+            timerStartedAt = data.timerStartedAt || 0;
             updateTurnIndicator();
             updateInputState();
 
@@ -116,6 +118,7 @@ const Game = (() => {
                 if (typeof Sound !== 'undefined') Sound.playTurnChange();
                 if (turnTimerSeconds > 0) startTimer();
                 hasVotedToExtend = false;
+                extensionGrantedThisTurn = false;
 
                 // Waiting-for-turn music: play when it's NOT my turn, stop when it IS
                 const isMyTurn = currentPlayerIndex === Room.myIndex;
@@ -127,11 +130,11 @@ const Game = (() => {
                     }
                 }
             }
-            // Show +30s button for non-active players when timer is on
+            // Show +30s button for non-active players when timer is on (hide if already extended this turn)
             const extendBtn = document.getElementById('btn-time-extend');
             if (extendBtn) {
                 const isMyTurn = currentPlayerIndex === Room.myIndex;
-                extendBtn.classList.toggle('hidden', isMyTurn || turnTimerSeconds <= 0);
+                extendBtn.classList.toggle('hidden', isMyTurn || turnTimerSeconds <= 0 || extensionGrantedThisTurn);
             }
         });
 
@@ -177,6 +180,7 @@ const Game = (() => {
         });
 
         // Time extension votes
+        let lastExtensionVoteCount = 0;
         Room.listen('meta/timeExtensionVotes', (snap) => {
             const votes = snap.numChildren();
             const humanCount = players.length;
@@ -184,14 +188,37 @@ const Game = (() => {
             const el = document.getElementById('extend-vote-count');
             if (el) el.textContent = votes > 0 ? '(' + votes + '/' + eligible + ')' : '';
             if (eligible > 0 && votes > eligible / 2) {
-                timerRemaining += 30;
-                if (Room.ref) Room.ref.child('meta/timeExtensionVotes').remove();
-                hasVotedToExtend = false;
+                // Only host clears votes and writes the extension signal
+                if (Room.isHost) {
+                    if (Room.ref) {
+                        Room.ref.child('meta/timeExtensionVotes').remove();
+                        // Increment extension counter so all clients know to add 30s
+                        Room.ref.child('meta/timeExtensionGranted').once('value', (s) => {
+                            Room.ref.child('meta/timeExtensionGranted').set((s.val() || 0) + 1);
+                        });
+                    }
+                }
             }
+            lastExtensionVoteCount = votes;
+        });
+
+        // All clients listen for granted extensions (max one per turn)
+        let lastExtensionGranted = 0;
+        let extensionGrantedThisTurn = false;
+        Room.listen('meta/timeExtensionGranted', (snap) => {
+            const count = snap.val() || 0;
+            if (count > lastExtensionGranted) {
+                hasVotedToExtend = false;
+                extensionGrantedThisTurn = true;
+                // Hide the +30s button after one extension per turn
+                const extendBtn = document.getElementById('btn-time-extend');
+                if (extendBtn) extendBtn.classList.add('hidden');
+            }
+            lastExtensionGranted = count;
         });
 
         document.getElementById('btn-time-extend').addEventListener('click', () => {
-            if (hasVotedToExtend || !Room.ref) return;
+            if (hasVotedToExtend || extensionGrantedThisTurn || !Room.ref) return;
             hasVotedToExtend = true;
             Room.ref.child('meta/timeExtensionVotes/' + Room.myIndex).set(true);
         });
@@ -263,19 +290,37 @@ const Game = (() => {
                 }
             }
 
-            // Check for newly completed objectives (notifications)
+            // Check for newly completed/busted objectives (notifications)
             Object.entries(data).forEach(([idx, obj]) => {
                 const prevObj = previousObjectives[idx];
-                if (obj.completed && (!prevObj || !prevObj.completed)) {
-                    const player = players[parseInt(idx)];
-                    if (player && parseInt(idx) !== Room.myIndex) {
+                const playerIdx = parseInt(idx);
+                const player = players[playerIdx];
+
+                // Bust notification — someone guessed a player's word
+                if (obj.busted && (!prevObj || !prevObj.busted)) {
+                    if (playerIdx === Room.myIndex) {
+                        // I got busted!
+                        const buster = obj.bustedBy !== undefined ? players[obj.bustedBy] : null;
+                        const busterName = buster ? buster.name : 'Someone';
+                        showBustedBanner(busterName + ' guessed your secret word: "' + (obj.secretWord || '???') + '"!');
+                    } else if (player) {
+                        // Another player got busted
+                        const buster = obj.bustedBy !== undefined ? players[obj.bustedBy] : null;
+                        const busterName = buster ? buster.name : 'Someone';
+                        showToast(busterName + ' busted ' + player.name + "'s secret word!", '#EF4444');
+                    }
+                }
+                // Completion notification (not busted — player used their own word)
+                else if (obj.completed && !obj.busted && (!prevObj || !prevObj.completed)) {
+                    if (player && playerIdx !== Room.myIndex) {
                         showObjectiveNotification(player, obj.secretWord || '???');
                     }
                 }
+
                 // Wrong guess notification
                 if (obj.wrongGuessBy !== undefined && (!prevObj || prevObj.wrongGuessBy !== obj.wrongGuessBy)) {
                     const guesser = players[obj.wrongGuessBy];
-                    const target = players[parseInt(idx)];
+                    const target = players[playerIdx];
                     if (guesser && target) {
                         showToast(guesser.name + ' guessed wrong on ' + target.name + "'s word!", '#F59E0B');
                     }
@@ -292,6 +337,14 @@ const Game = (() => {
             }
         });
 
+        // Load my guesses from Firebase (persists across reconnect)
+        Room.listen('guesses/' + Room.myIndex, (snap) => {
+            guessedPlayerIds.clear();
+            if (snap.val()) {
+                Object.keys(snap.val()).forEach(k => guessedPlayerIds.add(Number(k)));
+            }
+        });
+
         // Guess word button
         document.getElementById('btn-guess-word').addEventListener('click', openGuessModal);
         document.getElementById('btn-close-guess').addEventListener('click', () => {
@@ -304,6 +357,7 @@ const Game = (() => {
             const data = snap.val();
             if (!data) return;
             if (timerInterval) clearInterval(timerInterval);
+            Room.clearActiveRoom(); // Game over — don't prompt to rejoin
             Results.show(data, { players, words, getPlayerColor });
         });
     }
@@ -450,8 +504,15 @@ const Game = (() => {
 
         // Submit words sequentially to avoid race conditions with Firebase indexes
         (async () => {
-            for (const w of wordsToSubmit) {
-                await Room.submitWord(w, Room.myIndex);
+            // If input is just punctuation (e.g. "."), append to last word
+            const isPunctuationOnly = wordsToSubmit.length === 1 && !/[a-zA-Z]/.test(wordsToSubmit[0]);
+            if (isPunctuationOnly && words.length > 0) {
+                const lastEntry = words[words.length - 1];
+                await Room.ref.child('words/' + lastEntry.position + '/word').set(lastEntry.word + wordsToSubmit[0]);
+            } else {
+                for (const w of wordsToSubmit) {
+                    await Room.submitWord(w, Room.myIndex);
+                }
             }
             if (typeof Sound !== 'undefined') Sound.playWordSubmit();
 
@@ -469,7 +530,8 @@ const Game = (() => {
                 } catch(e) {}
             }
 
-            const newCount = turnWordCount + wordsToSubmit.length;
+            const addedCount = isPunctuationOnly ? 0 : wordsToSubmit.length;
+            const newCount = turnWordCount + addedCount;
             const needed = getWordsNeeded();
 
             if (needed && newCount >= needed) {
@@ -513,6 +575,10 @@ const Game = (() => {
 
     function isValidSubmission(wordList) {
         if (wordList.length === 0) return false;
+        // In sentence mode, allow punctuation-only (e.g. ".") only if player already submitted words this turn
+        if (gameMode === 'SENTENCE' && turnWordCount > 0) {
+            return wordList.length > 0;
+        }
         if (!wordList.some(w => /[a-zA-Z]/.test(w))) return false;
         return true;
     }
@@ -542,39 +608,52 @@ const Game = (() => {
             return;
         }
 
-        timerRemaining = turnTimerSeconds;
         const display = document.getElementById('timer-display');
         display.classList.remove('hidden');
-        display.textContent = timerRemaining;
+        let hasExpired = false;
 
-        timerInterval = setInterval(() => {
-            timerRemaining--;
+        // Compute remaining from server timestamp
+        function tick() {
+            if (timerStartedAt > 0) {
+                const elapsed = Math.floor((Date.now() - timerStartedAt) / 1000);
+                // extensionGrantedThisTurn is tracked by the granted listener, timerRemaining
+                // gets +30 added there, so we just compute base from server time
+                const extBonus = extensionGrantedThisTurn ? 30 : 0;
+                timerRemaining = Math.max(0, turnTimerSeconds + extBonus - elapsed);
+            } else {
+                timerRemaining = turnTimerSeconds;
+            }
+
             display.textContent = timerRemaining;
             display.className = 'timer-display' + (timerRemaining <= 5 ? ' urgent' : '');
-            if (timerRemaining === 5 && typeof Sound !== 'undefined') Sound.playTimerWarning();
+            if (timerRemaining === 5 && !hasExpired && typeof Sound !== 'undefined') Sound.playTimerWarning();
 
-            if (timerRemaining <= 0) {
-                clearInterval(timerInterval);
-                // Auto-advance turn if it's our turn
-                if (currentPlayerIndex === Room.myIndex) {
+            if (timerRemaining <= 0 && !hasExpired) {
+                hasExpired = true;
+                // Only host auto-advances turn in online games
+                if (Room.isHost) {
                     const input = document.getElementById('word-input');
                     const text = input ? input.value.trim() : '';
-                    if (text) {
+                    if (text && currentPlayerIndex === Room.myIndex) {
                         submitWord(text);
                     } else {
-                        // Skip turn
                         const nextIndex = (currentPlayerIndex + 1) % players.length;
                         Room.advanceTurn(nextIndex, getWordsNeeded() || 1);
                     }
                 }
             }
-        }, 1000);
+            if (timerRemaining > 0) hasExpired = false;
+        }
+
+        tick(); // immediate first tick
+        timerInterval = setInterval(tick, 1000);
     }
 
     // Results rendering is now handled by the Results module (results.js)
 
     function finishGame() {
         if (timerInterval) clearInterval(timerInterval);
+        Room.clearActiveRoom(); // Game over
 
         // Build the full story from words
         const storyWords = words.map(w => w.word);
@@ -658,6 +737,7 @@ const Game = (() => {
 
     // --- Secret word guess UI ---
     let guessTargetIdx = null;
+    const guessedPlayerIds = new Set(); // one guess per opponent
     function openGuessModal() {
         const modal = document.getElementById('guess-modal');
         const list = document.getElementById('guess-player-list');
@@ -665,8 +745,13 @@ const Game = (() => {
         inputArea.classList.add('hidden');
         guessTargetIdx = null;
         list.innerHTML = '';
-        players.forEach((p, i) => {
-            if (i === Room.myIndex) return;
+        const guessable = players.filter((p, i) => i !== Room.myIndex && !guessedPlayerIds.has(i));
+        if (guessable.length === 0) {
+            showToast('You\'ve already used your guess on each opponent!', '#F59E0B');
+            return;
+        }
+        guessable.forEach((p) => {
+            const i = players.indexOf(p);
             const btn = document.createElement('button');
             btn.className = 'btn btn-ghost guess-player-btn';
             btn.innerHTML = '<span class="player-stat-avatar">' + (p.avatar || '\u{1F60A}') + '</span> ' + p.name;
@@ -690,6 +775,12 @@ const Game = (() => {
         if (!guess) return;
         input.value = '';
 
+        guessedPlayerIds.add(guessTargetIdx); // one guess per opponent
+        // Persist guess to Firebase
+        if (Room.ref) {
+            Room.ref.child('guesses/' + Room.myIndex + '/' + guessTargetIdx).set(true);
+        }
+
         // Check against Firebase objectives
         if (Room.ref) {
             Room.ref.child('objectives/' + guessTargetIdx).once('value').then(snap => {
@@ -709,6 +800,17 @@ const Game = (() => {
             });
         }
         document.getElementById('guess-modal').classList.add('hidden');
+    }
+
+    function showBustedBanner(message) {
+        const banner = document.createElement('div');
+        banner.className = 'objective-toast busted-banner';
+        banner.innerHTML = '<span>\u{1F6A8}</span> <b>BUSTED!</b> ' + message;
+        banner.style.borderColor = '#EF4444';
+        banner.style.background = 'linear-gradient(135deg, #1E1E36 0%, #3A1A1A 100%)';
+        document.body.appendChild(banner);
+        setTimeout(() => banner.classList.add('show'), 10);
+        setTimeout(() => { banner.classList.remove('show'); setTimeout(() => banner.remove(), 300); }, 4000);
     }
 
     function showObjectiveNotification(player, word) {
