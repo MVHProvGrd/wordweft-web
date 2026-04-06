@@ -44,25 +44,29 @@ const Game = (() => {
                     color: p.color,
                     avatar: p.avatar || '',
                     isHost: p.isHost || false,
+                    isConnected: p.isConnected !== false,
                     uid: p.uid
                 });
             });
+            // Derive disconnected list from isConnected field
+            disconnectedIds = players.filter(p => !p.isConnected).map(p => p.id);
             updatePlayerList();
             updateLobbyPlayers();
-            updateTurnIndicator();
-        });
-
-        // Track disconnected players
-        Room.listen('disconnected', (snap) => {
-            const data = snap.val();
-            disconnectedIds = data ? Object.keys(data).map(Number) : [];
-            updatePlayerList();
             updateTurnIndicator();
 
             // Check if host disconnected
             const host = players.find(p => p.isHost);
             const hostDisconnected = host && disconnectedIds.includes(host.id);
             showHostMigration(hostDisconnected);
+
+            // Auto-skip disconnected player's turn (host only)
+            if (Room.isHost && players.length > 1) {
+                const currentPlayer = players[currentPlayerIndex];
+                if (currentPlayer && !currentPlayer.isConnected) {
+                    const nextIndex = (currentPlayerIndex + 1) % players.length;
+                    Room.advanceTurn(nextIndex, getWordsNeeded() || 1);
+                }
+            }
         });
 
         // Words
@@ -96,6 +100,16 @@ const Game = (() => {
             turnWordsNeeded = data.turnWordsNeeded || 1;
             updateTurnIndicator();
             updateInputState();
+
+            // Auto-skip if turn landed on a disconnected player (host only)
+            if (Room.isHost && players.length > 1) {
+                const currentPlayer = players[currentPlayerIndex];
+                if (currentPlayer && !currentPlayer.isConnected) {
+                    const nextIndex = (currentPlayerIndex + 1) % players.length;
+                    setTimeout(() => Room.advanceTurn(nextIndex, getWordsNeeded() || 1), 300);
+                    return;
+                }
+            }
 
             // Reset timer on turn change
             if (oldIndex !== currentPlayerIndex) {
