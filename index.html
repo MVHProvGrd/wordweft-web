@@ -42,12 +42,18 @@
                 <span id="xp-text" class="xp-text"></span>
             </div>
 
+            <div id="streak-banner" class="streak-banner hidden">
+                <span class="streak-fire">&#128293;</span>
+                <span id="streak-count" class="streak-count"></span>
+                <span class="streak-label">day streak</span>
+            </div>
+
             <div class="button-group">
-                <button id="btn-join" class="btn btn-primary btn-large">
-                    <span class="btn-icon">&#9729;</span> Join Game
+                <button id="btn-create" class="btn btn-primary btn-large">
+                    <span class="btn-icon">+</span> Host Game
                 </button>
-                <button id="btn-create" class="btn btn-secondary btn-large">
-                    <span class="btn-icon">+</span> Create Room
+                <button id="btn-join" class="btn btn-secondary btn-large">
+                    <span class="btn-icon">&#9729;</span> Join Game
                 </button>
             </div>
 
@@ -83,12 +89,13 @@
                 </div>
             </div>
 
-            <div class="auth-section">
-                <button id="btn-google-signin" class="btn btn-google hidden">
-                    Sign in with Google
-                </button>
-                <p id="auth-status" class="auth-status"></p>
-                <button id="btn-sign-out" class="btn btn-ghost btn-small hidden" style="margin-top:6px;color:var(--accent-red)">Sign Out</button>
+            <div id="daily-challenge" class="daily-challenge hidden">
+                <div class="challenge-header">
+                    <span class="challenge-icon">&#127775;</span>
+                    <span class="challenge-title">Daily Challenge</span>
+                </div>
+                <p id="daily-challenge-text" class="challenge-text"></p>
+                <div id="daily-challenge-reward" class="challenge-reward">+25 bonus XP</div>
             </div>
 
             <div class="how-to-play">
@@ -108,7 +115,7 @@
     <div id="screen-profile" class="screen">
         <div class="profile-container">
             <button id="btn-profile-back" class="btn-back">&larr;</button>
-            <h2>Profile</h2>
+            <h2>Settings</h2>
             <div class="profile-card">
                 <div class="profile-avatar" id="profile-avatar"></div>
                 <div class="profile-name-row">
@@ -208,6 +215,8 @@
                     <button id="btn-profile-google-signin" class="btn btn-google hidden">Sign in with Google</button>
                     <button id="btn-profile-sign-out" class="btn btn-ghost btn-small hidden" style="color:var(--accent-red)">Sign Out</button>
                 </div>
+
+                <p class="settings-auto-save">Settings are saved automatically</p>
             </div>
         </div>
     </div>
@@ -232,6 +241,7 @@
         <div class="achievements-container">
             <button id="btn-achievements-back" class="btn-back">&larr;</button>
             <h2>Achievements</h2>
+            <div id="achievements-progress" class="achievements-progress"></div>
             <div id="achievements-grid" class="achievements-grid"></div>
         </div>
     </div>
@@ -370,7 +380,7 @@
                     </div>
 
                 </div>
-                <button id="btn-start-game" class="btn btn-primary btn-large" disabled>
+                <button id="btn-start-game" class="btn btn-green btn-large" disabled>
                     Start Game
                 </button>
             </div>
@@ -537,9 +547,34 @@
                 <div id="report-cards-list"></div>
             </div>
 
+            <div id="result-ach-progress" class="result-section-card hidden">
+                <h4 class="result-section-title">Almost There!</h4>
+                <div id="ach-progress-list"></div>
+            </div>
+
+            <div id="result-highlights" class="result-section-card hidden">
+                <h4 class="result-section-title">Highlights</h4>
+                <div id="highlights-list"></div>
+            </div>
+
+            <div class="result-challenge-section">
+                <button id="btn-challenge-friends" class="btn btn-secondary btn-large">
+                    <span class="btn-icon">&#9876;&#65039;</span> Challenge Friends
+                </button>
+            </div>
+
+            <div id="result-auth-prompt" class="result-auth-prompt hidden">
+                <div class="auth-prompt-card">
+                    <span class="auth-prompt-icon">&#128274;</span>
+                    <p class="auth-prompt-text">Sign in to save your stories and scores</p>
+                    <button id="btn-result-google-signin" class="btn btn-google">Sign in with Google</button>
+                    <button id="btn-result-auth-dismiss" class="btn btn-ghost btn-small">Not now</button>
+                </div>
+            </div>
+
             <div class="result-buttons">
                 <button id="btn-play-again" class="btn btn-primary btn-large">Play Again</button>
-                <button id="btn-go-home" class="btn btn-ghost">Home</button>
+                <button id="btn-go-home" class="btn btn-secondary btn-large">Home</button>
             </div>
         </div>
     </div>

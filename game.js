@@ -302,9 +302,10 @@ const Game = (() => {
         players.forEach(p => {
             const item = document.createElement('div');
             item.className = 'player-item';
+            const pColor = getPlayerColor(p.color);
             item.innerHTML = `
-                <span class="player-item-avatar">${p.avatar || '\u{1F60A}'}</span>
-                <span class="player-item-name" style="color: ${getPlayerColor(p.color)}">${p.name}</span>
+                <span class="player-item-avatar" style="background: ${pColor}33; border: 1.5px solid ${pColor}">${p.avatar || '\u{1F60A}'}</span>
+                <span class="player-item-name" style="color: ${pColor}">${p.name}</span>
                 ${p.isHost ? '<span class="player-item-host">Host</span>' : ''}
             `;
             list.appendChild(item);
@@ -368,10 +369,14 @@ const Game = (() => {
         if (!player) return;
 
         const isMyTurn = currentPlayerIndex === Room.myIndex;
+        const pColor = getPlayerColor(player.color);
+        el.style.background = pColor + '26';
+        el.style.borderRadius = '16px';
+        el.style.padding = '6px 14px';
         if (isMyTurn) {
             el.innerHTML = '<span class="current-player">Your turn!</span>';
         } else {
-            el.innerHTML = '<span style="color:' + getPlayerColor(player.color) + '">' +
+            el.innerHTML = '<span style="color:' + pColor + '">' +
                 (player.avatar ? player.avatar + ' ' : '') + player.name + '</span>\'s turn';
         }
 
@@ -568,9 +573,11 @@ const Game = (() => {
 
         const gradeEl = document.getElementById('result-grade');
         gradeEl.textContent = data.storyGrade || 'C';
-        gradeEl.style.cssText = 'font-size:72px;font-weight:900;color:' + gradeColor;
+        gradeEl.style.cssText = 'font-size:64px;font-weight:900;color:' + gradeColor;
         gradeEl.style.webkitBackgroundClip = '';
         gradeEl.style.webkitTextFillColor = '';
+        gradeEl.classList.remove('animate-in');
+        requestAnimationFrame(() => gradeEl.classList.add('animate-in'));
 
         document.getElementById('result-genre').textContent =
             (data.genreDetected || '') + (data.moodDetected ? ' \u2022 ' + data.moodDetected : '');
@@ -605,14 +612,34 @@ const Game = (() => {
             { id: 'vocabulary', value: data.vocabularyScore || 0, color: 'score-vocabulary' },
             { id: 'flow', value: data.flowScore || 0, color: 'score-flow' }
         ];
-        scores.forEach(s => {
+        scores.forEach((s, i) => {
             const bar = document.getElementById('bar-' + s.id);
             const val = document.getElementById('score-' + s.id);
+            const item = bar ? bar.closest('.score-bar-item') : null;
             if (bar) {
                 bar.className = 'score-fill ' + s.color;
-                setTimeout(() => { bar.style.width = s.value + '%'; }, 100);
+                bar.style.width = '0%';
             }
-            if (val) val.textContent = s.value + '/100';
+            if (val) val.textContent = '0/100';
+            if (item) item.classList.remove('animate-in');
+
+            const delay = 600 + i * 200;
+            setTimeout(() => {
+                if (item) item.classList.add('animate-in');
+                setTimeout(() => {
+                    if (bar) bar.style.width = s.value + '%';
+                    // Count up the value
+                    if (val) {
+                        let current = 0;
+                        const step = Math.max(1, Math.ceil(s.value / 20));
+                        const counter = setInterval(() => {
+                            current = Math.min(current + step, s.value);
+                            val.textContent = current + '/100';
+                            if (current >= s.value) clearInterval(counter);
+                        }, 30);
+                    }
+                }, 100);
+            }, delay);
         });
 
         // Hidden objectives results
@@ -654,8 +681,8 @@ const Game = (() => {
             renderReportCards(data, statsArray);
         });
 
-        // Confetti for A grades
-        if ((data.storyGrade || '').startsWith('A')) {
+        // Confetti for A and B grades
+        if ((data.storyGrade || '').startsWith('A') || (data.storyGrade || '').startsWith('B')) {
             launchConfetti();
         }
 
@@ -676,6 +703,10 @@ const Game = (() => {
             shareBtn.innerHTML = '&#128228;';
             shareBtn.title = 'Share Story';
             shareBtn.onclick = () => {
+                const coloredWords = words.map(w => {
+                    const player = players.find(p => p.id === w.playerId);
+                    return { word: w.word, color: player ? getPlayerColor(player.color) : '#A0A0B8' };
+                });
                 const entry = {
                     story: data.fullStory || document.getElementById('result-story-text').textContent,
                     grade: data.storyGrade,
@@ -684,12 +715,48 @@ const Game = (() => {
                     illustration: data.illustration,
                     tags: data.tags,
                     playerNames: players.map(p => p.name),
-                    wordCount: data.totalWords || words.length
+                    wordCount: data.totalWords || words.length,
+                    coloredWords: coloredWords
                 };
                 if (typeof App.shareStory === 'function') {
                     App.shareStory(entry, shareBtn);
                 }
             };
+        }
+
+        // Challenge friends button
+        const challengeBtn = document.getElementById('btn-challenge-friends');
+        if (challengeBtn) {
+            challengeBtn.onclick = () => {
+                const roomCode = Room.code || '';
+                const shareText = 'I just got a ' + (data.storyGrade || '?') + ' on WordWeft! Think you can beat it?\n\n' +
+                    (roomCode ? 'Join my room: ' + roomCode + '\n' : '') +
+                    'Play at wordweft.net';
+                if (navigator.share) {
+                    navigator.share({ text: shareText }).catch(() => {});
+                } else {
+                    navigator.clipboard.writeText(shareText);
+                    challengeBtn.textContent = 'Copied!';
+                    setTimeout(() => { challengeBtn.innerHTML = '<span class="btn-icon">&#9876;&#65039;</span> Challenge Friends'; }, 2000);
+                }
+            };
+        }
+
+        // Auth prompt for anonymous users
+        const authPrompt = document.getElementById('result-auth-prompt');
+        if (authPrompt) {
+            if (typeof Auth !== 'undefined' && Auth.isAnonymous) {
+                authPrompt.classList.remove('hidden');
+                const signInBtn = document.getElementById('btn-result-google-signin');
+                const dismissBtn = document.getElementById('btn-result-auth-dismiss');
+                if (signInBtn) signInBtn.onclick = async () => {
+                    await Auth.signInWithGoogle();
+                    authPrompt.classList.add('hidden');
+                };
+                if (dismissBtn) dismissBtn.onclick = () => authPrompt.classList.add('hidden');
+            } else {
+                authPrompt.classList.add('hidden');
+            }
         }
     }
 
@@ -750,11 +817,11 @@ const Game = (() => {
         if (sorted[0]) podiumOrder.push({ ...sorted[0], rank: 1 });
         if (sorted[2]) podiumOrder.push({ ...sorted[2], rank: 3 });
 
-        const heights = { 1: 120, 2: 90, 3: 70 };
-        const colors = { 1: '#B8860B', 2: '#9CA3AF', 3: '#CD7F32' };
+        const heights = { 1: 110, 2: 80, 3: 56 };
+        const colors = { 1: '#FBBF24', 2: '#9CA3AF', 3: '#CD7F32' };
         const labels = { 1: '1st', 2: '2nd', 3: '3rd' };
 
-        podiumOrder.forEach(ps => {
+        podiumOrder.forEach((ps, i) => {
             const col = document.createElement('div');
             col.className = 'podium-col';
             const player = players.find(p => p.name === ps.playerName);
@@ -763,10 +830,16 @@ const Game = (() => {
                 '<div class="podium-name" style="color:' + (player ? getPlayerColor(player.color) : '#fff') + '">' +
                     (ps.playerName || '?') + '</div>' +
                 '<div class="podium-score">' + (ps.impactScore || 0) + '</div>' +
-                '<div class="podium-bar" style="height:' + heights[ps.rank] + 'px;background:' + colors[ps.rank] + '">' +
+                '<div class="podium-bar" style="height:0px;background:' + colors[ps.rank] + ';transition:height 0.5s ease">' +
                     '<span class="podium-rank">' + labels[ps.rank] + '</span>' +
                 '</div>';
             display.appendChild(col);
+            // Staggered animation: 3rd, 2nd, then 1st
+            const delays = [300, 100, 500]; // 2nd position first (left), then 1st (center), then 3rd
+            setTimeout(() => {
+                col.classList.add('animate-in');
+                col.querySelector('.podium-bar').style.height = heights[ps.rank] + 'px';
+            }, 1800 + delays[i]);
         });
     }
 
@@ -1023,6 +1096,18 @@ const Game = (() => {
         xp = Math.round(xp * Math.min(1.0, totalWords / 20));
         xp = Math.max(5, xp);
 
+        // Streak multiplier
+        let streakMultiplier = 1.0;
+        try {
+            const streakSnap = await db.ref('users/' + Auth.uid + '/stats/currentStreak').once('value');
+            const streak = streakSnap.val() || 0;
+            if (streak >= 7) streakMultiplier = 1.5;
+            else if (streak >= 3) streakMultiplier = 1.25;
+            else if (streak >= 2) streakMultiplier = 1.1;
+        } catch(e) {}
+        const baseXp = xp;
+        xp = Math.round(xp * streakMultiplier);
+
         // Update Firebase stats
         try {
             const statsRef = db.ref('users/' + Auth.uid + '/stats');
@@ -1050,13 +1135,20 @@ const Game = (() => {
             const xpText = document.getElementById('xp-earned-text');
             if (xpSection && xpText) {
                 xpSection.classList.remove('hidden');
-                xpText.textContent = '+' + xp + ' XP earned!';
+                const streakText = streakMultiplier > 1.0 ? ' (' + Math.round((streakMultiplier - 1) * 100) + '% streak bonus!)' : '';
+                xpText.textContent = '+' + xp + ' XP earned!' + streakText;
             }
 
             // Check achievements
             if (typeof App !== 'undefined' && App.checkAchievements) {
                 App.checkAchievements(data, newStats, myStats);
             }
+
+            // Achievement progress hints
+            showAchievementProgress(newStats, data, myStats);
+
+            // Best-of highlights
+            showHighlights(data, myStats, allStats);
 
             // Save story to history
             if (typeof App !== 'undefined' && App.saveStory) {
@@ -1085,6 +1177,118 @@ const Game = (() => {
         } catch (e) {
             console.error('Failed to award XP:', e);
         }
+    }
+
+    async function showAchievementProgress(stats, data, myStats) {
+        const container = document.getElementById('result-ach-progress');
+        const list = document.getElementById('ach-progress-list');
+        if (!container || !list || !Auth.uid) return;
+
+        let unlocked = {};
+        try {
+            const snap = await db.ref('users/' + Auth.uid + '/achievements').once('value');
+            unlocked = snap.val() || {};
+        } catch(e) { return; }
+
+        const hints = [];
+        const games = stats.gamesPlayed || 0;
+        const wins = stats.gamesWon || 0;
+        const wordsTotal = stats.totalWordsWritten || 0;
+
+        if (!unlocked.ten_stories?.unlocked && games >= 5)
+            hints.push({ icon: '\u{1F4DA}', name: 'Prolific Author', remaining: (10 - games) + ' more games' });
+        if (!unlocked.fifty_stories?.unlocked && games >= 30)
+            hints.push({ icon: '\u{1F3C6}', name: 'Literary Legend', remaining: (50 - games) + ' more games' });
+        if (!unlocked.five_wins?.unlocked && wins >= 2)
+            hints.push({ icon: '\u2B50', name: 'Serial Winner', remaining: (5 - wins) + ' more wins' });
+        if (!unlocked.hundred_words?.unlocked && wordsTotal >= 50)
+            hints.push({ icon: '\u{1F4AF}', name: 'Centurion', remaining: (100 - wordsTotal) + ' more words' });
+        if (!unlocked.five_hundred_words?.unlocked && wordsTotal >= 300)
+            hints.push({ icon: '\u{1F525}', name: 'Word Machine', remaining: (500 - wordsTotal) + ' more words' });
+
+        if (hints.length === 0) return;
+        container.classList.remove('hidden');
+        list.innerHTML = '';
+        hints.slice(0, 3).forEach(h => {
+            const item = document.createElement('div');
+            item.className = 'ach-progress-item';
+            item.innerHTML =
+                '<span class="ach-progress-icon">' + h.icon + '</span>' +
+                '<div class="ach-progress-info"><div class="ach-progress-name">' + h.name + '</div></div>' +
+                '<span class="ach-progress-remaining">' + h.remaining + '</span>';
+            list.appendChild(item);
+        });
+    }
+
+    function showHighlights(data, myStats, allStats) {
+        const container = document.getElementById('result-highlights');
+        const list = document.getElementById('highlights-list');
+        if (!container || !list) return;
+
+        const highlights = [];
+
+        // Longest word in the story
+        let longestWord = '';
+        let longestPlayer = '';
+        allStats.forEach(ps => {
+            if (ps.longestWord && ps.longestWord.length > longestWord.length) {
+                longestWord = ps.longestWord;
+                longestPlayer = ps.playerName || '';
+            }
+        });
+        if (longestWord.length >= 6) {
+            highlights.push({ icon: '\u{1F4D6}', text: 'Longest word by ' + longestPlayer, value: '"' + longestWord + '"' });
+        }
+
+        // Best word (rarest)
+        let bestWord = '';
+        let bestPlayer = '';
+        let bestLevel = '';
+        allStats.forEach(ps => {
+            if (ps.bestWord) {
+                bestWord = ps.bestWord;
+                bestPlayer = ps.playerName || '';
+                bestLevel = ps.bestWordLevel || '';
+            }
+        });
+        if (bestWord) {
+            highlights.push({ icon: '\u{1F48E}', text: 'Rarest word by ' + bestPlayer, value: '"' + bestWord + '" (' + bestLevel + ')' });
+        }
+
+        // Most unique vocabulary
+        let mostUnique = 0;
+        let uniquePlayer = '';
+        allStats.forEach(ps => {
+            const ratio = (ps.wordCount || 0) > 0 ? (ps.uniqueWords || 0) / (ps.wordCount || 1) : 0;
+            if (ratio > mostUnique && (ps.wordCount || 0) >= 3) {
+                mostUnique = ratio;
+                uniquePlayer = ps.playerName || '';
+            }
+        });
+        if (mostUnique >= 0.8 && uniquePlayer) {
+            highlights.push({ icon: '\u{1F9E0}', text: 'Most unique vocabulary', value: uniquePlayer + ' (' + Math.round(mostUnique * 100) + '%)' });
+        }
+
+        // Highest impact
+        if (allStats.length >= 2) {
+            const top = allStats.reduce((a, b) => (b.impactScore || 0) > (a.impactScore || 0) ? b : a);
+            if (top.impactScore >= 50) {
+                highlights.push({ icon: '\u{1F451}', text: 'MVP', value: (top.playerName || '?') + ' (' + top.impactScore + ')' });
+            }
+        }
+
+        if (highlights.length === 0) return;
+        container.classList.remove('hidden');
+        list.innerHTML = '';
+        highlights.forEach(h => {
+            const item = document.createElement('div');
+            item.className = 'highlight-item';
+            item.innerHTML =
+                '<span class="highlight-icon">' + h.icon + '</span>' +
+                '<span class="highlight-text">' + h.text + '</span>' +
+                '<span class="highlight-value">' + h.value + '</span>';
+            list.appendChild(item);
+        });
     }
 
     // Achievement definitions matching Android

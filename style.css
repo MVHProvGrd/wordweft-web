@@ -97,13 +97,13 @@ html, body {
     border-radius: var(--radius-xs);
 }
 .btn-primary {
-    background: var(--accent-purple);
+    background: var(--accent-indigo);
     color: white;
 }
 .btn-secondary {
     background: transparent;
-    color: var(--accent-purple);
-    border: 2px solid var(--accent-purple);
+    color: var(--accent-indigo);
+    border: 2px solid var(--accent-indigo);
 }
 .btn-ghost {
     background: transparent;
@@ -126,15 +126,16 @@ html, body {
 .btn-mode {
     padding: 8px 14px;
     border-radius: 20px;
-    border: 2px solid var(--accent-purple);
+    border: 2px solid var(--accent-indigo);
     background: transparent;
     color: var(--text-secondary);
     font-size: 14px;
     cursor: pointer;
 }
 .btn-mode.active {
-    background: var(--accent-purple);
-    color: white;
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--accent-indigo);
+    border-color: var(--accent-indigo);
 }
 
 /* Color picker grid */
@@ -165,9 +166,9 @@ html, body {
     margin-bottom: 16px;
 }
 .setting-group {
-    background: rgba(255,255,255,0.04);
-    border-radius: var(--radius-md);
-    padding: 12px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 14px;
 }
 .setting-group > label {
     display: block;
@@ -188,8 +189,14 @@ html, body {
 /* Story starter pills */
 .starter-options {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+.starter-options::-webkit-scrollbar {
+    display: none;
 }
 .btn-starter {
     padding: 6px 12px;
@@ -202,24 +209,25 @@ html, body {
     white-space: nowrap;
 }
 .btn-starter.active {
-    background: var(--accent-purple);
+    background: var(--accent-green);
     color: white;
-    border-color: var(--accent-purple);
+    border-color: var(--accent-green);
 }
 
 /* Timer buttons */
 .btn-timer {
     padding: 8px 14px;
     border-radius: 20px;
-    border: 2px solid var(--accent-purple);
+    border: 2px solid var(--accent-amber);
     background: transparent;
     color: var(--text-secondary);
     font-size: 14px;
     cursor: pointer;
 }
 .btn-timer.active {
-    background: var(--accent-purple);
-    color: white;
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--accent-amber);
+    border-color: var(--accent-amber);
 }
 
 /* Toggle switch */
@@ -256,7 +264,7 @@ html, body {
     transition: transform 0.2s;
 }
 .toggle-input:checked + .toggle-slider {
-    background: var(--accent-purple);
+    background: var(--accent-amber);
 }
 .toggle-input:checked + .toggle-slider::after {
     transform: translateX(20px);
@@ -479,6 +487,28 @@ html, body {
     white-space: nowrap;
 }
 
+.streak-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 20px;
+    padding: 8px 18px;
+    margin-top: 12px;
+}
+.streak-fire { font-size: 18px; }
+.streak-count {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent-amber);
+}
+.streak-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
 .button-group {
     width: 100%;
     display: flex;
@@ -487,15 +517,45 @@ html, body {
     margin-top: 24px;
 }
 
-.auth-section {
-    width: 100%;
-    margin-top: 20px;
-    text-align: center;
-}
 .auth-status {
     font-size: 12px;
     color: var(--text-muted);
     margin-top: 8px;
+}
+
+/* Daily challenge */
+.daily-challenge {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15));
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 16px;
+}
+.challenge-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.challenge-icon { font-size: 18px; }
+.challenge-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-indigo);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.challenge-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+.challenge-reward {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-amber);
+    margin-top: 6px;
 }
 
 .how-to-play {
@@ -529,7 +589,7 @@ html, body {
     font-size: 22px;
     padding: 6px 8px;
     cursor: pointer;
-    opacity: 0.5;
+    opacity: 0.8;
     transition: opacity 0.2s ease, transform 0.15s ease;
     line-height: 1;
 }
@@ -633,14 +693,14 @@ html, body {
 }
 .btn-lobby-music {
     float: right;
-    background: rgba(139,92,246,0.15);
-    border: 1px solid rgba(139,92,246,0.3);
+    background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.3);
     border-radius: 50%;
     width: 36px;
     height: 36px;
     font-size: 16px;
     cursor: pointer;
-    color: var(--accent-purple);
+    color: var(--accent-indigo);
     margin-top: 4px;
     transition: opacity 0.2s;
 }
@@ -691,8 +751,8 @@ html, body {
 .game-room-code {
     font-size: 13px;
     font-weight: 700;
-    color: var(--accent-purple);
-    background: rgba(139,92,246,0.15);
+    color: var(--accent-indigo);
+    background: rgba(99,102,241,0.15);
     padding: 4px 10px;
     border-radius: 6px;
 }
@@ -921,6 +981,16 @@ html, body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    opacity: 0;
+    transform: scale(0.3);
+}
+.result-grade.animate-in {
+    animation: gradeReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes gradeReveal {
+    0% { opacity: 0; transform: scale(0.3); }
+    60% { opacity: 1; transform: scale(1.15); }
+    100% { opacity: 1; transform: scale(1); }
 }
 .result-genre {
     font-size: 14px;
@@ -1015,8 +1085,18 @@ html, body {
 .score-fill {
     height: 100%;
     border-radius: 4px;
-    transition: width 1s ease;
     width: 0%;
+    transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.score-bar-item {
+    opacity: 0;
+    transform: translateX(-10px);
+}
+.score-bar-item.animate-in {
+    animation: scoreSlideIn 0.3s ease forwards;
+}
+@keyframes scoreSlideIn {
+    to { opacity: 1; transform: translateX(0); }
 }
 .player-stats-list {
     display: flex;
@@ -1049,7 +1129,7 @@ html, body {
 }
 .player-stat-title {
     font-size: 13px;
-    color: var(--accent-purple);
+    color: var(--accent-amber);
     font-style: italic;
 }
 .player-stat-details {
@@ -1072,13 +1152,18 @@ html, body {
 
 /* Finish Story button (green, matching Android) */
 .btn-finish {
-    color: #10B981 !important;
-    border: 1px solid rgba(16,185,129,0.3);
+    color: var(--accent-amber) !important;
+    border: 1px solid rgba(245,158,11,0.3);
     background: transparent;
     border-radius: var(--radius-sm);
     font-weight: 600;
 }
-.btn-finish:hover { background: rgba(16,185,129,0.15); }
+.btn-finish:hover { background: rgba(245,158,11,0.15); }
+.btn-finish.voted {
+    color: var(--text-muted) !important;
+    border-color: var(--text-muted);
+    opacity: 0.6;
+}
 
 /* Results section cards */
 .result-section-card {
@@ -1163,6 +1248,14 @@ html, body {
     flex-direction: column;
     align-items: center;
     min-width: 80px;
+    opacity: 0;
+}
+.podium-col.animate-in {
+    animation: podiumEntrance 0.5s ease forwards;
+}
+@keyframes podiumEntrance {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 .podium-avatar { font-size: 28px; margin-bottom: 4px; }
 .podium-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
@@ -1338,11 +1431,81 @@ html, body {
 .guess-input-area { display: flex; gap: 8px; margin-top: 10px; }
 .guess-input-area .word-input { flex: 1; }
 
+/* Achievement progress items */
+.ach-progress-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.ach-progress-item:last-child { border-bottom: none; }
+.ach-progress-icon { font-size: 24px; }
+.ach-progress-info { flex: 1; }
+.ach-progress-name { font-size: 13px; font-weight: 600; }
+.ach-progress-desc { font-size: 11px; color: var(--text-muted); }
+.ach-progress-remaining {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-amber);
+    white-space: nowrap;
+}
+
+/* Highlights */
+.highlight-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.highlight-item:last-child { border-bottom: none; }
+.highlight-icon { font-size: 20px; }
+.highlight-text { font-size: 13px; color: var(--text-secondary); }
+.highlight-value {
+    font-weight: 700;
+    color: var(--accent-indigo);
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+/* Challenge friends */
+.result-challenge-section {
+    margin-top: 20px;
+}
+
+/* Auth prompt on results screen */
+.result-auth-prompt {
+    margin-top: 20px;
+}
+.auth-prompt-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.auth-prompt-icon {
+    font-size: 28px;
+}
+.auth-prompt-text {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
 .result-buttons {
     display: flex;
     flex-direction: column;
     gap: 10px;
     margin-top: 24px;
+}
+.result-buttons .btn-large {
+    height: 52px;
 }
 
 /* Utilities */
@@ -1418,7 +1581,7 @@ html, body {
 }
 .profile-rank {
     font-size: 14px;
-    color: var(--accent-purple);
+    color: var(--accent-indigo);
     margin-bottom: 12px;
 }
 .profile-xp-bar {
@@ -1430,7 +1593,7 @@ html, body {
 }
 .profile-xp-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent-purple), #a78bfa);
+    background: linear-gradient(90deg, var(--accent-indigo), #818cf8);
     border-radius: 4px;
     transition: width 0.5s;
 }
@@ -1452,7 +1615,7 @@ html, body {
 .stat-value {
     font-size: 24px;
     font-weight: bold;
-    color: var(--accent-purple);
+    color: var(--accent-indigo);
 }
 .stat-label {
     font-size: 11px;
@@ -1463,9 +1626,17 @@ html, body {
     margin-top: 20px;
 }
 .profile-settings h4 {
-    font-size: 14px;
-    color: var(--text-secondary);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--accent-indigo);
     margin: 16px 0 8px;
+}
+.settings-auto-save {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 20px;
+    font-style: italic;
 }
 
 /* Leaderboard Screen */
@@ -1483,14 +1654,14 @@ html, body {
     flex: 1;
     padding: 10px;
     border-radius: var(--radius-md);
-    border: 2px solid var(--accent-purple);
+    border: 2px solid var(--accent-indigo);
     background: transparent;
     color: var(--text-secondary);
     font-size: 14px;
     cursor: pointer;
 }
 .btn-tab.active {
-    background: var(--accent-purple);
+    background: var(--accent-indigo);
     color: white;
 }
 .leaderboard-list {
@@ -1543,7 +1714,7 @@ html, body {
 }
 .lb-xp {
     font-weight: bold;
-    color: var(--accent-purple);
+    color: var(--accent-indigo);
     font-size: 15px;
     text-align: right;
 }
@@ -1552,8 +1723,16 @@ html, body {
     font-weight: 400;
     color: var(--text-muted);
 }
+.lb-entry.top3 {
+    background: var(--bg-card);
+}
 .lb-entry.me {
-    border: 2px solid var(--accent-purple);
+    border: 2px solid var(--accent-indigo);
+}
+.lb-favorite-title {
+    font-size: 11px;
+    color: var(--accent-amber);
+    font-style: italic;
 }
 
 /* ─── Achievements Screen ────────────────────────────── */
@@ -1561,6 +1740,30 @@ html, body {
     max-width: 500px;
     margin: 0 auto;
     padding: 24px 16px;
+}
+.achievements-progress {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+.ach-progress-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.ach-progress-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.ach-progress-fill {
+    height: 100%;
+    background: var(--accent-green);
+    border-radius: 4px;
+    transition: width 0.5s;
 }
 .achievements-grid {
     display: grid;
@@ -1575,11 +1778,26 @@ html, body {
     transition: opacity 0.3s;
 }
 .achievement-card.locked {
-    opacity: 0.35;
+    background: #151528;
+    opacity: 1;
+}
+.achievement-card.locked .ach-name,
+.achievement-card.locked .ach-desc {
+    color: var(--text-muted);
 }
 .achievement-card .ach-icon {
     font-size: 32px;
+    width: 48px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(99,102,241,0.15);
+    border-radius: var(--radius-xs);
     margin-bottom: 6px;
+}
+.achievement-card.locked .ach-icon {
+    background: rgba(255,255,255,0.05);
 }
 .achievement-card .ach-name {
     font-size: 13px;
@@ -1655,10 +1873,12 @@ html, body {
     gap: 10px;
     margin-bottom: 6px;
 }
+.history-illustration {
+    font-size: 24px;
+}
 .history-grade-badge {
     font-size: 20px;
     font-weight: 800;
-    color: var(--accent-purple);
     min-width: 36px;
 }
 .history-meta {
@@ -1711,7 +1931,7 @@ html, body {
 }
 .my-level-avatar { font-size: 32px; }
 .my-level-name { font-weight: 700; font-size: 16px; margin: 4px 0 2px; }
-.my-level-rank { font-size: 13px; color: var(--accent-purple); }
+.my-level-rank { font-size: 13px; color: var(--accent-indigo); }
 .friends-list {
     display: flex;
     flex-direction: column;
@@ -1733,7 +1953,9 @@ html, body {
 .friend-record {
     text-align: right;
 }
-.friend-wl { font-weight: 700; font-size: 14px; color: var(--accent-indigo); }
+.friend-wl { font-weight: 700; font-size: 15px; }
+.friend-wins { color: var(--accent-green); }
+.friend-losses { color: var(--accent-red); }
 .friend-wl-label { font-size: 10px; color: var(--text-muted); }
 
 /* ─── Tutorial Screen ────────────────────────────────── */

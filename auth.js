@@ -95,8 +95,8 @@ const Auth = (() => {
             userBar.classList.remove('hidden');
             document.getElementById('user-avatar').textContent = playerAvatar || '\u{1F60A}';
             document.getElementById('user-name').textContent = playerName;
-            // Load level info from Firebase
             loadUserLevel();
+            showDailyChallenge();
         } else {
             userBar.classList.add('hidden');
         }
@@ -130,10 +130,50 @@ const Auth = (() => {
                 document.getElementById('user-level').textContent = 'Lv.' + level + ' ' + rank;
                 document.getElementById('xp-bar').style.width = progress + '%';
                 document.getElementById('xp-text').textContent = xp + ' XP';
+
+                // Streak banner
+                const streak = stats.currentStreak || 0;
+                const streakBanner = document.getElementById('streak-banner');
+                const streakCount = document.getElementById('streak-count');
+                if (streakBanner && streakCount) {
+                    if (streak >= 2) {
+                        streakCount.textContent = streak;
+                        streakBanner.classList.remove('hidden');
+                    } else {
+                        streakBanner.classList.add('hidden');
+                    }
+                }
             }
         } catch (e) {
             console.error('Failed to load user level:', e);
         }
+    }
+
+    function showDailyChallenge() {
+        const el = document.getElementById('daily-challenge');
+        const textEl = document.getElementById('daily-challenge-text');
+        if (!el || !textEl) return;
+
+        const challenges = [
+            'Write a horror story',
+            'Use only 1-word turns',
+            'Try to get an A+ grade',
+            'Use the word "magnificent" in your story',
+            'Write a love story',
+            'Use 5-word turns for extra creativity',
+            'Write a comedy — make it funny!',
+            'Try to use the longest words you can',
+            'Write a mystery story with a twist',
+            'Use at least 3 adjectives in your turns',
+            'Write a sci-fi adventure',
+            'Challenge: no repeating words!',
+            'Write a story set in the future',
+            'Tell a story from an animal\'s perspective',
+        ];
+        const today = new Date();
+        const dayIndex = (today.getFullYear() * 366 + today.getMonth() * 31 + today.getDate()) % challenges.length;
+        textEl.textContent = challenges[dayIndex];
+        el.classList.remove('hidden');
     }
 
     function calculateLevel(xp) {

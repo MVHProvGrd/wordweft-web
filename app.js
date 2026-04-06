@@ -82,16 +82,6 @@ const App = (() => {
         // Name dialog
         setupNameDialog();
 
-        // Google sign-in
-        document.getElementById('btn-google-signin').addEventListener('click', async () => {
-            await Auth.signInWithGoogle();
-        });
-
-        // Sign out
-        document.getElementById('btn-sign-out').addEventListener('click', async () => {
-            await Auth.signOut();
-        });
-
         // Lobby
         document.getElementById('btn-lobby-back').addEventListener('click', () => {
             if (typeof Sound !== 'undefined') Sound.stopMusic();
@@ -755,14 +745,18 @@ const App = (() => {
                 const losses = games - wins;
                 const words = stats.totalWordsWritten || 0;
                 const div = document.createElement('div');
-                div.className = 'lb-entry' + (isMe ? ' me' : '');
+                div.className = 'lb-entry' + (isMe ? ' me' : '') + (i < 3 ? ' top3' : '');
+                const avgImpact = stats.avgImpactScore ? Math.round(stats.avgImpactScore) : '';
+                const favTitle = entry.favoriteTitle || '';
                 div.innerHTML =
                     '<div class="lb-rank ' + rankClass + '">' + medal + '</div>' +
                     '<div class="lb-avatar">' + (entry.avatar || '\u{1F60A}') + '</div>' +
                     '<div class="lb-info">' +
                         '<div class="lb-name">' + (entry.displayName || 'Anonymous') + '</div>' +
+                        (favTitle ? '<div class="lb-favorite-title">' + favTitle + '</div>' : '') +
                         '<div class="lb-level">Lv.' + level + ' ' + Auth.getRank(level) + '</div>' +
-                        '<div class="lb-stats">' + wins + 'W ' + losses + 'L \u2022 ' + words + ' words</div>' +
+                        '<div class="lb-stats">' + wins + 'W ' + losses + 'L \u2022 ' + words + ' words' +
+                            (avgImpact ? ' \u2022 ' + avgImpact + ' avg impact' : '') + '</div>' +
                     '</div>' +
                     '<div class="lb-xp">' + (entry.xp || 0) + '<br><span class="lb-xp-label">XP</span></div>';
                 list.appendChild(div);
@@ -856,6 +850,16 @@ const App = (() => {
         }
 
         const ACHS = Game.ACHIEVEMENTS;
+        const totalCount = Object.keys(ACHS).length;
+        const unlockedCount = Object.keys(unlocked).filter(k => unlocked[k] && unlocked[k].unlocked).length;
+        const progressEl = document.getElementById('achievements-progress');
+        if (progressEl) {
+            const pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+            progressEl.innerHTML =
+                '<div class="ach-progress-text">' + unlockedCount + ' / ' + totalCount + ' unlocked</div>' +
+                '<div class="ach-progress-bar"><div class="ach-progress-fill" style="width:' + pct + '%"></div></div>';
+        }
+
         Object.entries(ACHS).forEach(([id, ach]) => {
             const isUnlocked = unlocked[id] && unlocked[id].unlocked;
             const card = document.createElement('div');
@@ -943,9 +947,11 @@ const App = (() => {
                 if (entry.genre) tagsHtml += '<span class="history-tag">' + entry.genre + '</span>';
                 if (entry.mood) tagsHtml += '<span class="history-tag">' + entry.mood + '</span>';
 
+                const illustration = entry.illustration || '';
                 div.innerHTML =
                     '<div class="history-header">' +
-                        '<span class="history-grade-badge">' + (entry.grade || '?') + '</span>' +
+                        (illustration ? '<span class="history-illustration">' + illustration + '</span>' : '') +
+                        '<span class="history-grade-badge" style="color:' + gradeColor(entry.grade) + '">' + (entry.grade || '?') + '</span>' +
                         '<div class="history-meta">' + date + ' &bull; ' + playerCount + ' players &bull; ' + (entry.wordCount || 0) + ' words</div>' +
                     '</div>' +
                     '<div class="history-preview">' + preview + '</div>' +
@@ -1006,6 +1012,36 @@ const App = (() => {
         if (line.trim()) ctx.fillText(line.trim(), x, currentY);
     }
 
+    function wrapColoredText(ctx, coloredWords, x, y, maxWidth, lineHeight, maxHeight) {
+        let currentX = x;
+        let currentY = y;
+        // Opening quote
+        ctx.fillStyle = '#6B7280';
+        ctx.fillText('\u201C', currentX, currentY);
+        currentX += ctx.measureText('\u201C').width;
+
+        for (let i = 0; i < coloredWords.length; i++) {
+            const w = coloredWords[i];
+            const text = (i > 0 ? ' ' : '') + w.word;
+            const width = ctx.measureText(text).width;
+            if (currentX + width > x + maxWidth && i > 0) {
+                currentX = x;
+                currentY += lineHeight;
+                if (currentY - y > maxHeight) {
+                    ctx.fillStyle = '#6B7280';
+                    ctx.fillText('...', currentX, currentY);
+                    return;
+                }
+            }
+            ctx.fillStyle = w.color;
+            ctx.fillText(text, currentX, currentY);
+            currentX += width;
+        }
+        // Closing quote
+        ctx.fillStyle = '#6B7280';
+        ctx.fillText('\u201D', currentX, currentY);
+    }
+
     async function generateStoryCard(entry) {
         const canvas = document.createElement('canvas');
         canvas.width = 1080;
@@ -1055,10 +1091,14 @@ const App = (() => {
 
         // Story text
         const storyY = entry.illustration ? 620 : 540;
-        ctx.fillStyle = '#E5E7EB';
         ctx.font = '32px system-ui';
         ctx.textAlign = 'left';
-        wrapText(ctx, '\u201C' + (entry.story || '') + '\u201D', 80, storyY, 920, 44, 800);
+        if (entry.coloredWords && entry.coloredWords.length > 0) {
+            wrapColoredText(ctx, entry.coloredWords, 80, storyY, 920, 44, 800);
+        } else {
+            ctx.fillStyle = '#E5E7EB';
+            wrapText(ctx, '\u201C' + (entry.story || '') + '\u201D', 80, storyY, 920, 44, 800);
+        }
 
         // Players
         ctx.fillStyle = '#6B7280';
@@ -1181,16 +1221,19 @@ const App = (() => {
 
                 const div = document.createElement('div');
                 div.className = 'friend-entry';
+                const winRate = games > 0 ? Math.round((wins / games) * 100) : 0;
+                const bestGrade = fdata.bestGrade || '';
                 div.innerHTML =
                     '<div class="friend-avatar">' + (profile.avatar || fdata.avatar || '\u{1F60A}') + '</div>' +
                     '<div class="friend-info">' +
                         '<div class="friend-name">' + (profile.displayName || fdata.name || 'Player') + '</div>' +
                         '<div class="friend-level">Lv.' + fLevel + ' ' + Auth.getRank(fLevel) + '</div>' +
-                        '<div class="friend-games">' + games + ' games together</div>' +
+                        '<div class="friend-games">' + games + ' games \u2022 ' + winRate + '% win rate' +
+                            (bestGrade ? ' \u2022 Best: ' + bestGrade : '') + '</div>' +
                     '</div>' +
                     '<div class="friend-record">' +
-                        '<div class="friend-wl">' + wins + 'W - ' + losses + 'L</div>' +
-                        '<div class="friend-wl-label">vs record</div>' +
+                        '<div class="friend-wl"><span class="friend-wins">' + wins + 'W</span> - <span class="friend-losses">' + losses + 'L</span></div>' +
+                        '<div class="friend-wl-label">Head-to-Head</div>' +
                     '</div>';
                 list.appendChild(div);
             }
