@@ -171,8 +171,13 @@ const Sound = (() => {
     }
   };
 
-  function startMusic(style) {
+  let currentMusicStyle = null;
+
+  function startMusic(style, force) {
+    // Don't restart if already playing the same style
+    if (!force && currentMusicStyle === style && musicTimeoutId) return;
     stopMusic();
+    currentMusicStyle = style;
     const melody = melodies[style];
     if (!melody) return;
 
@@ -197,7 +202,8 @@ const Sound = (() => {
     playNext();
   }
 
-  function stopMusic() {
+  function stopMusic(clearStyle) {
+    if (clearStyle !== false) currentMusicStyle = null;
     if (musicTimeoutId !== null) {
       clearTimeout(musicTimeoutId);
       musicTimeoutId = null;

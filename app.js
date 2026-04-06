@@ -313,7 +313,7 @@ const App = (() => {
                 btn.innerHTML = '&#9654; Preview';
                 waitPreviewPlaying = false;
             } else {
-                Sound.startMusic(selectedWaitingMusic || 'jazz');
+                Sound.startMusic(selectedWaitingMusic || 'jazz', true);
                 btn.innerHTML = '&#9632; Stop';
                 waitPreviewPlaying = true;
             }
@@ -328,7 +328,7 @@ const App = (() => {
                 btn.innerHTML = '&#9654; Preview';
                 previewPlaying = false;
             } else {
-                Sound.startMusic(selectedMusicStyle || 'jazz');
+                Sound.startMusic(selectedMusicStyle || 'jazz', true);
                 btn.innerHTML = '&#9632; Stop';
                 previewPlaying = true;
             }
