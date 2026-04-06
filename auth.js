@@ -88,9 +88,6 @@ const Auth = (() => {
 
     function updateUI() {
         const userBar = document.getElementById('user-bar');
-        const googleBtn = document.getElementById('btn-google-signin');
-        const authStatus = document.getElementById('auth-status');
-
         if (currentUser && playerName) {
             userBar.classList.remove('hidden');
             document.getElementById('user-avatar').textContent = playerAvatar || '\u{1F60A}';
@@ -98,19 +95,7 @@ const Auth = (() => {
             loadUserLevel();
             showDailyChallenge();
         } else {
-            userBar.classList.add('hidden');
-        }
-
-        const signOutBtn = document.getElementById('btn-sign-out');
-
-        if (currentUser && !currentUser.isAnonymous) {
-            googleBtn.classList.add('hidden');
-            if (signOutBtn) signOutBtn.classList.remove('hidden');
-            authStatus.textContent = 'Signed in as ' + (currentUser.email || currentUser.displayName);
-        } else if (currentUser) {
-            googleBtn.classList.remove('hidden');
-            if (signOutBtn) signOutBtn.classList.add('hidden');
-            authStatus.textContent = 'Playing as guest';
+            if (userBar) userBar.classList.add('hidden');
         }
     }
 
