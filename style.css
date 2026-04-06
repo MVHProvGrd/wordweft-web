@@ -310,7 +310,7 @@ html, body {
     transition: border-color 0.2s;
 }
 .input-field:focus {
-    border-color: var(--accent-purple);
+    border-color: var(--accent-indigo);
 }
 .input-field::placeholder {
     color: var(--text-muted);
@@ -1069,6 +1069,8 @@ html, body {
     display: flex;
     align-items: center;
     gap: 10px;
+    opacity: 0;
+    transform: translateX(-10px);
 }
 .score-label {
     width: 80px;
@@ -1087,10 +1089,6 @@ html, body {
     border-radius: 4px;
     width: 0%;
     transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-.score-bar-item {
-    opacity: 0;
-    transform: translateX(-10px);
 }
 .score-bar-item.animate-in {
     animation: scoreSlideIn 0.3s ease forwards;
@@ -1189,7 +1187,7 @@ html, body {
     text-align: center;
 }
 
-/* Story header with action buttons */
+/* Story header with action buttons (btn-icon overrides the generic one with border style) */
 .result-story-header {
     display: flex;
     align-items: center;
@@ -1771,6 +1769,7 @@ html, body {
     gap: 10px;
 }
 .achievement-card {
+    position: relative;
     background: var(--bg-card);
     border-radius: var(--radius-sm);
     padding: 14px;
@@ -1820,9 +1819,6 @@ html, body {
     right: 8px;
     font-size: 14px;
     color: var(--accent-green);
-}
-.achievement-card {
-    position: relative;
 }
 
 /* Achievement toast */
