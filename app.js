@@ -491,16 +491,15 @@ const App = (() => {
     function generateAndPostObjectives() {
         const categories = Object.keys(SECRET_WORD_POOLS);
         const players = Game.players.length > 0 ? Game.players : [];
-        // Use room ref to get player count
         const objectives = {};
         const usedWords = new Set();
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < players.length; i++) {
             const cat = categories[Math.floor(Math.random() * categories.length)];
             const pool = SECRET_WORD_POOLS[cat].filter(w => !usedWords.has(w));
             if (pool.length === 0) continue;
             const word = pool[Math.floor(Math.random() * pool.length)];
             usedWords.add(word);
-            objectives[i] = { word: word, category: cat, completed: false, busted: false };
+            objectives[i] = { secretWord: word, playerId: i, completed: false, busted: false };
         }
         if (Room.ref) {
             Room.ref.child('objectives').set(objectives);

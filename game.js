@@ -460,9 +460,9 @@ const Game = (() => {
                 try {
                     const objSnap = await Room.ref.child('objectives/' + Room.myIndex).once('value');
                     const obj = objSnap.val();
-                    if (obj && obj.word && !obj.completed) {
+                    if (obj && obj.secretWord && !obj.completed) {
                         const submitted = wordsToSubmit.map(w => w.toLowerCase().replace(/[^a-z]/g, ''));
-                        if (submitted.includes(obj.word.toLowerCase())) {
+                        if (submitted.includes(obj.secretWord.toLowerCase())) {
                             await Room.ref.child('objectives/' + Room.myIndex + '/completed').set(true);
                         }
                     }
