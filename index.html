@@ -164,6 +164,7 @@
 
                 <h4>Waiting Music</h4>
                 <div class="mode-options" id="waiting-music-grid">
+                    <button class="btn btn-mode" data-waitmusic="none">None</button>
                     <button class="btn btn-mode" data-waitmusic="jazz">Jazz</button>
                     <button class="btn btn-mode" data-waitmusic="lullaby">Lullaby</button>
                     <button class="btn btn-mode" data-waitmusic="bossa">Bossa</button>
@@ -174,6 +175,7 @@
 
                 <h4>Lobby Music</h4>
                 <div class="mode-options" id="music-style-grid">
+                    <button class="btn btn-mode" data-music="none">None</button>
                     <button class="btn btn-mode" data-music="jazz">Jazz</button>
                     <button class="btn btn-mode" data-music="lullaby">Lullaby</button>
                     <button class="btn btn-mode" data-music="bossa">Bossa</button>
@@ -181,12 +183,6 @@
                     <button class="btn btn-mode" data-music="chiptune">Chiptune</button>
                 </div>
                 <button id="btn-music-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
-
-                <h4>Home Screen Music</h4>
-                <div class="mode-options" id="home-music-grid">
-                    <button class="btn btn-mode active" data-homemusic="same">Same as Lobby</button>
-                    <button class="btn btn-mode" data-homemusic="none">None</button>
-                </div>
 
                 <h4>Theme</h4>
                 <div class="theme-toggle-row">
@@ -371,12 +367,16 @@
                     </div>
 
                     <div class="setting-group">
-                        <label class="toggle-label">
-                            <span>Hidden Objectives</span>
-                            <input type="checkbox" id="toggle-objectives" class="toggle-input">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <p class="setting-desc">Each player gets a secret word to sneak into the story</p>
+                        <div class="toggle-row">
+                            <div>
+                                <span class="toggle-row-label">Hidden Objectives</span>
+                                <p class="setting-desc">Each player gets a secret word to sneak into the story</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-objectives">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
 
                 </div>

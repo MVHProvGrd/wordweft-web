@@ -31,7 +31,9 @@ const App = (() => {
 
         // Start home music on first user interaction (AudioContext needs gesture)
         const startHomeMusic = () => {
-            if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
+            if (typeof Sound !== 'undefined' && selectedWaitingMusic !== 'none') {
+                Sound.startMusic(selectedWaitingMusic || 'jazz');
+            }
             document.removeEventListener('click', startHomeMusic);
             document.removeEventListener('touchstart', startHomeMusic);
         };
@@ -332,16 +334,6 @@ const App = (() => {
             }
         });
 
-        // Home music selector
-        document.querySelectorAll('[data-homemusic]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('[data-homemusic]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                homeMusicMode = btn.dataset.homemusic;
-                localStorage.setItem('wordweft_home_music', homeMusicMode);
-            });
-        });
-
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
         themeToggle.checked = darkTheme;
@@ -412,7 +404,7 @@ const App = (() => {
     let selectedColor = PLAYER_COLORS[0].value;
     let selectedMusicStyle = localStorage.getItem('wordweft_music') || 'jazz';
     let selectedWaitingMusic = localStorage.getItem('wordweft_waiting_music') || 'jazz';
-    let homeMusicMode = localStorage.getItem('wordweft_home_music') || 'same';
+    // Home screen uses waiting music (no separate toggle)
     let darkTheme = localStorage.getItem('wordweft_theme') !== 'light';
 
     // Apply theme on load
@@ -557,12 +549,12 @@ const App = (() => {
         // Clean up URL params when leaving game
         if (name === 'home') {
             window.history.replaceState({}, '', window.location.pathname);
-            // Play home screen music (respect home music setting)
+            // Play home screen music (uses waiting music setting)
             if (typeof Sound !== 'undefined') {
-                if (homeMusicMode === 'none') {
+                if (selectedWaitingMusic === 'none') {
                     Sound.stopMusic();
                 } else {
-                    Sound.startMusic(selectedMusicStyle || 'jazz');
+                    Sound.startMusic(selectedWaitingMusic || 'jazz');
                 }
             }
         }

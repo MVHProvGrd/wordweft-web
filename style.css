@@ -1994,16 +1994,23 @@ html, body {
 }
 .tutorial-buttons .btn { flex: 1; }
 
-/* ─── Theme Toggle ──────────────────────────────────── */
-.theme-toggle-row {
+/* ─── Toggle Rows ──────────────────────────────────── */
+.theme-toggle-row,
+.toggle-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px 0;
+    gap: 12px;
 }
-.theme-label {
+.theme-label,
+.toggle-row-label {
     font-size: 14px;
     color: var(--text-secondary);
+}
+.toggle-row .setting-desc {
+    margin: 2px 0 0;
+    font-size: 12px;
 }
 .toggle-switch {
     position: relative;
