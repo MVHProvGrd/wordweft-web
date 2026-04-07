@@ -1,5 +1,16 @@
 // Game logic module for WordWeft web client
 const Game = (() => {
+    let profanitySet = new Set();
+    // Load profanity list
+    fetch('profanity.json').then(r => r.json()).then(list => {
+        list.forEach(w => profanitySet.add(w.toLowerCase()));
+    }).catch(() => {});
+
+    function containsProfanity(text) {
+        if (profanitySet.size === 0) return false;
+        return text.toLowerCase().split(/\s+/).some(w => profanitySet.has(w.replace(/[^a-z]/g, '')));
+    }
+
     let players = [];
     let words = [];
     let currentPlayerIndex = 0;
@@ -173,8 +184,8 @@ const Game = (() => {
             if (voteEl) {
                 voteEl.textContent = finishVoteCount > 0 ? '(' + finishVoteCount + '/' + humanCount + ')' : '';
             }
-            // Check if all human players voted to finish
-            if (finishVoteCount >= humanCount && humanCount > 0 && Room.isHost) {
+            // Any player can trigger finish when all votes are in
+            if (finishVoteCount >= humanCount && humanCount > 0) {
                 finishGame();
             }
         });
@@ -499,6 +510,11 @@ const Game = (() => {
         const wordsToSubmit = splitWords(text);
         if (!isValidSubmission(wordsToSubmit)) return;
 
+        if (containsProfanity(text)) {
+            showToast("Let's keep it clean!", '#EF4444');
+            return;
+        }
+
         // Clear typing
         Room.setTyping(Room.myIndex, false);
 
@@ -651,7 +667,11 @@ const Game = (() => {
 
     // Results rendering is now handled by the Results module (results.js)
 
+    let gameFinished = false;
+
     function finishGame() {
+        if (gameFinished) return;
+        gameFinished = true;
         if (timerInterval) clearInterval(timerInterval);
         Room.clearActiveRoom(); // Game over
 
@@ -888,6 +908,7 @@ const Game = (() => {
         secretRevealed = false;
         mySecretWord = '';
         previousObjectives = {};
+        gameFinished = false;
     }
 
     return {

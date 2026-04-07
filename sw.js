@@ -1,5 +1,5 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v11';
+const CACHE_NAME = 'wordweft-v13';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
     '/firebase-config.js',
     '/sound.js',
     '/analyzer.js',
+    '/profanity.json',
     '/manifest.json'
 ];
 

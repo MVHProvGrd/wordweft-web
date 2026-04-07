@@ -5,6 +5,21 @@ const Room = (() => {
     let listeners = [];
     let isHost = false;
     let myPlayerIndex = -1;
+    let connectedListener = null;
+
+    // Re-assert isConnected when Firebase reconnects (prevents false disconnects)
+    function setupConnectionMonitor() {
+        if (connectedListener) {
+            db.ref('.info/connected').off('value', connectedListener);
+        }
+        connectedListener = db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === true && roomRef && myPlayerIndex >= 0) {
+                const connRef = roomRef.child('players/' + myPlayerIndex + '/isConnected');
+                connRef.set(true);
+                connRef.onDisconnect().set(false);
+            }
+        });
+    }
 
     const PREFIXES = ['WEFT', 'YARN', 'TALE', 'WORD', 'PLOT', 'SAGA', 'MYTH', 'LORE'];
 
@@ -56,6 +71,7 @@ const Room = (() => {
                 isHost = true;
                 myPlayerIndex = 0;
                 saveActiveRoom();
+                setupConnectionMonitor();
 
                 return code;
             } catch (e) {
@@ -114,6 +130,7 @@ const Room = (() => {
             isHost = false;
             myPlayerIndex = playerIndex;
             saveActiveRoom();
+            setupConnectionMonitor();
 
             return true;
         } catch (e) {
@@ -255,6 +272,7 @@ const Room = (() => {
             roomRef = ref;
             isHost = meta.val().hostId === uid;
             myPlayerIndex = playerIdx;
+            setupConnectionMonitor();
 
             return true;
         } catch (e) {
@@ -266,6 +284,10 @@ const Room = (() => {
     function leave() {
         stopListening();
         clearActiveRoom();
+        if (connectedListener) {
+            db.ref('.info/connected').off('value', connectedListener);
+            connectedListener = null;
+        }
         roomRef = null;
         roomCode = '';
         isHost = false;
