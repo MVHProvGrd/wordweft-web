@@ -66,13 +66,23 @@ const Game = (() => {
             updateLobbyPlayers();
             updateTurnIndicator();
 
-            // Check if host disconnected
+            // Auto-promote host if host disconnected
             const host = players.find(p => p.isHost);
             const hostDisconnected = host && disconnectedIds.includes(host.id);
+            if (hostDisconnected && Room.ref) {
+                // Lowest-index connected player becomes new host
+                const newHost = players.find(p => p.isConnected);
+                if (newHost && newHost.id === Room.myIndex) {
+                    Room.ref.child('players/' + host.id + '/isHost').set(false);
+                    Room.ref.child('players/' + newHost.id + '/isHost').set(true);
+                    Room.ref.child('meta/hostId').set(newHost.uid);
+                }
+            }
             showHostMigration(hostDisconnected);
 
-            // Auto-skip disconnected player's turn (host only)
-            if (Room.isHost && players.length > 1) {
+            // Auto-skip disconnected player's turn (any connected player — lowest index acts)
+            const lowestConnected = players.find(p => p.isConnected);
+            if (lowestConnected && lowestConnected.id === Room.myIndex && players.length > 1) {
                 const currentPlayer = players[currentPlayerIndex];
                 if (currentPlayer && !currentPlayer.isConnected) {
                     const nextIndex = (currentPlayerIndex + 1) % players.length;
@@ -114,8 +124,9 @@ const Game = (() => {
             updateTurnIndicator();
             updateInputState();
 
-            // Auto-skip if turn landed on a disconnected player (host only)
-            if (Room.isHost && players.length > 1) {
+            // Auto-skip if turn landed on a disconnected player (lowest connected acts)
+            const lowestConn = players.find(p => p.isConnected);
+            if (lowestConn && lowestConn.id === Room.myIndex && players.length > 1) {
                 const currentPlayer = players[currentPlayerIndex];
                 if (currentPlayer && !currentPlayer.isConnected) {
                     const nextIndex = (currentPlayerIndex + 1) % players.length;
@@ -199,8 +210,9 @@ const Game = (() => {
             const el = document.getElementById('extend-vote-count');
             if (el) el.textContent = votes > 0 ? '(' + votes + '/' + eligible + ')' : '';
             if (eligible > 0 && votes > eligible / 2) {
-                // Only host clears votes and writes the extension signal
-                if (Room.isHost) {
+                // Lowest-index connected player processes the extension
+                const lc = players.find(p => p.isConnected);
+                if (lc && lc.id === Room.myIndex) {
                     if (Room.ref) {
                         Room.ref.child('meta/timeExtensionVotes').remove();
                         // Increment extension counter so all clients know to add 30s
@@ -646,13 +658,20 @@ const Game = (() => {
 
             if (timerRemaining <= 0 && !hasExpired) {
                 hasExpired = true;
-                // Only host auto-advances turn in online games
-                if (Room.isHost) {
+                // Active player submits their own text, otherwise lowest connected skips
+                if (currentPlayerIndex === Room.myIndex) {
                     const input = document.getElementById('word-input');
                     const text = input ? input.value.trim() : '';
-                    if (text && currentPlayerIndex === Room.myIndex) {
+                    if (text) {
                         submitWord(text);
                     } else {
+                        const nextIndex = (currentPlayerIndex + 1) % players.length;
+                        Room.advanceTurn(nextIndex, getWordsNeeded() || 1);
+                    }
+                } else {
+                    // If it's someone else's turn and they timed out, lowest connected advances
+                    const lc = players.find(p => p.isConnected);
+                    if (lc && lc.id === Room.myIndex) {
                         const nextIndex = (currentPlayerIndex + 1) % players.length;
                         Room.advanceTurn(nextIndex, getWordsNeeded() || 1);
                     }

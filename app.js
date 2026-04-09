@@ -38,9 +38,10 @@ const App = (() => {
         bindEvents();
 
         // Start home music on first user interaction (AudioContext needs gesture)
+        // Lobby music plays everywhere except during a match
         const startHomeMusic = () => {
-            if (typeof Sound !== 'undefined' && selectedWaitingMusic !== 'none') {
-                Sound.startMusic(selectedWaitingMusic || 'jazz');
+            if (typeof Sound !== 'undefined' && selectedMusicStyle !== 'none') {
+                Sound.startMusic(selectedMusicStyle || 'jazz');
             }
             document.removeEventListener('click', startHomeMusic);
             document.removeEventListener('touchstart', startHomeMusic);
@@ -412,7 +413,7 @@ const App = (() => {
     let selectedColor = PLAYER_COLORS[0].value;
     let selectedMusicStyle = localStorage.getItem('wordweft_music') || 'jazz';
     let selectedWaitingMusic = localStorage.getItem('wordweft_waiting_music') || 'jazz';
-    // Home screen uses waiting music (no separate toggle)
+    // Lobby music plays everywhere except in-match; waiting music plays in-match when waiting for others
     let darkTheme = localStorage.getItem('wordweft_theme') !== 'light';
 
     // Apply theme on load
@@ -610,12 +611,12 @@ const App = (() => {
         // Clean up URL params when leaving game
         if (name === 'home') {
             window.history.replaceState({}, '', window.location.pathname);
-            // Play home screen music (uses waiting music setting)
+            // Play lobby music on home screen (lobby music plays everywhere except in-match)
             if (typeof Sound !== 'undefined') {
-                if (selectedWaitingMusic === 'none') {
+                if (selectedMusicStyle === 'none') {
                     Sound.stopMusic();
                 } else {
-                    Sound.startMusic(selectedWaitingMusic || 'jazz');
+                    Sound.startMusic(selectedMusicStyle || 'jazz');
                 }
             }
         }

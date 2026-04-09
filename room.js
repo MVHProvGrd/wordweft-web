@@ -273,6 +273,7 @@ const Room = (() => {
             isHost = meta.val().hostId === uid;
             myPlayerIndex = playerIdx;
             setupConnectionMonitor();
+            saveActiveRoom();
 
             return true;
         } catch (e) {
