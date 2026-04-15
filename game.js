@@ -23,6 +23,8 @@ const Game = (() => {
     let hasVotedToFinish = false;
     let finishVoteCount = 0;
     let hasVotedToExtend = false;
+    let extensionGrantedThisTurn = false;
+    let lastExtensionGranted = 0;
     let disconnectedIds = [];
     let timerStartedAt = 0;
     let isPaused = false;
@@ -258,8 +260,6 @@ const Game = (() => {
         });
 
         // All clients listen for granted extensions (max one per turn)
-        let lastExtensionGranted = 0;
-        let extensionGrantedThisTurn = false;
         Room.listen('meta/timeExtensionGranted', (snap) => {
             const count = snap.val() || 0;
             if (count > lastExtensionGranted) {
@@ -624,7 +624,16 @@ const Game = (() => {
             const parts = sanitized.split(/[\s,;]+/).filter(w => w.length > 0);
             return parts.length > 0 ? [parts[0]] : [];
         }
-        return sanitized.split(/\s+/).filter(w => w.length > 0);
+        const tokens = sanitized.split(/\s+/).filter(w => w.length > 0);
+        if (gameMode !== 'SENTENCE') return tokens;
+        // In SENTENCE mode, split tokens so terminal punctuation (.!?) stays
+        // attached to the preceding chars but ends the token. "time.r" -> ["time.", "r"].
+        const result = [];
+        for (const tok of tokens) {
+            const parts = tok.split(/(?<=[.!?])/);
+            for (const p of parts) if (p) result.push(p);
+        }
+        return result;
     }
 
     function getWordsNeeded() {
