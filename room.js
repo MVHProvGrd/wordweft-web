@@ -207,6 +207,18 @@ const Room = (() => {
         await roomRef.child('meta/isFinished').set(true);
     }
 
+    async function pauseGame() {
+        if (!roomRef) return;
+        await roomRef.child('meta/isPaused').set(true);
+        await roomRef.child('meta/pausedAt').set(firebase.database.ServerValue.TIMESTAMP);
+    }
+
+    async function unpauseGame() {
+        if (!roomRef) return;
+        await roomRef.child('meta/isPaused').set(false);
+        await roomRef.child('meta/pausedAt').remove();
+    }
+
     async function startGame(gameMode, turnTimerSeconds) {
         if (!roomRef || !isHost) return;
         await roomRef.child('meta/isStarted').set(true);
@@ -275,6 +287,11 @@ const Room = (() => {
             setupConnectionMonitor();
             saveActiveRoom();
 
+            // Unpause if game was paused (2-player disconnect)
+            if (meta.val().isPaused) {
+                await unpauseGame();
+            }
+
             return true;
         } catch (e) {
             console.error('Failed to rejoin room:', e);
@@ -321,6 +338,8 @@ const Room = (() => {
         setTyping,
         postResult,
         startGame,
+        pauseGame,
+        unpauseGame,
         leave,
         deleteRoom,
         saveActiveRoom,

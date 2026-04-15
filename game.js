@@ -25,6 +25,9 @@ const Game = (() => {
     let hasVotedToExtend = false;
     let disconnectedIds = [];
     let timerStartedAt = 0;
+    let isPaused = false;
+    let pauseSecondsRemaining = 0;
+    let pauseInterval = null;
 
     // Player color hex values for display
     const COLOR_MAP = {
@@ -80,13 +83,22 @@ const Game = (() => {
             }
             showHostMigration(hostDisconnected);
 
-            // Auto-skip disconnected player's turn (any connected player — lowest index acts)
+            // Handle disconnected player's turn
             const lowestConnected = players.find(p => p.isConnected);
             if (lowestConnected && lowestConnected.id === Room.myIndex && players.length > 1) {
                 const currentPlayer = players[currentPlayerIndex];
                 if (currentPlayer && !currentPlayer.isConnected) {
-                    const nextIndex = (currentPlayerIndex + 1) % players.length;
-                    Room.advanceTurn(nextIndex, getWordsNeeded() || 1);
+                    const connectedCount = players.filter(p => p.isConnected).length;
+                    if (players.length === 2 && connectedCount === 1) {
+                        // 2-player game: pause instead of skip
+                        if (!isPaused) {
+                            Room.pauseGame();
+                        }
+                    } else {
+                        // 3+ players: auto-skip as before
+                        const nextIndex = (currentPlayerIndex + 1) % players.length;
+                        Room.advanceTurn(nextIndex, getWordsNeeded() || 1);
+                    }
                 }
             }
         });
@@ -125,20 +137,22 @@ const Game = (() => {
             updateInputState();
 
             // Auto-skip if turn landed on a disconnected player (lowest connected acts)
-            const lowestConn = players.find(p => p.isConnected);
-            if (lowestConn && lowestConn.id === Room.myIndex && players.length > 1) {
-                const currentPlayer = players[currentPlayerIndex];
-                if (currentPlayer && !currentPlayer.isConnected) {
-                    const nextIndex = (currentPlayerIndex + 1) % players.length;
-                    setTimeout(() => Room.advanceTurn(nextIndex, getWordsNeeded() || 1), 300);
-                    return;
+            // Don't skip when paused (2-player game waiting for reconnect)
+            if (!isPaused) {
+                const lowestConn = players.find(p => p.isConnected);
+                if (lowestConn && lowestConn.id === Room.myIndex && players.length > 1) {
+                    const currentPlayer = players[currentPlayerIndex];
+                    if (currentPlayer && !currentPlayer.isConnected) {
+                        const nextIndex = (currentPlayerIndex + 1) % players.length;
+                        setTimeout(() => Room.advanceTurn(nextIndex, getWordsNeeded() || 1), 300);
+                        return;
+                    }
                 }
             }
 
             // Reset timer on turn change
             if (oldIndex !== currentPlayerIndex) {
                 if (typeof Sound !== 'undefined') Sound.playTurnChange();
-                if (turnTimerSeconds > 0) startTimer();
                 hasVotedToExtend = false;
                 extensionGrantedThisTurn = false;
 
@@ -152,6 +166,10 @@ const Game = (() => {
                     }
                 }
             }
+            // (Re)start the timer on every turn snapshot. This handles the
+            // initial-load case where oldIndex === currentPlayerIndex (both 0)
+            // and the case where timerStartedAt advances mid-turn (extensions).
+            if (turnTimerSeconds > 0 && timerStartedAt > 0) startTimer();
             // Show +30s button for non-active players when timer is on (hide if already extended this turn)
             const extendBtn = document.getElementById('btn-time-extend');
             if (extendBtn) {
@@ -185,6 +203,20 @@ const Game = (() => {
         // Timer
         Room.listen('meta/turnTimerSeconds', (snap) => {
             turnTimerSeconds = snap.val() || 0;
+            // If this loads after the turn snapshot, the timer wouldn't have
+            // started yet — kick it off now if a turn is already in progress.
+            if (turnTimerSeconds > 0 && timerStartedAt > 0) startTimer();
+        });
+
+        // Pause state (2-player disconnect)
+        Room.listen('meta/isPaused', (snap) => {
+            isPaused = snap.val() === true;
+            if (isPaused) {
+                startPauseCountdown();
+            } else {
+                clearPauseCountdown();
+            }
+            updatePauseBanner();
         });
 
         // Finish votes
@@ -335,7 +367,10 @@ const Game = (() => {
                 }
                 // Completion notification (not busted — player used their own word)
                 else if (obj.completed && !obj.busted && (!prevObj || !prevObj.completed)) {
-                    if (player && playerIdx !== Room.myIndex) {
+                    if (playerIdx === Room.myIndex) {
+                        // I snuck in my own secret word!
+                        showToast('You snuck in your secret word: "' + (obj.secretWord || '???') + '"!', '#10B981');
+                    } else if (player) {
                         showObjectiveNotification(player, obj.secretWord || '???');
                     }
                 }
@@ -642,6 +677,8 @@ const Game = (() => {
 
         // Compute remaining from server timestamp
         function tick() {
+            // Freeze timer while game is paused (2-player disconnect)
+            if (isPaused) return;
             if (timerStartedAt > 0) {
                 const elapsed = Math.floor((Date.now() - timerStartedAt) / 1000);
                 // extensionGrantedThisTurn is tracked by the granted listener, timerRemaining
@@ -913,9 +950,59 @@ const Game = (() => {
         };
     }
 
+    // Pause countdown (2-player disconnect)
+    function startPauseCountdown() {
+        pauseSecondsRemaining = 60;
+        if (pauseInterval) clearInterval(pauseInterval);
+        pauseInterval = setInterval(() => {
+            pauseSecondsRemaining--;
+            updatePauseBanner();
+            if (pauseSecondsRemaining <= 0) {
+                clearInterval(pauseInterval);
+                pauseInterval = null;
+                // Timeout: lowest connected player finishes game
+                const lc = players.find(p => p.isConnected);
+                if (lc && lc.id === Room.myIndex) {
+                    Room.unpauseGame();
+                    finishGame();
+                }
+            }
+        }, 1000);
+    }
+
+    function clearPauseCountdown() {
+        if (pauseInterval) { clearInterval(pauseInterval); pauseInterval = null; }
+        pauseSecondsRemaining = 0;
+    }
+
+    function updatePauseBanner() {
+        const banner = document.getElementById('pause-banner');
+        if (!banner) return;
+        if (!isPaused) {
+            banner.classList.add('hidden');
+            return;
+        }
+        banner.classList.remove('hidden');
+        const disconnectedPlayer = players.find(p => !p.isConnected);
+        const name = disconnectedPlayer ? disconnectedPlayer.name : 'Player';
+        banner.querySelector('.pause-text').textContent = name + ' disconnected';
+        banner.querySelector('.pause-sub').textContent =
+            'Waiting for them to return... (' + pauseSecondsRemaining + 's)';
+        const fill = document.getElementById('pause-progress-fill');
+        if (fill) fill.style.width = (pauseSecondsRemaining / 60 * 100) + '%';
+    }
+
+    function endPausedGame() {
+        if (!isPaused) return;
+        clearPauseCountdown();
+        Room.unpauseGame();
+        finishGame();
+    }
+
     function cleanup() {
         if (timerInterval) clearInterval(timerInterval);
         if (migrationTimer) { clearInterval(migrationTimer); migrationTimer = null; }
+        clearPauseCountdown();
         // TTS/replay state now in Results module
         players = [];
         words = [];
@@ -924,6 +1011,7 @@ const Game = (() => {
         hasVotedToFinish = false;
         finishVoteCount = 0;
         disconnectedIds = [];
+        isPaused = false;
         secretRevealed = false;
         mySecretWord = '';
         previousObjectives = {};
@@ -935,6 +1023,7 @@ const Game = (() => {
         submitWord,
         toggleFinishVote,
         finishGame,
+        endPausedGame,
         cleanup,
         get ACHIEVEMENTS() { return Results.ACHIEVEMENTS; },
         get players() { return players; },

@@ -152,27 +152,32 @@
                 <h4>Color</h4>
                 <div class="color-grid" id="profile-color-grid"></div>
 
-                <h4>Lobby Music</h4>
-                <div class="mode-options" id="music-style-grid">
-                    <button class="btn btn-mode" data-music="none">None</button>
-                    <button class="btn btn-mode" data-music="jazz">Jazz</button>
-                    <button class="btn btn-mode" data-music="lullaby">Lullaby</button>
-                    <button class="btn btn-mode" data-music="bossa">Bossa</button>
-                    <button class="btn btn-mode" data-music="blues">Blues</button>
-                    <button class="btn btn-mode" data-music="chiptune">Chiptune</button>
+                <div class="music-settings-row">
+                    <div class="music-settings-col">
+                        <h4>Lobby Music</h4>
+                        <div class="mode-options mode-options-vertical" id="music-style-grid">
+                            <button class="btn btn-mode" data-music="none">None</button>
+                            <button class="btn btn-mode" data-music="jazz">Jazz</button>
+                            <button class="btn btn-mode" data-music="lullaby">Lullaby</button>
+                            <button class="btn btn-mode" data-music="bossa">Bossa</button>
+                            <button class="btn btn-mode" data-music="blues">Blues</button>
+                            <button class="btn btn-mode" data-music="chiptune">Chiptune</button>
+                        </div>
+                        <button id="btn-music-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
+                    </div>
+                    <div class="music-settings-col">
+                        <h4>Waiting Music</h4>
+                        <div class="mode-options mode-options-vertical" id="waiting-music-grid">
+                            <button class="btn btn-mode" data-waitmusic="none">None</button>
+                            <button class="btn btn-mode" data-waitmusic="jazz">Jazz</button>
+                            <button class="btn btn-mode" data-waitmusic="lullaby">Lullaby</button>
+                            <button class="btn btn-mode" data-waitmusic="bossa">Bossa</button>
+                            <button class="btn btn-mode" data-waitmusic="blues">Blues</button>
+                            <button class="btn btn-mode" data-waitmusic="chiptune">Chiptune</button>
+                        </div>
+                        <button id="btn-waiting-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
+                    </div>
                 </div>
-                <button id="btn-music-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
-
-                <h4>Waiting Music</h4>
-                <div class="mode-options" id="waiting-music-grid">
-                    <button class="btn btn-mode" data-waitmusic="none">None</button>
-                    <button class="btn btn-mode" data-waitmusic="jazz">Jazz</button>
-                    <button class="btn btn-mode" data-waitmusic="lullaby">Lullaby</button>
-                    <button class="btn btn-mode" data-waitmusic="bossa">Bossa</button>
-                    <button class="btn btn-mode" data-waitmusic="blues">Blues</button>
-                    <button class="btn btn-mode" data-waitmusic="chiptune">Chiptune</button>
-                </div>
-                <button id="btn-waiting-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
 
                 <h4>Theme</h4>
                 <div class="theme-toggle-row">
@@ -435,6 +440,15 @@
                     <span id="secret-status" class="secret-status"></span>
                 </div>
                 <button id="btn-guess-word" class="btn btn-small btn-ghost" style="color:#F59E0B;margin-top:6px">Guess a Player's Word</button>
+            </div>
+            <!-- Pause banner (2-player disconnect) -->
+            <div id="pause-banner" class="pause-banner hidden">
+                <div class="pause-text"></div>
+                <div class="pause-sub"></div>
+                <div class="pause-progress"><div id="pause-progress-fill" class="pause-progress-fill"></div></div>
+                <div class="pause-actions">
+                    <button class="btn btn-small" style="color:var(--accent-red)" onclick="Game.endPausedGame()">End Story</button>
+                </div>
             </div>
             <!-- Host migration overlay -->
             <div id="host-migration-bar" class="host-migration-bar hidden">

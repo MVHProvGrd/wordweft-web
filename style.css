@@ -138,6 +138,37 @@ html, body {
     border-color: var(--accent-indigo);
 }
 
+/* Side-by-side music settings (Lobby | Waiting) */
+.music-settings-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+.music-settings-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.music-settings-col h4 {
+    margin-top: 0;
+}
+.mode-options-vertical {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+}
+.mode-options-vertical .btn-mode {
+    width: 100%;
+    text-align: center;
+}
+@media (max-width: 480px) {
+    .music-settings-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
 /* Color picker grid */
 .color-grid {
     display: flex;
@@ -1343,6 +1374,51 @@ html, body {
 .objective-toast.show { top: 20px; }
 
 /* Host migration bar */
+/* Pause banner (2-player disconnect) */
+.pause-banner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: linear-gradient(180deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+    border-bottom: 1px solid rgba(245,158,11,0.3);
+    padding: 12px 16px;
+    text-align: center;
+    animation: slideDown 0.3s ease;
+}
+.pause-text {
+    color: var(--accent-amber);
+    font-weight: 600;
+    font-size: 14px;
+}
+.pause-sub {
+    color: var(--accent-amber);
+    opacity: 0.7;
+    font-size: 12px;
+    margin-top: 4px;
+}
+.pause-progress {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+.pause-progress-fill {
+    height: 100%;
+    background: var(--accent-amber);
+    border-radius: 2px;
+    width: 100%;
+    transition: width 1s linear;
+}
+.pause-actions {
+    margin-top: 8px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
 .host-migration-bar {
     position: absolute;
     top: 0;
