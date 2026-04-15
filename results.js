@@ -137,8 +137,9 @@ const Results = (() => {
                 const pointsCls = succeeded ? 'obj-success' : 'obj-fail';
                 const item = document.createElement('div');
                 item.className = 'objective-result-item';
+                const playerColor = _getPlayerColor(player.color);
                 item.innerHTML = '<span class="player-stat-avatar">' + (player.avatar || '\u{1F60A}') + '</span>' +
-                    '<span style="flex:1">' + player.name + ': "' + word + '"<br><span class="' + cls + '" style="font-size:12px">' + status + '</span></span>' +
+                    '<span style="flex:1"><span style="color:' + playerColor + ';font-weight:600">' + player.name + '</span>: "' + word + '"<br><span class="' + cls + '" style="font-size:12px">' + status + '</span></span>' +
                     '<span class="' + pointsCls + '" style="font-weight:700;font-size:16px">' + points + '</span>';
                 container.appendChild(item);
             });
@@ -533,16 +534,16 @@ const Results = (() => {
         allStats.forEach(ps => {
             if (ps.bestWord) { bestWord = ps.bestWord; bestPlayer = ps.playerName || ''; bestLevel = ps.bestWordLevel || ''; }
         });
-        if (bestWord) highlights.push({ icon: '\u{1F48E}', text: 'Rarest word by ' + bestPlayer, value: '"' + bestWord + '" (' + bestLevel + ')' });
+        if (bestWord) highlights.push({ icon: '\u{1F48E}', text: 'Rarest word by ' + bestPlayer, value: '"' + bestWord + '"' + (bestLevel ? ' (' + bestLevel + ')' : '') });
         let mostUnique = 0, uniquePlayer = '';
         allStats.forEach(ps => {
             const ratio = (ps.wordCount || 0) > 0 ? (ps.uniqueWords || 0) / (ps.wordCount || 1) : 0;
             if (ratio > mostUnique && (ps.wordCount || 0) >= 3) { mostUnique = ratio; uniquePlayer = ps.playerName || ''; }
         });
-        if (mostUnique >= 0.8 && uniquePlayer) highlights.push({ icon: '\u{1F9E0}', text: 'Most unique vocabulary', value: uniquePlayer + ' (' + Math.round(mostUnique * 100) + '%)' });
+        if (mostUnique >= 0.8 && uniquePlayer) highlights.push({ icon: '\u{1F9E0}', text: 'Most unique vocabulary', value: uniquePlayer });
         if (allStats.length >= 2) {
             const top = allStats.reduce((a, b) => (b.impactScore || 0) > (a.impactScore || 0) ? b : a);
-            if (top.impactScore >= 50) highlights.push({ icon: '\u{1F451}', text: 'MVP', value: (top.playerName || '?') + ' (' + top.impactScore + ')' });
+            if (top.impactScore >= 50) highlights.push({ icon: '\u{1F451}', text: 'MVP', value: (top.playerName || '?') });
         }
         if (highlights.length === 0) return;
         container.classList.remove('hidden');
