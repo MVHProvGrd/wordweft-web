@@ -549,7 +549,7 @@ const Game = (() => {
         }
     }
 
-    function submitWord(text) {
+    function submitWord(text, forceEndTurn) {
         text = text.trim();
         if (!text) return;
         if (currentPlayerIndex !== Room.myIndex) return;
@@ -603,7 +603,11 @@ const Game = (() => {
                 Room.advanceTurn(nextIndex, needed);
             } else if (gameMode === 'SENTENCE') {
                 const lastWord = wordsToSubmit[wordsToSubmit.length - 1];
-                if (lastWord.endsWith('.') || lastWord.endsWith('!') || lastWord.endsWith('?')) {
+                const endsSentence = /[.!?]$/.test(lastWord);
+                // Advance if the player completed a sentence OR the caller forced
+                // end-of-turn (e.g. timer expired mid-sentence — commit whatever
+                // they typed and let the next player finish).
+                if (endsSentence || forceEndTurn) {
                     const nextIndex = (currentPlayerIndex + 1) % players.length;
                     Room.advanceTurn(nextIndex, 0);
                 } else {
@@ -627,11 +631,17 @@ const Game = (() => {
         const tokens = sanitized.split(/\s+/).filter(w => w.length > 0);
         if (gameMode !== 'SENTENCE') return tokens;
         // In SENTENCE mode, split tokens so terminal punctuation (.!?) stays
-        // attached to the preceding chars but ends the token. "time.r" -> ["time.", "r"].
+        // attached to the preceding chars but ends the token, then truncate
+        // at the first terminal-punct token: "hello.world" -> ["hello."], not
+        // ["hello.", "world"]. Punctuation is a hard stop for the turn.
         const result = [];
         for (const tok of tokens) {
             const parts = tok.split(/(?<=[.!?])/);
-            for (const p of parts) if (p) result.push(p);
+            for (const p of parts) {
+                if (!p) continue;
+                result.push(p);
+                if (/[.!?]$/.test(p)) return result;
+            }
         }
         return result;
     }
@@ -709,7 +719,9 @@ const Game = (() => {
                     const input = document.getElementById('word-input');
                     const text = input ? input.value.trim() : '';
                     if (text) {
-                        submitWord(text);
+                        // forceEndTurn=true so SENTENCE mode advances even
+                        // without terminal punctuation — next player picks up.
+                        submitWord(text, true);
                     } else {
                         const nextIndex = (currentPlayerIndex + 1) % players.length;
                         Room.advanceTurn(nextIndex, getWordsNeeded() || 1);
