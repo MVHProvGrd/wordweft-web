@@ -155,12 +155,19 @@ const App = (() => {
             });
         });
 
-        // Timer selector
+        // Timer selector — restore last choice from localStorage so it sticks across games
+        try {
+            const savedTimer = parseInt(localStorage.getItem('wordweft_timer'));
+            if (!isNaN(savedTimer)) selectedTimer = savedTimer;
+        } catch (e) {}
         document.querySelectorAll('.btn-timer').forEach(btn => {
+            const v = parseInt(btn.dataset.timer) || 0;
+            btn.classList.toggle('active', v === selectedTimer);
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.btn-timer').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedTimer = parseInt(btn.dataset.timer) || 0;
+                try { localStorage.setItem('wordweft_timer', String(selectedTimer)); } catch (e) {}
             });
         });
 

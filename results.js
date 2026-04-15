@@ -238,7 +238,10 @@ const Results = (() => {
             const level = Math.floor(xp / 100) + 1;
             const row = document.createElement('div');
             row.className = 'xp-row';
-            row.innerHTML = '<span class="xp-row-name">' + (ps.playerName || '?') + '</span>' +
+            const player = _players[playerIdx];
+            const playerColor = player ? _getPlayerColor(player.color) : '';
+            const nameStyle = playerColor ? ' style="color:' + playerColor + '"' : '';
+            row.innerHTML = '<span class="xp-row-name"' + nameStyle + '>' + (ps.playerName || '?') + '</span>' +
                 '<span class="xp-row-value">+' + xp + ' XP</span>' +
                 '<span class="xp-row-level">Lv.' + level + '</span>';
             list.appendChild(row);
