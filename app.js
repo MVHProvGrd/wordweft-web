@@ -136,8 +136,7 @@ const App = (() => {
             document.getElementById('btn-copy-code').click();
         });
 
-        // Game mode selector
-        let selectedMode = 'ONE_WORD';
+        // Game mode selector — selectedMode lives at module scope (hoisted above).
         function refreshObjectivesAvailability() {
             const toggle = document.getElementById('toggle-objectives');
             const group = document.getElementById('objectives-setting-group');
@@ -162,6 +161,7 @@ const App = (() => {
                 btn.classList.add('active');
                 selectedMode = btn.dataset.mode;
                 refreshObjectivesAvailability();
+                Room.updateLobbyMode(selectedMode);
             });
         });
         refreshObjectivesAvailability();
@@ -172,6 +172,7 @@ const App = (() => {
                 document.querySelectorAll('.btn-starter').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedStarter = btn.dataset.starter;
+                Room.updateLobbyStarter(selectedStarter);
             });
         });
 
@@ -188,12 +189,14 @@ const App = (() => {
                 btn.classList.add('active');
                 selectedTimer = parseInt(btn.dataset.timer) || 0;
                 try { localStorage.setItem('wordweft_timer', String(selectedTimer)); } catch (e) {}
+                Room.updateLobbyTimer(selectedTimer);
             });
         });
 
         // Hidden objectives toggle
         document.getElementById('toggle-objectives').addEventListener('change', (e) => {
             objectivesEnabled = e.target.checked;
+            Room.updateLobbyObjectives(objectivesEnabled);
         });
 
         document.getElementById('btn-start-game').addEventListener('click', () => {
@@ -448,6 +451,120 @@ const App = (() => {
     let selectedStarter = '';
     let selectedTimer = 0;
     let objectivesEnabled = false;
+    let selectedMode = 'ONE_WORD';  // hoisted so createRoom() can broadcast initial settings
+
+    // Joiner waiting-panel state. When joining an online room as non-host
+    // we mirror the host's lobby selections live and run a fun animation
+    // (matches Android WaitingForHostPanel).
+    const MODE_LABELS = {
+        'ONE_WORD': '1 Word',
+        'THREE_WORDS': '3 Words',
+        'FIVE_WORDS': '5 Words',
+        'SENTENCE': 'Sentence',
+        'CUSTOM': 'Custom'
+    };
+    const STARTER_LABELS = {
+        '': 'Free Play',
+        'Once upon a time': 'Once Upon a Time',
+        'The spaceship launched into': 'Space Adventure',
+        'The detective found a': 'Mystery',
+        'In the dark forest': 'Horror Night',
+        'They first met at': 'Love Story',
+        'The warrior raised their': 'Epic Battle',
+        'The time machine activated and': 'Time Travel',
+        'The chef accidentally added': 'Cooking Disaster',
+        'The clever fox decided to': 'Animal Kingdom',
+        'The ordinary person suddenly gained': 'Superhero Origin',
+        'Stranded on the island they': 'Desert Island'
+    };
+    const WAITING_MESSAGES = [
+        'Sharpening pencils\u2026',
+        'Brewing fresh ideas\u2026',
+        'Threading the loom\u2026',
+        'Warming up the typewriter\u2026',
+        'Stretching imagination\u2026',
+        'Polishing punctuation\u2026',
+        'Untangling plot threads\u2026',
+        'Picking the perfect words\u2026'
+    ];
+    let waitingMessageTimer = null;
+    let waitingDotsTimer = null;
+    let waitingHostMode = 'ONE_WORD';
+
+    function teardownLobbyJoinerView() {
+        if (waitingMessageTimer) { clearInterval(waitingMessageTimer); waitingMessageTimer = null; }
+        if (waitingDotsTimer) { clearInterval(waitingDotsTimer); waitingDotsTimer = null; }
+    }
+
+    function setupLobbyJoinerView() {
+        teardownLobbyJoinerView();
+        const panel = document.getElementById('lobby-waiting-panel');
+        const status = document.getElementById('lobby-status');
+        if (!panel) return;
+        // Show the new animated panel; hide the legacy one-line status.
+        panel.classList.remove('hidden');
+        if (status) status.classList.add('hidden');
+
+        // Cycling fun message
+        const msgEl = document.getElementById('waiting-message');
+        let msgIdx = 0;
+        if (msgEl) msgEl.textContent = WAITING_MESSAGES[0];
+        waitingMessageTimer = setInterval(() => {
+            msgIdx = (msgIdx + 1) % WAITING_MESSAGES.length;
+            if (!msgEl) return;
+            msgEl.style.opacity = 0;
+            setTimeout(() => {
+                msgEl.textContent = WAITING_MESSAGES[msgIdx];
+                msgEl.style.opacity = 1;
+            }, 250);
+        }, 2600);
+
+        // Three-dot cycle after "Waiting for host"
+        const dotsEl = document.getElementById('waiting-dots');
+        let dotPhase = 0;
+        if (dotsEl) dotsEl.textContent = '';
+        waitingDotsTimer = setInterval(() => {
+            dotPhase = (dotPhase + 1) % 4;
+            if (dotsEl) dotsEl.textContent = '.'.repeat(dotPhase);
+        }, 450);
+
+        // Mirror host's settings from Firebase. Room.listen registers via the
+        // shared listener registry so leave() cleans these up automatically.
+        const modeEl = document.getElementById('lobby-host-mode');
+        const timerEl = document.getElementById('lobby-host-timer');
+        const starterEl = document.getElementById('lobby-host-starter');
+        const objEl = document.getElementById('lobby-host-objectives');
+        const objRow = document.getElementById('lobby-host-objectives-row');
+
+        function refreshObjectivesRow() {
+            if (!objRow) return;
+            objRow.style.display = (waitingHostMode === 'ONE_WORD') ? 'none' : '';
+        }
+
+        Room.listen('meta/gameMode', (snap) => {
+            waitingHostMode = snap.val() || 'ONE_WORD';
+            if (modeEl) modeEl.textContent = MODE_LABELS[waitingHostMode] || waitingHostMode;
+            refreshObjectivesRow();
+        });
+        Room.listen('meta/turnTimerSeconds', (snap) => {
+            const sec = snap.val() || 0;
+            if (timerEl) timerEl.textContent = sec === 0 ? 'Off' : (sec + 's');
+        });
+        Room.listen('meta/storyStarter', (snap) => {
+            const starter = snap.val() || '';
+            const label = STARTER_LABELS[starter] || (starter ? starter : 'Free Play');
+            if (starterEl) starterEl.textContent = label;
+        });
+        Room.listen('meta/hiddenObjectivesEnabled', (snap) => {
+            if (objEl) objEl.textContent = snap.val() ? 'On' : 'Off';
+        });
+    }
+
+    function hideLobbyJoinerView() {
+        teardownLobbyJoinerView();
+        const panel = document.getElementById('lobby-waiting-panel');
+        if (panel) panel.classList.add('hidden');
+    }
 
     function setupNameDialog() {
         const grid = document.getElementById('avatar-grid');
@@ -550,7 +667,15 @@ const App = (() => {
             document.getElementById('game-room-code').textContent = code;
             document.getElementById('lobby-host-controls').classList.remove('hidden');
             document.getElementById('lobby-status').textContent = 'Share the room code with friends!';
+            document.getElementById('lobby-status').classList.remove('hidden');
+            hideLobbyJoinerView();
             Game.startListening();
+            // Push current local lobby selections to Firebase so any joiner who
+            // arrives between room-create and start sees the host's real choices.
+            Room.updateLobbyMode(selectedMode);
+            Room.updateLobbyTimer(selectedTimer);
+            Room.updateLobbyObjectives(objectivesEnabled);
+            Room.updateLobbyStarter(selectedStarter);
             showScreen('lobby');
             if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
         } else {
@@ -600,10 +725,13 @@ const App = (() => {
             // If game is already started, go straight to game screen
             const meta = await db.ref('rooms/' + code + '/meta').once('value');
             if (meta.val() && meta.val().isStarted) {
+                hideLobbyJoinerView();
                 showScreen('game');
             } else {
                 document.getElementById('lobby-host-controls').classList.toggle('hidden', !Room.isHost);
                 document.getElementById('lobby-status').textContent = Room.isHost ? '' : 'Waiting for host to start...';
+                if (Room.isHost) hideLobbyJoinerView();
+                else setupLobbyJoinerView();
                 showScreen('lobby');
             }
         } catch (e) {
@@ -620,6 +748,7 @@ const App = (() => {
             document.getElementById('lobby-host-controls').classList.add('hidden');
             document.getElementById('lobby-status').textContent = 'Waiting for host to start...';
             Game.startListening();
+            setupLobbyJoinerView();
             showScreen('lobby');
             if (typeof Sound !== 'undefined') Sound.startMusic(selectedMusicStyle || 'jazz');
         } catch (e) {
@@ -630,6 +759,10 @@ const App = (() => {
     function showScreen(name) {
         // Stop TTS when navigating
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+        // Stop the joiner waiting animation when leaving the lobby so timers
+        // don't keep running across screens.
+        if (name !== 'lobby') hideLobbyJoinerView();
 
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         const screen = document.getElementById('screen-' + name);

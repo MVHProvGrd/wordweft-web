@@ -738,6 +738,62 @@ html, body {
     border-radius: var(--radius-sm);
 }
 
+/* Joiner waiting panel */
+.lobby-waiting-panel {
+    text-align: center;
+    margin-top: 20px;
+    padding: 24px 16px 16px;
+}
+.waiting-yarn {
+    font-size: 64px;
+    line-height: 1;
+    display: inline-block;
+    animation: waiting-pulse 1.4s ease-in-out infinite;
+    will-change: transform;
+}
+@keyframes waiting-pulse {
+    0%, 100% { transform: scale(0.85); }
+    50%      { transform: scale(1.18) rotate(-6deg); }
+}
+.waiting-status {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent-purple);
+}
+.waiting-message {
+    margin-top: 4px;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-muted);
+    min-height: 18px;
+    transition: opacity 0.4s ease;
+}
+.host-setup-card {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    text-align: left;
+}
+.host-setup-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-purple);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+}
+.host-setup-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+}
+.host-setup-row > span:first-child  { color: var(--text-muted); }
+.host-setup-row > span:last-child   { color: var(--text-primary); font-weight: 500; }
+
 /* ─── Game Screen ─────────────────────────────────────── */
 
 .game-container {

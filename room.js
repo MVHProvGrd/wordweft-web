@@ -219,6 +219,28 @@ const Room = (() => {
         await roomRef.child('meta/pausedAt').remove();
     }
 
+    // Host-only: write lobby setting changes to Firebase so joiners
+    // see the host's selections live (matches Android setLobby* path).
+    async function updateLobbyMode(mode) {
+        if (!roomRef || !isHost) return;
+        try { await roomRef.child('meta/gameMode').set(mode); } catch (e) {}
+    }
+    async function updateLobbyTimer(seconds) {
+        if (!roomRef || !isHost) return;
+        try { await roomRef.child('meta/turnTimerSeconds').set(seconds); } catch (e) {}
+    }
+    async function updateLobbyObjectives(enabled) {
+        if (!roomRef || !isHost) return;
+        try { await roomRef.child('meta/hiddenObjectivesEnabled').set(enabled); } catch (e) {}
+    }
+    async function updateLobbyStarter(starter) {
+        if (!roomRef || !isHost) return;
+        try {
+            if (starter) await roomRef.child('meta/storyStarter').set(starter);
+            else await roomRef.child('meta/storyStarter').remove();
+        } catch (e) {}
+    }
+
     async function startGame(gameMode, turnTimerSeconds) {
         if (!roomRef || !isHost) return;
         await roomRef.child('meta/isStarted').set(true);
@@ -338,6 +360,10 @@ const Room = (() => {
         setTyping,
         postResult,
         startGame,
+        updateLobbyMode,
+        updateLobbyTimer,
+        updateLobbyObjectives,
+        updateLobbyStarter,
         pauseGame,
         unpauseGame,
         leave,
