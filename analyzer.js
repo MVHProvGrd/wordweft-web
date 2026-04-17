@@ -20,6 +20,47 @@ const WordRarity = (() => {
         SAGE:     { code: 'C2', label: 'Sage',      score: 6.0, multiplier: 2.5 }
     };
 
+    // CEFR dictionary loaded asynchronously from /word_cefr.tsv.
+    // Until it's loaded, getWordLevel falls back to length heuristics; once
+    // loaded, unknown words return ROOKIE so misspellings/gibberish can't
+    // masquerade as rare vocabulary.
+    let cefrMap = null;
+    let loadPromise = null;
+
+    function codeToLevel(code) {
+        switch ((code || '').toUpperCase()) {
+            case 'C2': return LanguageLevel.SAGE;
+            case 'C1': return LanguageLevel.MASTER;
+            case 'B2': return LanguageLevel.WEAVER;
+            case 'B1': return LanguageLevel.CRAFTER;
+            case 'A2': return LanguageLevel.EXPLORER;
+            case 'A1':
+            default:   return LanguageLevel.ROOKIE;
+        }
+    }
+
+    function load() {
+        if (loadPromise) return loadPromise;
+        loadPromise = fetch('word_cefr.tsv')
+            .then(r => r.ok ? r.text() : '')
+            .then(txt => {
+                const m = new Map();
+                const lines = txt.split('\n');
+                for (const line of lines) {
+                    const tab = line.indexOf('\t');
+                    if (tab < 0) continue;
+                    const word = line.substring(0, tab).toLowerCase();
+                    const code = line.substring(tab + 1).trim();
+                    if (word) m.set(word, code);
+                }
+                cefrMap = m;
+            })
+            .catch(() => { cefrMap = new Map(); });
+        return loadPromise;
+    }
+    // Kick off the fetch as soon as the module is evaluated.
+    load();
+
     // TODO: Fill with ~70 common A1 words from WordRarityAnalyzer.kt
     const a1Words = new Set([
         'the','a','an','is','am','are','was','were','be','been','being',
@@ -93,11 +134,30 @@ const WordRarity = (() => {
         if (b1Words.has(w)) return LanguageLevel.WEAVER;
         if (a2Words.has(w)) return LanguageLevel.CRAFTER;
         if (a1Words.has(w)) return LanguageLevel.ROOKIE;
-        // Heuristic: longer words tend to be rarer
+
+        // Dictionary lookup (preferred)
+        if (cefrMap && cefrMap.size > 0) {
+            if (cefrMap.has(w)) return codeToLevel(cefrMap.get(w));
+            // Known-dictionary-but-not-in-it → treat as Rookie (matches Android).
+            // This prevents misspellings like "hamste" or "allwoing" from
+            // getting promoted by length-based heuristics.
+            return LanguageLevel.ROOKIE;
+        }
+
+        // Dictionary not loaded yet: fall back to length heuristic so the
+        // app still works on first-load fast games / offline.
         if (w.length >= 12) return LanguageLevel.MASTER;
         if (w.length >= 9) return LanguageLevel.WEAVER;
         if (w.length >= 7) return LanguageLevel.CRAFTER;
         return LanguageLevel.EXPLORER;
+    }
+
+    function isKnownWord(word) {
+        const w = word.toLowerCase().replace(/[^a-z]/g, '');
+        if (!w) return false;
+        if (a1Words.has(w) || a2Words.has(w) || b1Words.has(w) ||
+            b2Words.has(w) || c1Words.has(w)) return true;
+        return !!(cefrMap && cefrMap.has(w));
     }
 
     function levelToScore(level) { return level.score; }
@@ -131,15 +191,20 @@ const WordRarity = (() => {
     }
 
     function getBestWord(words) {
+        // Prefer dictionary-confirmed words so "hamste"/"allwoing" can't win.
+        // If the whole player's submission has no confirmed words, fall back
+        // to the raw list so we still return *something*.
+        const known = words.filter(w => isKnownWord(w));
+        const candidates = known.length > 0 ? known : words;
         let best = '', bestScore = 0;
-        words.forEach(w => {
+        candidates.forEach(w => {
             const clean = w.replace(/[^a-z]/gi, '');
             const score = getWordLevel(clean).score;
             if (score > bestScore || (score === bestScore && clean.length > best.length)) {
                 best = clean; bestScore = score;
             }
         });
-        return best || words[0] || '';
+        return best || (candidates[0] || '').replace(/[^a-z]/gi, '');
     }
 
     function getLevelBreakdown(words) {
@@ -159,7 +224,7 @@ const WordRarity = (() => {
     return {
         LanguageLevel, getWordLevel, levelToScore, levelFromScore,
         calculateAverageLevel, getDominantLevel, getBestWord,
-        getLevelBreakdown, getRarityMultiplier
+        getLevelBreakdown, getRarityMultiplier, isKnownWord, load
     };
 })();
 
@@ -604,7 +669,12 @@ const StoryAnalyzer = (() => {
         const avgLen = wordTexts.length > 0
             ? (wordTexts.reduce((s, w) => s + w.replace(/[^a-z]/gi, '').length, 0) / wordTexts.length).toFixed(1)
             : 0;
-        const longestWord = wordTexts.reduce((best, w) => {
+        // Prefer the longest dictionary-confirmed word so misspellings like
+        // "allwoing" can't win. Fall back to raw longest only if no player
+        // word passes validation.
+        const knownTexts = wordTexts.filter(w => WordRarity.isKnownWord(w));
+        const lengthPool = knownTexts.length > 0 ? knownTexts : wordTexts;
+        const longestWord = lengthPool.reduce((best, w) => {
             const clean = w.replace(/[^a-z]/gi, '');
             return clean.length > best.length ? clean : best;
         }, '');

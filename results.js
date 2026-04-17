@@ -284,11 +284,42 @@ const Results = (() => {
         });
     }
 
+    // Maps Android's WordRarityAnalyzer.LanguageLevel to web (used in level guide).
+    const LANGUAGE_LEVELS = [
+        { code: 'A1', name: 'Rookie',     color: '#10B981', desc: 'Common everyday words' },
+        { code: 'A2', name: 'Explorer',   color: '#6366F1', desc: 'Familiar but varied vocabulary' },
+        { code: 'B1', name: 'Adventurer', color: '#F59E0B', desc: 'Intermediate word choices' },
+        { code: 'B2', name: 'Wordsmith',  color: '#8B5CF6', desc: 'Upper-intermediate vocabulary' },
+        { code: 'C1', name: 'Sage',       color: '#EC4899', desc: 'Advanced and impressive' },
+        { code: 'C2', name: 'Legendary',  color: '#FBBF24', desc: 'Rare and literary mastery' }
+    ];
+
+    function renderLanguageLevelGuide() {
+        const guide = document.getElementById('word-level-guide');
+        if (!guide) return;
+        const body = guide.querySelector('.wlg-body');
+        const toggle = guide.querySelector('.wlg-toggle');
+        const header = guide.querySelector('.wlg-header');
+        if (!body || !toggle || !header) return;
+        body.innerHTML = LANGUAGE_LEVELS.map(l =>
+            '<div class="wlg-row">' +
+                '<span class="wlg-code" style="color:' + l.color + '">' + l.code + '</span>' +
+                '<span class="wlg-name" style="color:' + l.color + '">' + l.name + '</span>' +
+                '<span class="wlg-desc">' + l.desc + '</span>' +
+            '</div>'
+        ).join('');
+        header.onclick = () => {
+            guide.classList.toggle('collapsed');
+            toggle.textContent = guide.classList.contains('collapsed') ? 'Show' : 'Hide';
+        };
+    }
+
     function renderReportCards(data, statsArray) {
         const container = document.getElementById('result-report-cards');
         const list = document.getElementById('report-cards-list');
         if (!container || !list || statsArray.length === 0) return;
         container.classList.remove('hidden');
+        renderLanguageLevelGuide();
         list.innerHTML = '';
         statsArray.forEach((ps, rank) => {
             const player = _players.find(p => p.name === ps.playerName);
@@ -301,6 +332,8 @@ const Results = (() => {
             else if (uniqueRatio >= 0.9) comment = 'Almost never repeated a word. A remarkably varied vocabulary.';
             else if (uniqueRatio >= 0.7) comment = 'Good variety in word choices with minimal repetition.';
             else comment = 'Contributed steadily to the story with reliable word choices.';
+            const breakdownId = 'breakdown-' + rank;
+            const hasBreakdown = ps.scoreBreakdown && Object.keys(ps.scoreBreakdown).length > 0;
             card.innerHTML =
                 '<div class="report-card-header">' +
                     '<span class="report-rank">#' + (rank + 1) + '</span>' +
@@ -309,9 +342,13 @@ const Results = (() => {
                         '<div class="player-stat-name" style="color:' + playerColor + '">' + (ps.playerName || '?') + '</div>' +
                         '<div class="player-stat-title">' + (ps.title || '') + '</div>' +
                     '</div>' +
-                    '<div class="report-impact">' + (ps.impactScore || 0) + '</div>' +
+                    '<div class="report-impact' + (hasBreakdown ? ' clickable' : '') + '"' +
+                        (hasBreakdown ? ' data-breakdown="' + breakdownId + '" title="Tap for breakdown"' : '') + '>' +
+                        (ps.impactScore || 0) +
+                    '</div>' +
                 '</div>' +
                 '<p class="report-comment">' + comment + '</p>' +
+                (hasBreakdown ? renderBreakdownBlock(breakdownId, ps) : '') +
                 '<div class="report-stats-grid">' +
                     '<div class="report-stat"><div class="report-stat-value">' + (ps.wordCount || 0) + '</div><div class="report-stat-label">Words</div></div>' +
                     '<div class="report-stat"><div class="report-stat-value">' + (ps.uniqueWords || ps.wordCount || 0) + '</div><div class="report-stat-label">Unique</div></div>' +
@@ -324,7 +361,53 @@ const Results = (() => {
                 '</div>' +
                 (ps.longestWord ? '<div class="report-longest">Longest word: "' + ps.longestWord + '"</div>' : '');
             list.appendChild(card);
+            // Wire breakdown toggle
+            if (hasBreakdown) {
+                const chip = card.querySelector('.report-impact.clickable');
+                if (chip) chip.addEventListener('click', () => {
+                    const block = card.querySelector('#' + breakdownId);
+                    if (block) block.classList.toggle('open');
+                });
+            }
         });
+    }
+
+    function renderBreakdownBlock(id, ps) {
+        const breakdown = ps.scoreBreakdown || {};
+        const maxPts = Math.max(1, ...Object.values(breakdown).map(v => Number(v) || 0));
+        let bars = '';
+        // Stable display order matching Android: Volume, Word Count, Variety, Descriptive, Content, Rarity
+        const order = ['Volume', 'Word Count', 'Variety', 'Descriptive', 'Content', 'Rarity'];
+        const seen = new Set();
+        const ordered = order.filter(k => k in breakdown);
+        ordered.forEach(k => seen.add(k));
+        Object.keys(breakdown).forEach(k => { if (!seen.has(k)) ordered.push(k); });
+        ordered.forEach(label => {
+            const pts = Number(breakdown[label]) || 0;
+            const widthPct = Math.round((pts / maxPts) * 100);
+            bars += '<div class="bd-row">' +
+                '<span class="bd-label">' + label + '</span>' +
+                '<div class="bd-bar-track"><div class="bd-bar-fill" style="width:' + widthPct + '%"></div></div>' +
+                '<span class="bd-pts">+' + pts + '</span>' +
+            '</div>';
+        });
+        // Optional: word-type counts
+        let typeBlock = '';
+        if (ps.wordTypeCounts && Object.keys(ps.wordTypeCounts).length > 0) {
+            const types = Object.entries(ps.wordTypeCounts)
+                .map(([k, v]) => [k, Number(v) || 0])
+                .filter(([, v]) => v > 0)
+                .sort((a, b) => b[1] - a[1]);
+            if (types.length > 0) {
+                typeBlock = '<div class="bd-types">' +
+                    types.map(([k, v]) => '<span class="bd-type">' +
+                        k.toLowerCase().replace(/^./, c => c.toUpperCase()) + ': ' + v + '</span>').join('') +
+                '</div>';
+            }
+        }
+        return '<div class="report-breakdown" id="' + id + '">' +
+            '<div class="bd-title">Score Breakdown</div>' + bars + typeBlock +
+        '</div>';
     }
 
     function renderResultStory(upToIndex) {
@@ -412,11 +495,14 @@ const Results = (() => {
 
         let streakMultiplier = 1.0;
         try {
-            const streakSnap = await db.ref('users/' + Auth.uid + '/stats/currentStreak').once('value');
+            const streakSnap = await db.ref('users/' + Auth.uid + '/stats/currentWinStreak').once('value');
             const streak = streakSnap.val() || 0;
-            if (streak >= 7) streakMultiplier = 1.5;
-            else if (streak >= 3) streakMultiplier = 1.25;
-            else if (streak >= 2) streakMultiplier = 1.1;
+            // Win streak only counts CONSECUTIVE wins after this game's outcome.
+            // Multiplier preview shows next game's bonus; tier matches Android.
+            const projected = isWinner ? streak + 1 : 0;
+            if (projected >= 7) streakMultiplier = 1.5;
+            else if (projected >= 3) streakMultiplier = 1.25;
+            else if (projected >= 2) streakMultiplier = 1.1;
         } catch(e) {}
         const baseXp = xp;
         xp = Math.round(xp * streakMultiplier);
@@ -432,7 +518,8 @@ const Results = (() => {
                 totalWordsWritten: (current.totalWordsWritten || 0) + (myStats.wordCount || 0),
                 totalScore: (current.totalScore || 0) + (myStats.impactScore || 0),
                 bestGrade: betterGrade(current.bestGrade, data.storyGrade),
-                currentStreak: (current.currentStreak || 0) + 1,
+                // Win streak: consecutive wins; reset on a loss.
+                currentWinStreak: isWinner ? ((current.currentWinStreak || 0) + 1) : 0,
                 lastPlayed: firebase.database.ServerValue.TIMESTAMP
             };
             await statsRef.update(newStats);

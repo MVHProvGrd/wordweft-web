@@ -41,7 +41,7 @@ body.light-theme {
 }
 
 html, body {
-    height: 100%;
+    height: 100dvh;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
@@ -741,7 +741,7 @@ html, body {
 /* ─── Game Screen ─────────────────────────────────────── */
 
 .game-container {
-    height: 100%;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     background: var(--bg-primary);
@@ -1584,6 +1584,135 @@ html, body {
 .score-humor { background: #F59E0B; }
 .score-vocabulary { background: #10B981; }
 .score-flow { background: #3B82F6; }
+
+/* Player Card score-breakdown toggle */
+.report-impact.clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s;
+}
+.report-impact.clickable:hover { opacity: 0.85; }
+.report-impact.clickable:active { transform: scale(0.95); }
+.report-breakdown {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    margin-top: 0;
+}
+.report-breakdown.open {
+    max-height: 600px;
+    margin-top: 8px;
+}
+.report-breakdown .bd-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #888898);
+    margin: 6px 0 6px;
+}
+.report-breakdown .bd-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.report-breakdown .bd-label {
+    font-size: 12px;
+    color: var(--text-secondary, #B0B0C8);
+    width: 90px;
+    flex-shrink: 0;
+}
+.report-breakdown .bd-bar-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.report-breakdown .bd-bar-fill {
+    height: 100%;
+    background: #6366F1;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+.report-breakdown .bd-pts {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-green, #10B981);
+    min-width: 32px;
+    text-align: right;
+}
+.report-breakdown .bd-types {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.report-breakdown .bd-type {
+    font-size: 11px;
+    background: rgba(99,102,241,0.12);
+    color: var(--accent-indigo, #6366F1);
+    padding: 2px 8px;
+    border-radius: 8px;
+}
+
+/* Word Level Guide (above player cards) */
+.word-level-guide {
+    background: rgba(99,102,241,0.06);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+.word-level-guide .wlg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+.word-level-guide .wlg-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-indigo, #6366F1);
+}
+.word-level-guide .wlg-toggle {
+    font-size: 11px;
+    color: var(--text-muted, #888898);
+}
+.word-level-guide .wlg-body {
+    margin-top: 10px;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+}
+.word-level-guide.collapsed .wlg-body {
+    max-height: 0;
+    margin-top: 0;
+}
+.word-level-guide:not(.collapsed) .wlg-body {
+    max-height: 400px;
+}
+.word-level-guide .wlg-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+}
+.word-level-guide .wlg-code {
+    font-size: 13px;
+    font-weight: 700;
+    width: 28px;
+}
+.word-level-guide .wlg-name {
+    font-size: 12px;
+    font-weight: 600;
+    width: 90px;
+}
+.word-level-guide .wlg-desc {
+    font-size: 11px;
+    color: var(--text-secondary, #A0A0B8);
+    flex: 1;
+}
 
 /* Profile Screen */
 .profile-container {

@@ -14,3 +14,5 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 const db = firebase.database();
+// Cloud Functions client (default region us-central1). Used for gradeStory.
+const fbFunctions = firebase.functions ? firebase.functions() : null;

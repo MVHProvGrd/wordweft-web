@@ -458,7 +458,7 @@ const Game = (() => {
         const scrollY = window.scrollY;
 
         if (words.length === 0) {
-            textEl.innerHTML = '<span class="story-placeholder">The story begins when someone submits a word...</span>';
+            textEl.innerHTML = '<span class="story-placeholder">' + getEmptyStoryText() + '</span>';
             return;
         }
 
@@ -533,7 +533,8 @@ const Game = (() => {
         if (input) {
             input.disabled = !isMyTurn;
             input.placeholder = isMyTurn ? getPlaceholder() : 'Wait for your turn...';
-            if (isMyTurn) input.focus();
+            // Don't auto-focus on mobile — it pops the keyboard and pushes story off-screen.
+            // Players can tap the input themselves when they want to type.
         }
         if (btn) btn.disabled = !isMyTurn;
     }
@@ -546,6 +547,17 @@ const Game = (() => {
             case 'SENTENCE': return 'Type until punctuation...';
             case 'CUSTOM': return 'Type words...';
             default: return 'Type your word...';
+        }
+    }
+
+    function getEmptyStoryText() {
+        switch (gameMode) {
+            case 'ONE_WORD': return 'The story begins when someone submits a word...';
+            case 'THREE_WORDS': return 'The story begins when someone submits three words...';
+            case 'FIVE_WORDS': return 'The story begins when someone submits five words...';
+            case 'SENTENCE': return 'The story begins when someone writes a sentence...';
+            case 'CUSTOM': return 'The story begins when someone takes their turn...';
+            default: return 'The story begins when someone takes their turn...';
         }
     }
 
@@ -746,11 +758,18 @@ const Game = (() => {
 
     let gameFinished = false;
 
-    function finishGame() {
+    async function finishGame() {
         if (gameFinished) return;
         gameFinished = true;
         if (timerInterval) clearInterval(timerInterval);
         Room.clearActiveRoom(); // Game over
+
+        // Ensure the CEFR word dictionary is loaded so misspellings can be
+        // filtered out of rarest/longest-word picks. Fetch started at page
+        // load, so usually this resolves instantly.
+        if (typeof WordRarity !== 'undefined' && WordRarity.load) {
+            try { await WordRarity.load(); } catch (_) {}
+        }
 
         // Build the full story from words
         const storyWords = words.map(w => w.word);
@@ -824,7 +843,74 @@ const Game = (() => {
             };
         }
 
-        Room.postResult(result);
+        // Try the gradeStory Cloud Function for LLM-enhanced scoring +
+        // cross-platform-consistent playerStats. Falls back to heuristic
+        // `result` on any failure (offline, no billing, LLM timeout, etc).
+        const merged = await tryGradeStory(result, players, words);
+        Room.postResult(merged || result);
+    }
+
+    /**
+     * Call the gradeStory Cloud Function and merge its response over the
+     * heuristic result. Returns null if the call fails so the caller can
+     * post the heuristic as-is.
+     */
+    async function tryGradeStory(heuristic, players, words) {
+        if (!fbFunctions || typeof fbFunctions.httpsCallable !== 'function') return null;
+        try {
+            const playerById = {};
+            players.forEach(p => { playerById[p.id] = p; });
+            const attributed = words
+                .filter(w => w.playerId >= 0)
+                .map(w => {
+                    const p = playerById[w.playerId];
+                    return {
+                        player: p ? p.name : ('Player ' + w.playerId),
+                        playerId: w.playerId,
+                        playerColor: p && p.color ? String(p.color) : undefined,
+                        playerAvatar: p && p.avatar ? p.avatar : undefined,
+                        word: w.word,
+                    };
+                });
+            const callable = fbFunctions.httpsCallable('gradeStory');
+            const resp = await callable({ story: heuristic.fullStory, playerWords: attributed });
+            const data = resp && resp.data ? resp.data : null;
+            if (!data) return null;
+
+            // Merge server playerStats over heuristic, matched by playerId.
+            let mergedStats = heuristic.playerStats || [];
+            if (Array.isArray(data.playerStats)) {
+                const byId = {};
+                data.playerStats.forEach(ps => {
+                    if (ps && typeof ps.playerId === 'number') byId[ps.playerId] = ps;
+                });
+                mergedStats = mergedStats.map(hs => {
+                    // Local stats use `playerName` — find the matching server
+                    // entry by id via the player lookup we built above.
+                    const player = players.find(p => p.name === hs.playerName);
+                    const srv = player ? byId[player.id] : null;
+                    return srv ? Object.assign({}, hs, srv) : hs;
+                });
+            }
+
+            return Object.assign({}, heuristic, {
+                storyGrade: data.storyGrade || heuristic.storyGrade,
+                storyFeedback: data.storyFeedback || heuristic.storyFeedback,
+                genreDetected: data.genreDetected || heuristic.genreDetected,
+                moodDetected: data.moodDetected || heuristic.moodDetected,
+                coherenceScore: typeof data.coherenceScore === 'number' ? data.coherenceScore : heuristic.coherenceScore,
+                creativityScore: typeof data.creativityScore === 'number' ? data.creativityScore : heuristic.creativityScore,
+                humorScore: typeof data.humorScore === 'number' ? data.humorScore : heuristic.humorScore,
+                vocabularyScore: typeof data.vocabularyScore === 'number' ? data.vocabularyScore : heuristic.vocabularyScore,
+                flowScore: typeof data.flowScore === 'number' ? data.flowScore : heuristic.flowScore,
+                tags: Array.isArray(data.tags) ? data.tags : heuristic.tags,
+                illustration: data.illustration || heuristic.illustration,
+                playerStats: mergedStats,
+            });
+        } catch (e) {
+            console.warn('gradeStory call failed, using heuristic result', e);
+            return null;
+        }
     }
 
     // Grade comparison now in Results module

@@ -138,13 +138,33 @@ const App = (() => {
 
         // Game mode selector
         let selectedMode = 'ONE_WORD';
+        function refreshObjectivesAvailability() {
+            const toggle = document.getElementById('toggle-objectives');
+            const group = document.getElementById('objectives-setting-group');
+            const desc = document.getElementById('objectives-setting-desc');
+            if (!toggle || !group) return;
+            const oneWord = selectedMode === 'ONE_WORD';
+            toggle.disabled = oneWord;
+            group.style.opacity = oneWord ? '0.5' : '';
+            if (desc) {
+                desc.textContent = oneWord
+                    ? 'Not available in One-Word mode'
+                    : 'Each player gets a secret word to sneak into the story';
+            }
+            if (oneWord && toggle.checked) {
+                toggle.checked = false;
+                objectivesEnabled = false;
+            }
+        }
         document.querySelectorAll('.btn-mode').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedMode = btn.dataset.mode;
+                refreshObjectivesAvailability();
             });
         });
+        refreshObjectivesAvailability();
 
         // Story starter selector
         document.querySelectorAll('.btn-starter').forEach(btn => {
@@ -187,8 +207,8 @@ const App = (() => {
                     }
                 })();
             }
-            // Generate hidden objectives if enabled
-            if (objectivesEnabled) {
+            // Generate hidden objectives if enabled (not in ONE_WORD mode — secret words don't fit)
+            if (objectivesEnabled && selectedMode !== 'ONE_WORD') {
                 generateAndPostObjectives();
             }
             Room.startGame(selectedMode, selectedTimer);
@@ -692,7 +712,7 @@ const App = (() => {
             document.getElementById('stat-best-grade').textContent = stats.bestGrade || '—';
             document.getElementById('stat-avg-score').textContent = stats.gamesPlayed
                 ? Math.round((stats.totalScore || 0) / stats.gamesPlayed) : 0;
-            document.getElementById('stat-streak').textContent = stats.currentStreak || 0;
+            document.getElementById('stat-streak').textContent = stats.dayStreak || 0;
         } catch (e) {
             console.error('Failed to load profile stats:', e);
         }

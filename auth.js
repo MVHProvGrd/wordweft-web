@@ -99,34 +99,66 @@ const Auth = (() => {
         }
     }
 
+    // YYYY-MM-DD in the user's local timezone.
+    function localDateKey(d) {
+        const t = d || new Date();
+        return t.getFullYear() + '-' +
+            String(t.getMonth() + 1).padStart(2, '0') + '-' +
+            String(t.getDate()).padStart(2, '0');
+    }
+
+    // Tick the day-streak: +1 if last sign-in was yesterday, hold if today, reset to 1 otherwise.
+    // Returns the resolved dayStreak. Tied to the signed-in account, not games played.
+    async function tickDayStreak(stats) {
+        if (!currentUser) return 0;
+        const today = localDateKey();
+        const yesterday = localDateKey(new Date(Date.now() - 86400000));
+        const last = stats.lastSignInDay || '';
+        let dayStreak;
+        if (last === today) {
+            dayStreak = stats.dayStreak || 1;
+        } else if (last === yesterday) {
+            dayStreak = (stats.dayStreak || 0) + 1;
+        } else {
+            dayStreak = 1;
+        }
+        if (last !== today) {
+            try {
+                await db.ref('users/' + currentUser.uid + '/stats').update({
+                    dayStreak: dayStreak,
+                    lastSignInDay: today
+                });
+            } catch (e) { /* non-fatal */ }
+        }
+        return dayStreak;
+    }
+
     async function loadUserLevel() {
         if (!currentUser) return;
         try {
             const snap = await db.ref('users/' + currentUser.uid + '/stats').once('value');
-            const stats = snap.val();
-            if (stats) {
-                const xp = stats.totalXp || 0;
-                const level = calculateLevel(xp);
-                const rank = getRank(level);
-                const currentLevelXp = xp - xpForLevel(level);
-                const nextLevelXp = xpForLevel(level + 1) - xpForLevel(level);
-                const progress = nextLevelXp > 0 ? (currentLevelXp / nextLevelXp * 100) : 0;
+            const stats = snap.val() || {};
+            const xp = stats.totalXp || 0;
+            const level = calculateLevel(xp);
+            const rank = getRank(level);
+            const currentLevelXp = xp - xpForLevel(level);
+            const nextLevelXp = xpForLevel(level + 1) - xpForLevel(level);
+            const progress = nextLevelXp > 0 ? (currentLevelXp / nextLevelXp * 100) : 0;
 
-                document.getElementById('user-level').textContent = 'Lv.' + level + ' ' + rank;
-                document.getElementById('xp-bar').style.width = progress + '%';
-                document.getElementById('xp-text').textContent = xp + ' XP';
+            document.getElementById('user-level').textContent = 'Lv.' + level + ' ' + rank;
+            document.getElementById('xp-bar').style.width = progress + '%';
+            document.getElementById('xp-text').textContent = xp + ' XP';
 
-                // Streak banner
-                const streak = stats.currentStreak || 0;
-                const streakBanner = document.getElementById('streak-banner');
-                const streakCount = document.getElementById('streak-count');
-                if (streakBanner && streakCount) {
-                    if (streak >= 2) {
-                        streakCount.textContent = streak;
-                        streakBanner.classList.remove('hidden');
-                    } else {
-                        streakBanner.classList.add('hidden');
-                    }
+            // Day-streak banner — calendar-day based, ticked on sign-in.
+            const dayStreak = await tickDayStreak(stats);
+            const streakBanner = document.getElementById('streak-banner');
+            const streakCount = document.getElementById('streak-count');
+            if (streakBanner && streakCount) {
+                if (dayStreak >= 2) {
+                    streakCount.textContent = dayStreak;
+                    streakBanner.classList.remove('hidden');
+                } else {
+                    streakBanner.classList.add('hidden');
                 }
             }
         } catch (e) {

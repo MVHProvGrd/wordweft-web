@@ -361,11 +361,11 @@
                         </div>
                     </div>
 
-                    <div class="setting-group">
+                    <div class="setting-group" id="objectives-setting-group">
                         <div class="toggle-row">
                             <div>
                                 <span class="toggle-row-label">Hidden Objectives</span>
-                                <p class="setting-desc">Each player gets a secret word to sneak into the story</p>
+                                <p class="setting-desc" id="objectives-setting-desc">Each player gets a secret word to sneak into the story</p>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="toggle-objectives">
@@ -548,6 +548,13 @@
 
             <div id="result-report-cards" class="result-section-card hidden">
                 <h4 class="result-section-title">Player Report Cards</h4>
+                <div id="word-level-guide" class="word-level-guide collapsed">
+                    <div class="wlg-header">
+                        <span class="wlg-title">Word Level Guide</span>
+                        <span class="wlg-toggle">Show</span>
+                    </div>
+                    <div class="wlg-body"></div>
+                </div>
                 <div id="report-cards-list"></div>
             </div>
 
@@ -590,6 +597,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-functions-compat.js"></script>
 
     <!-- App scripts -->
     <script src="firebase-config.js"></script>
