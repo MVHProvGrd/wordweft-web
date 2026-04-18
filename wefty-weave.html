@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Wefty Weave — mini-game mockup</title>
+<style>
+    :root {
+        --bg-0: #0F0F23;
+        --bg-1: #1A1A2E;
+        --accent: #6366F1;
+        --ok: #10B981;
+        --warn: #F59E0B;
+        --bad: #EF4444;
+        --muted: #A0A0B8;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+        margin: 0;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        color: #fff;
+        background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 16px 40px;
+        overflow-x: hidden;
+    }
+    h1 { margin: 8px 0 0; font-size: 22px; }
+    .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+
+    .wefty-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .wefty-row img { width: 56px; height: 56px; }
+    .bubble {
+        background: #1E1E36;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.08);
+        font-size: 13px;
+        max-width: 220px;
+    }
+
+    .hud {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .hud .pill {
+        background: #1E1E36;
+        border: 1px solid rgba(255,255,255,0.08);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--muted);
+    }
+    .hud .pill strong { color: #fff; }
+
+    .stage {
+        position: relative;
+        width: min(520px, 96vw);
+        aspect-ratio: 1 / 1;
+        background: #1E1E36;
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.06);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+        touch-action: none;
+    }
+    .stage svg, .stage canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .hint {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: center;
+        min-height: 18px;
+    }
+
+    .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    button {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    button.ghost {
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: var(--muted);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .toast {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-20px);
+        padding: 10px 16px;
+        border-radius: 10px;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        opacity: 0;
+        transition: opacity 200ms, transform 200ms;
+        pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.ok  { background: var(--ok); }
+    .toast.bad { background: var(--bad); }
+</style>
+</head>
+<body>
+
+<div class="wefty-row">
+    <img src="wefty.png" alt="Wefty">
+    <div class="bubble">Finish weaving my letters! Trace the missing thread.</div>
+</div>
+
+<div class="hud">
+    <div class="pill">Letter <strong id="hud-letter">—</strong></div>
+    <div class="pill">Score <strong id="hud-score">0</strong></div>
+    <div class="pill"><strong id="hud-progress">0</strong>/<span id="hud-total">5</span></div>
+</div>
+
+<div class="stage" id="stage">
+    <!-- Two layered canvases:
+         - #bg renders the target letter: the "already-woven" static strokes
+           plus a faint guide for the missing stroke. Rendered once per letter.
+         - #ink captures the player's drawing. -->
+    <canvas id="bg"></canvas>
+    <canvas id="ink"></canvas>
+</div>
+
+<div class="hint" id="hint">Draw the missing thread in one stroke</div>
+
+<div class="btn-row">
+    <button id="btn-clear" class="ghost">Erase</button>
+    <button id="btn-skip" class="ghost">Skip</button>
+    <button id="btn-check">Check</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+    // ── Letter definitions ─────────────────────────────────────────────
+    // Each letter has:
+    //   strokes: array of polylines the player will SEE pre-woven
+    //   target:  polyline the player must DRAW
+    // Coordinates are in a 400×400 virtual space, mapped to canvas.
+    //
+    // Starter set — A, H, E, F, T. All five use straight horizontals as
+    // the missing stroke so the detector can be simple for the mockup.
+    const LETTERS = [
+        {
+            name: 'A',
+            strokes: [
+                [[80, 340], [200, 60]],   // left diagonal
+                [[200, 60], [320, 340]],  // right diagonal
+            ],
+            target: [[135, 220], [265, 220]], // crossbar
+        },
+        {
+            name: 'H',
+            strokes: [
+                [[80, 60], [80, 340]],
+                [[320, 60], [320, 340]],
+            ],
+            target: [[80, 200], [320, 200]],
+        },
+        {
+            name: 'E',
+            strokes: [
+                [[80, 60], [80, 340]],
+                [[80, 60], [320, 60]],
+                [[80, 340], [320, 340]],
+            ],
+            target: [[80, 200], [280, 200]],
+        },
+        {
+            name: 'F',
+            strokes: [
+                [[80, 60], [80, 340]],
+                [[80, 60], [320, 60]],
+            ],
+            target: [[80, 200], [270, 200]],
+        },
+        {
+            name: 'T',
+            strokes: [
+                [[200, 80], [200, 340]],
+            ],
+            target: [[80, 80], [320, 80]],
+        },
+    ];
+    const TOTAL = LETTERS.length;
+    document.getElementById('hud-total').textContent = TOTAL;
+
+    // Thread-color palette, cycled per letter so it feels yarn-ish.
+    const THREADS = ['#EC4899', '#10B981', '#F59E0B', '#6366F1', '#06B6D4'];
+
+    // ── Canvas setup ───────────────────────────────────────────────────
+    const stage = document.getElementById('stage');
+    const bg = document.getElementById('bg');
+    const ink = document.getElementById('ink');
+    const bgCtx = bg.getContext('2d');
+    const inkCtx = ink.getContext('2d');
+
+    function fitCanvases() {
+        const rect = stage.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        for (const c of [bg, ink]) {
+            c.width = Math.round(rect.width * dpr);
+            c.height = Math.round(rect.height * dpr);
+            c.style.width = rect.width + 'px';
+            c.style.height = rect.height + 'px';
+            c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+    }
+    window.addEventListener('resize', () => { fitCanvases(); renderBackground(); redrawInk(); });
+    fitCanvases();
+
+    // Virtual space → pixel space
+    function toPx(pt) {
+        const rect = stage.getBoundingClientRect();
+        return [pt[0] / 400 * rect.width, pt[1] / 400 * rect.height];
+    }
+
+    // ── State ──────────────────────────────────────────────────────────
+    let letterIdx = 0;
+    let score = 0;
+    let drawing = false;
+    let inkPoints = [];   // player stroke, pixel coords
+
+    // ── Rendering ──────────────────────────────────────────────────────
+    function renderBackground() {
+        const rect = stage.getBoundingClientRect();
+        bgCtx.clearRect(0, 0, rect.width, rect.height);
+
+        const letter = LETTERS[letterIdx];
+        const color = THREADS[letterIdx % THREADS.length];
+
+        // Woven letter strokes — bold, yarn-like rounded line
+        bgCtx.lineCap = 'round';
+        bgCtx.lineJoin = 'round';
+        // Shadow/outline for a subtle yarn look
+        bgCtx.strokeStyle = '#1a1a2e';
+        bgCtx.lineWidth = rect.width * 0.058;
+        for (const s of letter.strokes) drawPolyline(bgCtx, s);
+        bgCtx.strokeStyle = color;
+        bgCtx.lineWidth = rect.width * 0.045;
+        for (const s of letter.strokes) drawPolyline(bgCtx, s);
+
+        // Missing-thread guide: faint dashed line where the player should trace
+        bgCtx.save();
+        bgCtx.setLineDash([8, 10]);
+        bgCtx.strokeStyle = 'rgba(255,255,255,0.25)';
+        bgCtx.lineWidth = 2;
+        drawPolyline(bgCtx, letter.target);
+        bgCtx.restore();
+    }
+    function drawPolyline(ctx, pts) {
+        ctx.beginPath();
+        for (let i = 0; i < pts.length; i++) {
+            const [x, y] = toPx(pts[i]);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    function redrawInk() {
+        const rect = stage.getBoundingClientRect();
+        inkCtx.clearRect(0, 0, rect.width, rect.height);
+        if (inkPoints.length < 2) return;
+        const color = THREADS[letterIdx % THREADS.length];
+        inkCtx.lineCap = 'round';
+        inkCtx.lineJoin = 'round';
+        inkCtx.strokeStyle = '#1a1a2e';
+        inkCtx.lineWidth = rect.width * 0.06;
+        tracePts(inkCtx, inkPoints);
+        inkCtx.strokeStyle = color;
+        inkCtx.lineWidth = rect.width * 0.045;
+        tracePts(inkCtx, inkPoints);
+    }
+    function tracePts(ctx, pts) {
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+        ctx.stroke();
+    }
+
+    // ── Input ──────────────────────────────────────────────────────────
+    function eventPos(e) {
+        const rect = stage.getBoundingClientRect();
+        const src = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+        return [src.clientX - rect.left, src.clientY - rect.top];
+    }
+    function startDraw(e) {
+        e.preventDefault();
+        drawing = true;
+        inkPoints = [eventPos(e)];
+        redrawInk();
+    }
+    function moveDraw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const p = eventPos(e);
+        const last = inkPoints[inkPoints.length - 1];
+        if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= 2) {
+            inkPoints.push(p);
+            redrawInk();
+        }
+    }
+    function endDraw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        drawing = false;
+    }
+    stage.addEventListener('mousedown', startDraw);
+    stage.addEventListener('mousemove', moveDraw);
+    window.addEventListener('mouseup', endDraw);
+    stage.addEventListener('touchstart', startDraw, { passive: false });
+    stage.addEventListener('touchmove', moveDraw, { passive: false });
+    stage.addEventListener('touchend', endDraw, { passive: false });
+    stage.addEventListener('touchcancel', endDraw, { passive: false });
+
+    // ── Scoring ────────────────────────────────────────────────────────
+    // Straight-line target: measure how well the player's stroke covers the
+    // target segment. Two checks:
+    //   - endpoint match: stroke endpoints near target endpoints
+    //   - coverage: most sampled target points have a nearby player point
+    // Returns { ok, accuracy (0-1), reason }.
+    function scoreStroke() {
+        const letter = LETTERS[letterIdx];
+        if (inkPoints.length < 3) return { ok: false, accuracy: 0, reason: 'Too short' };
+        const rect = stage.getBoundingClientRect();
+        const targetPx = letter.target.map(toPx);
+        const tol = rect.width * 0.06; // ~6% of stage
+
+        // Endpoint match (either direction)
+        const a0 = dist(inkPoints[0], targetPx[0]);
+        const a1 = dist(inkPoints[inkPoints.length - 1], targetPx[1]);
+        const b0 = dist(inkPoints[0], targetPx[1]);
+        const b1 = dist(inkPoints[inkPoints.length - 1], targetPx[0]);
+        const endpointsOk = (a0 < tol * 2 && a1 < tol * 2) || (b0 < tol * 2 && b1 < tol * 2);
+
+        // Coverage: sample target every few pixels, check nearest ink point
+        const SAMPLES = 24;
+        let covered = 0;
+        for (let i = 0; i <= SAMPLES; i++) {
+            const t = i / SAMPLES;
+            const tx = targetPx[0][0] + (targetPx[1][0] - targetPx[0][0]) * t;
+            const ty = targetPx[0][1] + (targetPx[1][1] - targetPx[0][1]) * t;
+            let best = Infinity;
+            for (const p of inkPoints) {
+                const d = Math.hypot(p[0] - tx, p[1] - ty);
+                if (d < best) best = d;
+            }
+            if (best < tol) covered++;
+        }
+        const accuracy = covered / (SAMPLES + 1);
+
+        if (!endpointsOk) return { ok: false, accuracy, reason: 'Start and end on the guide' };
+        if (accuracy < 0.75) return { ok: false, accuracy, reason: 'Closer to the dashed line' };
+        return { ok: true, accuracy };
+    }
+    function dist(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+
+    // ── Flow ───────────────────────────────────────────────────────────
+    function loadLetter(i) {
+        letterIdx = i;
+        inkPoints = [];
+        redrawInk();
+        renderBackground();
+        document.getElementById('hud-letter').textContent = LETTERS[i].name;
+        document.getElementById('hud-progress').textContent = i;
+        document.getElementById('hint').textContent = 'Draw the missing thread in one stroke';
+    }
+
+    function check() {
+        const r = scoreStroke();
+        if (r.ok) {
+            score += Math.round(50 + 50 * r.accuracy);
+            document.getElementById('hud-score').textContent = score;
+            toast(`Nice weave! +${Math.round(50 + 50 * r.accuracy)}`, 'ok');
+            setTimeout(() => {
+                const nxt = letterIdx + 1;
+                if (nxt >= TOTAL) {
+                    document.getElementById('hint').textContent = `Done! Final score: ${score}`;
+                    document.getElementById('btn-check').disabled = true;
+                    document.getElementById('hud-progress').textContent = TOTAL;
+                } else {
+                    loadLetter(nxt);
+                }
+            }, 700);
+        } else {
+            toast(r.reason || 'Not quite — try again', 'bad');
+        }
+    }
+    function toast(msg, kind) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = 'toast show ' + (kind || '');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => el.classList.remove('show'), 1600);
+    }
+
+    document.getElementById('btn-clear').addEventListener('click', () => { inkPoints = []; redrawInk(); });
+    document.getElementById('btn-skip').addEventListener('click', () => {
+        const nxt = letterIdx + 1;
+        if (nxt < TOTAL) loadLetter(nxt);
+    });
+    document.getElementById('btn-check').addEventListener('click', check);
+
+    loadLetter(0);
+})();
+</script>
+</body>
+</html>

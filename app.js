@@ -353,7 +353,7 @@ const App = (() => {
         let tutorialSlide = 0;
         document.getElementById('btn-tutorial-next').addEventListener('click', () => {
             tutorialSlide++;
-            if (tutorialSlide >= 4) {
+            if (tutorialSlide >= 5) {
                 localStorage.setItem('wordweft_tutorial_done', '1');
                 showScreen('home');
                 tutorialSlide = 0;
@@ -1065,7 +1065,7 @@ const App = (() => {
 
     // --- Tutorial ---
     function showTutorialSlide(idx) {
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 5; i++) {
             const slide = document.getElementById('tutorial-slide-' + i);
             if (slide) slide.classList.toggle('hidden', i !== idx);
         }
@@ -1073,7 +1073,7 @@ const App = (() => {
             d.classList.toggle('active', i === idx);
         });
         const nextBtn = document.getElementById('btn-tutorial-next');
-        if (nextBtn) nextBtn.textContent = idx >= 3 ? "Let's Go!" : 'Next';
+        if (nextBtn) nextBtn.textContent = idx >= 4 ? "Let's Go!" : 'Next';
     }
 
     // --- Friends ---

@@ -40,12 +40,29 @@ const Game = (() => {
         return false;
     }
 
+    // Tiered username match. 3-letter bad words require a whole-token
+    // equality match (so "ike" doesn't nuke "Mikeixel" or "Mike"); 4-letter
+    // matches need exact or prefix; 5+ is free substring.
     function containsProfanityInUsername(name) {
         if (profanitySet.size === 0) return false;
-        const norm = normalizeUsername(name);
-        if (!norm) return false;
+        const whole = normalizeUsername(name);
+        if (!whole) return false;
+        const tokens = (name || '').toLowerCase()
+            .split(/[^a-z0-9]+/)
+            .map(t => deleet(t).replace(/[^a-z]/g, ''))
+            .filter(Boolean);
         for (const w of profanitySet) {
-            if (w.length >= 3 && norm.indexOf(w) >= 0) return true;
+            if (w.length < 3) continue;
+            if (w.length === 3) {
+                if (whole === w) return true;
+                if (tokens.some(t => t === w)) return true;
+            } else if (w.length === 4) {
+                if (whole === w || whole.startsWith(w)) return true;
+                if (tokens.some(t => t === w || t.startsWith(w))) return true;
+            } else {
+                if (whole.indexOf(w) >= 0) return true;
+                if (tokens.some(t => t.indexOf(w) >= 0)) return true;
+            }
         }
         return false;
     }
