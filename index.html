@@ -656,9 +656,48 @@
     <script src="game.js"></script>
     <script src="app.js"></script>
     <script>
-        // Register service worker for PWA
+        // Register service worker for PWA. Show a reload banner when a new
+        // SW is waiting so users instantly get fresh JS/CSS/HTML instead of
+        // having to hard-refresh.
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
+            });
+
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                function notifyWaiting(worker) {
+                    if (!worker) return;
+                    showUpdateBanner(() => worker.postMessage({ type: 'SKIP_WAITING' }));
+                }
+                if (reg.waiting && navigator.serviceWorker.controller) {
+                    notifyWaiting(reg.waiting);
+                }
+                reg.addEventListener('updatefound', () => {
+                    const incoming = reg.installing;
+                    if (!incoming) return;
+                    incoming.addEventListener('statechange', () => {
+                        if (incoming.state === 'installed' && navigator.serviceWorker.controller) {
+                            notifyWaiting(incoming);
+                        }
+                    });
+                });
+            }).catch(() => {});
+
+            function showUpdateBanner(onReload) {
+                if (document.getElementById('sw-update-banner')) return;
+                const bar = document.createElement('div');
+                bar.id = 'sw-update-banner';
+                bar.innerHTML =
+                    '<span>New version available</span>' +
+                    '<button id="sw-update-reload">Reload</button>' +
+                    '<button id="sw-update-dismiss" aria-label="Dismiss">\u2715</button>';
+                document.body.appendChild(bar);
+                document.getElementById('sw-update-reload').addEventListener('click', onReload);
+                document.getElementById('sw-update-dismiss').addEventListener('click', () => bar.remove());
+            }
         }
     </script>
 </body>

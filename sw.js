@@ -1,5 +1,5 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v23';
+const CACHE_NAME = 'wordweft-v24';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -19,14 +19,22 @@ const STATIC_ASSETS = [
     '/manifest.json'
 ];
 
-// Install: cache static assets
+// Install: cache static assets. Do NOT auto-skipWaiting — we wait for the
+// page to post {type:'SKIP_WAITING'} after the user clicks the reload
+// banner so in-flight games don't get yanked mid-turn.
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(STATIC_ASSETS);
         })
     );
-    self.skipWaiting();
+});
+
+// Message from page: user confirmed they want the new version.
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 // Activate: clean old caches
