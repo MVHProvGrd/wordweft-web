@@ -63,8 +63,45 @@ const App = (() => {
 
         document.getElementById('btn-create').addEventListener('click', () => {
             if (typeof Sound !== 'undefined') Sound.playClick();
-            requireProfile(() => createRoom());
+            requireProfile(() => {
+                const dlg = document.getElementById('host-mode-dialog');
+                if (!dlg) { createRoom(); return; }
+                // Disable the Public option for anonymous users — same gate
+                // as Android. Anonymous accounts can't be banned for griefing.
+                const publicBtn = document.getElementById('btn-host-public');
+                const publicHint = document.getElementById('host-public-hint');
+                const canHostPublic = !Auth.isAnonymous;
+                if (publicBtn) publicBtn.disabled = !canHostPublic;
+                if (publicHint) publicHint.classList.toggle('hidden', canHostPublic);
+                dlg.classList.remove('hidden');
+            });
         });
+
+        // Host-mode dialog wiring
+        const hostModeDialog = document.getElementById('host-mode-dialog');
+        if (hostModeDialog) {
+            document.getElementById('btn-host-private').addEventListener('click', () => {
+                hostModeDialog.classList.add('hidden');
+                createRoom({ isPublic: false });
+            });
+            document.getElementById('btn-host-public').addEventListener('click', () => {
+                if (document.getElementById('btn-host-public').disabled) return;
+                hostModeDialog.classList.add('hidden');
+                createRoom({ isPublic: true });
+            });
+            document.getElementById('btn-host-cancel').addEventListener('click', () => {
+                hostModeDialog.classList.add('hidden');
+            });
+        }
+
+        // Find Public Game — public-lobbies discovery screen.
+        const btnFindPublic = document.getElementById('btn-find-public');
+        if (btnFindPublic) {
+            btnFindPublic.addEventListener('click', () => {
+                if (typeof Sound !== 'undefined') Sound.playClick();
+                requireProfile(() => showScreen('public-lobbies'));
+            });
+        }
 
         // Join dialog
         document.getElementById('btn-join-cancel').addEventListener('click', () => {
@@ -566,6 +603,72 @@ const App = (() => {
         if (panel) panel.classList.add('hidden');
     }
 
+    // ── Public lobbies discovery ─────────────────────────────────────
+    let publicRoomsCallback = null;
+    function setupPublicLobbiesView() {
+        teardownPublicLobbiesView();
+        const list = document.getElementById('public-rooms-list');
+        if (!list) return;
+        list.innerHTML = '<div class="public-empty">Loading\u2026</div>';
+        publicRoomsCallback = (rooms) => renderPublicRooms(rooms);
+        Room.listenPublicRooms(publicRoomsCallback);
+    }
+    function teardownPublicLobbiesView() {
+        if (publicRoomsCallback) {
+            Room.unlistenPublicRooms(publicRoomsCallback);
+            publicRoomsCallback = null;
+        }
+    }
+    function modeLabelFor(name) {
+        return MODE_LABELS[name] || name || 'Unknown';
+    }
+    function starterLabelFor(starter) {
+        return STARTER_LABELS[starter || ''] || (starter ? starter : 'Free Play');
+    }
+    function renderPublicRooms(rooms) {
+        const list = document.getElementById('public-rooms-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (!rooms || rooms.length === 0) {
+            list.innerHTML = '<div class="public-empty">' +
+                '<div class="public-empty-emoji">\uD83C\uDFAE</div>' +
+                '<div class="public-empty-title">No public games right now</div>' +
+                '<div class="public-empty-sub">Try hosting one!</div>' +
+                '</div>';
+            return;
+        }
+        rooms.forEach((r) => {
+            const full = (r.playerCount || 0) >= (r.maxPlayers || 8);
+            const card = document.createElement('div');
+            card.className = 'public-room-card' + (full ? ' is-full' : '');
+            const timerLabel = r.turnTimerSeconds === 0 ? 'Off' : (r.turnTimerSeconds + 's');
+            card.innerHTML =
+                '<div class="public-room-avatar">' + (r.hostAvatar || '\uD83D\uDE0A') + '</div>' +
+                '<div class="public-room-info">' +
+                    '<div class="public-room-host">' + (r.hostName || 'Player') + '</div>' +
+                    '<div class="public-room-meta">' +
+                        modeLabelFor(r.gameMode) + ' \u2022 ' + timerLabel + ' \u2022 ' +
+                        starterLabelFor(r.storyStarter) +
+                    '</div>' +
+                    (r.hiddenObjectivesEnabled
+                        ? '<div class="public-room-objectives">Hidden Objectives</div>'
+                        : '') +
+                '</div>' +
+                '<div class="public-room-count">' +
+                    '<div class="public-room-count-num">' + (r.playerCount || 0) + '/' + (r.maxPlayers || 8) + '</div>' +
+                    '<div class="public-room-count-label">' + (full ? 'Full' : 'Open') + '</div>' +
+                '</div>';
+            if (!full) {
+                card.addEventListener('click', () => {
+                    if (typeof Sound !== 'undefined') Sound.playClick();
+                    teardownPublicLobbiesView();
+                    joinRoom(r.code);
+                });
+            }
+            list.appendChild(card);
+        });
+    }
+
     function setupNameDialog() {
         const grid = document.getElementById('avatar-grid');
         let selectedAvatar = '';
@@ -618,6 +721,12 @@ const App = (() => {
         document.getElementById('btn-name-confirm').addEventListener('click', () => {
             const name = document.getElementById('player-name-input').value.trim();
             if (!name) return;
+            // Reject profane / reserved / leetspeak-bypassed names so they
+            // don't reach the leaderboard, friends list, or other players.
+            if (typeof Game !== 'undefined' && Game.rejectUsername) {
+                const reason = Game.rejectUsername(name);
+                if (reason) { Game.showToast(reason, '#EF4444'); return; }
+            }
             Auth.saveLocalProfile(name, selectedAvatar);
             Auth.saveProfileToFirebase();
             Auth.updateUI();
@@ -660,13 +769,24 @@ const App = (() => {
         }
     }
 
-    async function createRoom() {
-        const code = await Room.create(Auth.name, Auth.avatar, selectedColor);
+    async function createRoom(opts) {
+        const wantPublic = !!(opts && opts.isPublic);
+        if (wantPublic && Auth.isAnonymous) {
+            if (typeof Game !== 'undefined' && Game.showToast) {
+                Game.showToast('Sign in with Google to host a public game.', '#EF4444');
+            } else {
+                alert('Sign in with Google to host a public game.');
+            }
+            return;
+        }
+        const code = await Room.create(Auth.name, Auth.avatar, selectedColor, { isPublic: wantPublic });
         if (code) {
             document.getElementById('lobby-room-code').textContent = code;
             document.getElementById('game-room-code').textContent = code;
             document.getElementById('lobby-host-controls').classList.remove('hidden');
-            document.getElementById('lobby-status').textContent = 'Share the room code with friends!';
+            document.getElementById('lobby-status').textContent = wantPublic
+                ? 'Your lobby is public \u2014 anyone can find and join it.'
+                : 'Share the room code with friends!';
             document.getElementById('lobby-status').classList.remove('hidden');
             hideLobbyJoinerView();
             Game.startListening();
@@ -763,6 +883,10 @@ const App = (() => {
         // Stop the joiner waiting animation when leaving the lobby so timers
         // don't keep running across screens.
         if (name !== 'lobby') hideLobbyJoinerView();
+        // Detach the public-rooms listener when leaving the discovery screen.
+        if (name !== 'public-lobbies') teardownPublicLobbiesView();
+        // ...and attach when entering it.
+        if (name === 'public-lobbies') setupPublicLobbiesView();
 
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         const screen = document.getElementById('screen-' + name);
@@ -797,6 +921,10 @@ const App = (() => {
         saveBtn.onclick = () => {
             const newName = nameInput.value.trim();
             if (!newName) return;
+            if (typeof Game !== 'undefined' && Game.rejectUsername) {
+                const reason = Game.rejectUsername(newName);
+                if (reason) { Game.showToast(reason, '#EF4444'); return; }
+            }
             Auth.saveLocalProfile(newName, Auth.avatar);
             Auth.saveProfileToFirebase();
             Auth.updateUI();

@@ -1,0 +1,19 @@
+[
+  "admin","admins","administrator","administrators",
+  "mod","mods","moderator","moderators",
+  "staff","support","helpdesk","help","info",
+  "system","systems","root","owner","superuser","super",
+  "host","hosts","player","players","user","users","guest","guests",
+  "anonymous","anon","nobody","null","nil","none","undefined","deleted",
+  "bot","bots","robot","robots","ai","aibot","botplayer",
+  "wordweft","wordweft.net","weft","wordweaver",
+  "storieswithfriends","stories","withfriends",
+  "claude","anthropic","openai","gpt","chatgpt",
+  "google","googleplay","firebase","android","ios","apple",
+  "official","verified","staffpick","featured","winner",
+  "wordweftbot","wordweftofficial","wordweftstaff",
+  "test","tester","testing","demo","example","sample",
+  "guestuser","anonuser","anonymoususer","tempuser","temp",
+  "username","name","profile","account","accounts",
+  "error","unknown","default","placeholder"
+]

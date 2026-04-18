@@ -48,9 +48,35 @@ const Auth = (() => {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
             if (currentUser && currentUser.isAnonymous) {
-                // Link anonymous account to Google
-                const result = await currentUser.linkWithPopup(provider);
-                currentUser = result.user;
+                const anonUid = currentUser.uid;
+                try {
+                    const result = await currentUser.linkWithPopup(provider);
+                    currentUser = result.user;
+                } catch (e) {
+                    // The picked Google account already has a Firebase user.
+                    // Sign into the existing account, then merge the anonymous
+                    // data into it (mirrors Android collision flow).
+                    if (e.code === 'auth/credential-already-in-use' ||
+                        e.code === 'auth/email-already-in-use') {
+                        const cred = e.credential ||
+                            (firebase.auth.GoogleAuthProvider.credentialFromError &&
+                                firebase.auth.GoogleAuthProvider.credentialFromError(e));
+                        let newUser;
+                        if (cred) {
+                            const r = await auth.signInWithCredential(cred);
+                            newUser = r.user;
+                        } else {
+                            const r = await auth.signInWithPopup(provider);
+                            newUser = r.user;
+                        }
+                        if (newUser && newUser.uid !== anonUid) {
+                            await mergeAnonymousIntoCurrent(anonUid, newUser.uid);
+                        }
+                        currentUser = newUser;
+                    } else {
+                        throw e;
+                    }
+                }
             } else {
                 const result = await auth.signInWithPopup(provider);
                 currentUser = result.user;
@@ -58,19 +84,183 @@ const Auth = (() => {
             updateUI();
             return currentUser;
         } catch (e) {
-            // If linking fails because account already exists, sign in directly
-            if (e.code === 'auth/credential-already-in-use') {
-                try {
-                    const result = await auth.signInWithPopup(provider);
-                    currentUser = result.user;
-                    updateUI();
-                    return currentUser;
-                } catch (e2) {
-                    console.error('Google sign-in fallback failed:', e2);
-                }
-            }
             console.error('Google sign-in failed:', e);
             return null;
+        }
+    }
+
+    /**
+     * Merge an anonymous Firebase user's data into an existing (Google-linked)
+     * user record. Same rules as Android UserRepository.mergeAnonymousIntoCurrent:
+     *  - Profile / dayStreak / lastSignInDay / currentWinStreak / currentTitle:
+     *    NOT merged (destination keeps its identity / streak state).
+     *  - Counters: summed.
+     *  - Best stats: take the better of the two.
+     *  - Averages: weighted by gamesPlayed.
+     *  - History / stories: concat, trim to 50 most recent.
+     *  - Friends: union with summed counters.
+     *  - Achievements: union; keep earliest unlock.
+     *  - Genre history: union.
+     */
+    async function mergeAnonymousIntoCurrent(fromUid, toUid) {
+        if (!fromUid || !toUid || fromUid === toUid) return;
+        try {
+            const srcRef = db.ref('users/' + fromUid);
+            const [stsSnap, histSnap, friendsSnap, achSnap, storiesSnap] = await Promise.all([
+                srcRef.child('stats').once('value'),
+                srcRef.child('history').once('value'),
+                srcRef.child('friends').once('value'),
+                srcRef.child('achievements').once('value'),
+                srcRef.child('stories').once('value'),
+            ]);
+            const stats = stsSnap.val() || {};
+
+            // Stats: sum / max / weighted average via transaction
+            await db.ref('users/' + toUid + '/stats').transaction(d => {
+                d = d || {};
+                const srcGames = stats.gamesPlayed || 0;
+                const newGames = (d.gamesPlayed || 0) + srcGames;
+                const curGames = d.gamesPlayed || 0;
+                const curAvgImpact = d.averageImpactScore || 0;
+                const curAvgRarity = d.averageWordRarity || 1.0;
+                d.gamesPlayed = newGames;
+                d.gamesWon = (d.gamesWon || 0) + (stats.gamesWon || 0);
+                d.totalXp = (d.totalXp || 0) + (stats.totalXp || 0);
+                d.totalWordsContributed = (d.totalWordsContributed || 0) + (stats.totalWordsContributed || 0);
+                d.totalWordsWritten = (d.totalWordsWritten || 0) + (stats.totalWordsWritten || 0);
+                d.totalUniqueWords = (d.totalUniqueWords || 0) + (stats.totalUniqueWords || 0);
+                d.bestImpactScore = Math.max(d.bestImpactScore || 0, stats.bestImpactScore || 0);
+                const sl = stats.longestWord || '';
+                const cl = d.longestWord || '';
+                if (sl.length > cl.length) d.longestWord = sl;
+                if (newGames > 0) {
+                    d.averageImpactScore = ((curAvgImpact * curGames) + ((stats.averageImpactScore || 0) * srcGames)) / newGames;
+                    d.averageWordRarity = ((curAvgRarity * curGames) + ((stats.averageWordRarity || 1.0) * srcGames)) / newGames;
+                }
+                const levels = ['A1','A2','B1','B2','C1','C2'];
+                if (levels.indexOf(stats.bestLanguageLevel || 'A1') > levels.indexOf(d.bestLanguageLevel || 'A1')) {
+                    d.bestLanguageLevel = stats.bestLanguageLevel;
+                }
+                const grades = ['F','D-','D','D+','C-','C','C+','B-','B','B+','A-','A','A+'];
+                if (grades.indexOf(stats.bestStoryGrade || '') > grades.indexOf(d.bestStoryGrade || '')) {
+                    d.bestStoryGrade = stats.bestStoryGrade;
+                }
+                return d;
+            });
+
+            // History: concat with new push keys, then trim to 50 most recent
+            if (histSnap.exists()) {
+                const updates = {};
+                histSnap.forEach(child => {
+                    const newKey = db.ref('users/' + toUid + '/history').push().key;
+                    updates[newKey] = child.val();
+                });
+                await db.ref('users/' + toUid + '/history').update(updates);
+                const trimSnap = await db.ref('users/' + toUid + '/history').once('value');
+                const entries = [];
+                trimSnap.forEach(c => entries.push({ key: c.key, ts: (c.child('timestamp').val() || 0) }));
+                if (entries.length > 50) {
+                    entries.sort((a, b) => a.ts - b.ts);
+                    const del = {};
+                    entries.slice(0, entries.length - 50).forEach(e => { del[e.key] = null; });
+                    await db.ref('users/' + toUid + '/history').update(del);
+                }
+            }
+
+            // Friends: union with summed counters
+            if (friendsSnap.exists()) {
+                const promises = [];
+                friendsSnap.forEach(src => {
+                    const fUid = src.key;
+                    const f = src.val() || {};
+                    promises.push(db.ref('users/' + toUid + '/friends/' + fUid).transaction(d => {
+                        d = d || {};
+                        if (!d.displayName) d.displayName = f.displayName || '';
+                        d.gamesTogether = (d.gamesTogether || 0) + (f.gamesTogether || 0);
+                        d.myWins = (d.myWins || 0) + (f.myWins || 0);
+                        d.theirWins = (d.theirWins || 0) + (f.theirWins || 0);
+                        d.gamesPlayedTogether = (d.gamesPlayedTogether || 0) + (f.gamesPlayedTogether || 0);
+                        d.wins = (d.wins || 0) + (f.wins || 0);
+                        d.losses = (d.losses || 0) + (f.losses || 0);
+                        d.lastPlayed = Math.max(d.lastPlayed || 0, f.lastPlayed || 0);
+                        return d;
+                    }));
+                });
+                await Promise.all(promises);
+            }
+
+            // Achievements: union, keep earliest unlock; genreHistory: union
+            if (achSnap.exists()) {
+                const tasks = [];
+                achSnap.forEach(child => {
+                    if (child.key === 'genreHistory') return;
+                    const v = child.val();
+                    if (v && v.unlocked) {
+                        tasks.push(db.ref('users/' + toUid + '/achievements/' + child.key).transaction(d => {
+                            if (!d || !d.unlocked) return v;
+                            const curAt = d.unlockedAt || Number.MAX_SAFE_INTEGER;
+                            if ((v.unlockedAt || 0) > 0 && v.unlockedAt < curAt) {
+                                return Object.assign({}, d, { unlockedAt: v.unlockedAt });
+                            }
+                            return d;
+                        }));
+                    }
+                });
+                await Promise.all(tasks);
+
+                const srcGenres = achSnap.child('genreHistory').val();
+                if (Array.isArray(srcGenres) && srcGenres.length > 0) {
+                    const ghRef = db.ref('users/' + toUid + '/achievements/genreHistory');
+                    const cur = (await ghRef.once('value')).val() || [];
+                    await ghRef.set(Array.from(new Set([...cur, ...srcGenres])));
+                }
+            }
+
+            // Stories: concat, trim to 50 most recent
+            if (storiesSnap.exists()) {
+                const updates = {};
+                storiesSnap.forEach(c => { updates[c.key] = c.val(); });
+                await db.ref('users/' + toUid + '/stories').update(updates);
+                const trimSnap = await db.ref('users/' + toUid + '/stories').once('value');
+                const keys = [];
+                trimSnap.forEach(c => keys.push(c.key));
+                if (keys.length > 50) {
+                    const del = {};
+                    keys.slice(0, keys.length - 50).forEach(k => { del[k] = null; });
+                    await db.ref('users/' + toUid + '/stories').update(del);
+                }
+            }
+
+            // Push a leaderboard entry so the merged user appears immediately
+            // (without this they'd be invisible until they played another game).
+            try {
+                const profSnap = await db.ref('users/' + toUid + '/profile').once('value');
+                const prof = profSnap.val() || {};
+                const finalStatsSnap = await db.ref('users/' + toUid + '/stats').once('value');
+                const finalStats = finalStatsSnap.val() || {};
+                const xp = finalStats.totalXp || 0;
+                const displayName = prof.displayName || playerName || '';
+                if (displayName) {
+                    const lvl = (typeof calculateLevel === 'function') ? calculateLevel(xp) : 0;
+                    const rnk = (typeof getRank === 'function') ? getRank(lvl) : '';
+                    await db.ref('leaderboard/allTime/' + toUid).set({
+                        xp: xp,
+                        totalXp: xp,
+                        displayName: displayName,
+                        avatar: prof.avatar || '',
+                        level: lvl,
+                        rank: rnk,
+                        gamesPlayed: finalStats.gamesPlayed || 0,
+                        gamesWon: finalStats.gamesWon || 0
+                    });
+                }
+            } catch (e) { /* non-fatal */ }
+
+            // Drop the abandoned anonymous user's subtree
+            await srcRef.remove();
+            console.log('Merged anonymous user', fromUid, 'into', toUid);
+        } catch (e) {
+            console.error('Failed to merge anonymous data:', e);
         }
     }
 
@@ -111,6 +301,9 @@ const Auth = (() => {
     // Returns the resolved dayStreak. Tied to the signed-in account, not games played.
     async function tickDayStreak(stats) {
         if (!currentUser) return 0;
+        // Anonymous accounts don't earn a day-streak — it's tied to a real
+        // signed-in identity. They get one once they link/sign-in to Google.
+        if (currentUser.isAnonymous) return 0;
         const today = localDateKey();
         const yesterday = localDateKey(new Date(Date.now() - 86400000));
         const last = stats.lastSignInDay || '';
@@ -236,6 +429,21 @@ const Auth = (() => {
             if (!snap.exists()) {
                 await db.ref('users/' + currentUser.uid + '/profile/createdAt')
                     .set(firebase.database.ServerValue.TIMESTAMP);
+            }
+            // If the user has an existing leaderboard entry, patch its
+            // displayName/avatar so the global board shows their latest
+            // identity without waiting for another game result.
+            if (!currentUser.isAnonymous) {
+                const lbRef = db.ref('leaderboard/allTime/' + currentUser.uid);
+                const lbSnap = await lbRef.child('displayName').once('value');
+                if (lbSnap.exists()) {
+                    await lbRef.update({ displayName: playerName, avatar: playerAvatar });
+                }
+                const wkRef = db.ref('leaderboard/weekly/' + currentUser.uid);
+                const wkSnap = await wkRef.child('displayName').once('value');
+                if (wkSnap.exists()) {
+                    await wkRef.update({ displayName: playerName, avatar: playerAvatar });
+                }
             }
         } catch (e) {
             console.error('Failed to save profile:', e);

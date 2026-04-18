@@ -174,12 +174,35 @@ const Screens = (() => {
 
         try {
             const path = tab === 'weekly' ? 'leaderboard/weekly' : 'leaderboard/allTime';
-            const snap = await db.ref(path).orderByChild('xp').limitToLast(50).once('value');
+            // Read everything (board is small) so entries written by Android
+            // — which use `totalXp` instead of `xp` — aren't dropped by an
+            // orderByChild('xp') query.
+            const snap = await db.ref(path).once('value');
             const entries = [];
             snap.forEach(child => {
-                entries.push({ uid: child.key, ...child.val() });
+                const v = child.val() || {};
+                // Tolerate either `xp` (web) or `totalXp` (Android).
+                if (v.xp == null && v.totalXp != null) v.xp = v.totalXp;
+                entries.push({ uid: child.key, ...v });
             });
             entries.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+            entries.splice(50);
+
+            // Overlay each entry with its live profile displayName/avatar so
+            // renamed users show their current name even if they haven't played
+            // a game since renaming. The cached value is a snapshot from the
+            // last write; profile is the source of truth.
+            const profilePromises = entries.map(e =>
+                db.ref('users/' + e.uid + '/profile').once('value')
+                    .then(s => s.val() || {})
+                    .catch(() => ({}))
+            );
+            const profiles = await Promise.all(profilePromises);
+            entries.forEach((e, i) => {
+                const p = profiles[i];
+                if (p.displayName) e.displayName = p.displayName;
+                if (p.avatar) e.avatar = p.avatar;
+            });
 
             if (entries.length === 0) {
                 list.innerHTML = '<div class="leaderboard-empty">No players yet. Play a game to get on the board!</div>';

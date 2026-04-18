@@ -55,6 +55,27 @@
                 <button id="btn-join" class="btn btn-secondary btn-large">
                     <span class="btn-icon">&#9729;</span> Join Game
                 </button>
+                <button id="btn-find-public" class="btn btn-secondary btn-large">
+                    <span class="btn-icon">&#128270;</span> Find Public Game
+                </button>
+            </div>
+
+            <!-- Host-mode picker: private (code) vs public (discoverable) -->
+            <div id="host-mode-dialog" class="dialog hidden">
+                <div class="dialog-content">
+                    <h3>Host a Game</h3>
+                    <p class="dialog-subtitle">How do you want to play?</p>
+                    <button id="btn-host-private" class="btn btn-primary btn-large" style="margin-bottom:8px">
+                        <span class="btn-icon">&#9729;</span> Friends only (code)
+                    </button>
+                    <button id="btn-host-public" class="btn btn-green btn-large">
+                        <span class="btn-icon">&#127758;</span> Public (anyone can join)
+                    </button>
+                    <p id="host-public-hint" class="dialog-hint hidden">Sign in with Google in your profile to host a public game.</p>
+                    <div class="dialog-buttons">
+                        <button id="btn-host-cancel" class="btn btn-ghost">Cancel</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Join dialog -->
@@ -257,6 +278,16 @@
             <div id="friends-list" class="friends-list">
                 <div class="leaderboard-empty">No friends yet. Play games with others to see them here!</div>
             </div>
+        </div>
+    </div>
+
+    <!-- Public Lobbies Screen -->
+    <div id="screen-public-lobbies" class="screen">
+        <div class="leaderboard-container">
+            <button class="btn-back" onclick="App.showScreen('home')">&larr;</button>
+            <h2>Public Games</h2>
+            <p class="dialog-subtitle">Tap a lobby to join &mdash; no code required</p>
+            <div id="public-rooms-list" class="public-rooms-list"></div>
         </div>
     </div>
 

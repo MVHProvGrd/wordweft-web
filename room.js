@@ -4,8 +4,25 @@ const Room = (() => {
     let roomRef = null;
     let listeners = [];
     let isHost = false;
+    let isPublic = false;
     let myPlayerIndex = -1;
     let connectedListener = null;
+    let publicCountSubscribed = false;
+
+    function publicRef(code) {
+        return db.ref('publicRooms/' + (code || roomCode));
+    }
+
+    // Patch a subset of fields on the public-rooms index entry (host-only).
+    function patchPublicIndex(updates) {
+        if (!isPublic || !isHost || !roomCode) return;
+        publicRef().update(updates).catch((e) => console.error('patchPublicIndex failed', e));
+    }
+
+    function removeFromPublicIndex() {
+        if (!roomCode) return;
+        publicRef().remove().catch((e) => console.error('removeFromPublicIndex failed', e));
+    }
 
     // Re-assert isConnected when Firebase reconnects (prevents false disconnects)
     function setupConnectionMonitor() {
@@ -29,9 +46,10 @@ const Room = (() => {
         return prefix + suffix;
     }
 
-    async function create(name, avatar, color) {
+    async function create(name, avatar, color, opts) {
         const uid = Auth.uid;
         if (!uid) return null;
+        const wantPublic = !!(opts && opts.isPublic);
 
         // Try up to 3 codes
         for (let i = 0; i < 3; i++) {
@@ -50,6 +68,7 @@ const Room = (() => {
                     hiddenObjectivesEnabled: false,
                     isStarted: false,
                     isFinished: false,
+                    isPublic: wantPublic,
                     maxPlayers: 8
                 });
 
@@ -69,9 +88,30 @@ const Room = (() => {
                 roomCode = code;
                 roomRef = ref;
                 isHost = true;
+                isPublic = wantPublic;
                 myPlayerIndex = 0;
                 saveActiveRoom();
                 setupConnectionMonitor();
+
+                // Public discovery: write the index entry and arrange for it
+                // to disappear when the host disconnects (best-effort cleanup
+                // paired with explicit removeFromPublicIndex on lifecycle
+                // events).
+                if (wantPublic) {
+                    await publicRef(code).set({
+                        hostName: name,
+                        hostAvatar: avatar || '',
+                        gameMode: 'ONE_WORD',
+                        turnTimerSeconds: 0,
+                        storyStarter: '',
+                        hiddenObjectivesEnabled: false,
+                        playerCount: 1,
+                        maxPlayers: 8,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    publicRef(code).onDisconnect().remove();
+                    subscribePublicPlayerCount();
+                }
 
                 return code;
             } catch (e) {
@@ -79,6 +119,16 @@ const Room = (() => {
             }
         }
         return null;
+    }
+
+    // Host-side: keep publicRooms/{code}/playerCount in sync as players come
+    // and go. Only registered when hosting a public room.
+    function subscribePublicPlayerCount() {
+        if (publicCountSubscribed || !roomRef) return;
+        publicCountSubscribed = true;
+        roomRef.child('players').on('value', (snap) => {
+            patchPublicIndex({ playerCount: snap.numChildren() });
+        });
     }
 
     async function join(code, name, avatar, color) {
@@ -205,6 +255,7 @@ const Room = (() => {
         if (!roomRef) return;
         await roomRef.child('result').set(result);
         await roomRef.child('meta/isFinished').set(true);
+        removeFromPublicIndex();
     }
 
     async function pauseGame() {
@@ -223,21 +274,22 @@ const Room = (() => {
     // see the host's selections live (matches Android setLobby* path).
     async function updateLobbyMode(mode) {
         if (!roomRef || !isHost) return;
-        try { await roomRef.child('meta/gameMode').set(mode); } catch (e) {}
+        try { await roomRef.child('meta/gameMode').set(mode); patchPublicIndex({ gameMode: mode }); } catch (e) {}
     }
     async function updateLobbyTimer(seconds) {
         if (!roomRef || !isHost) return;
-        try { await roomRef.child('meta/turnTimerSeconds').set(seconds); } catch (e) {}
+        try { await roomRef.child('meta/turnTimerSeconds').set(seconds); patchPublicIndex({ turnTimerSeconds: seconds }); } catch (e) {}
     }
     async function updateLobbyObjectives(enabled) {
         if (!roomRef || !isHost) return;
-        try { await roomRef.child('meta/hiddenObjectivesEnabled').set(enabled); } catch (e) {}
+        try { await roomRef.child('meta/hiddenObjectivesEnabled').set(enabled); patchPublicIndex({ hiddenObjectivesEnabled: enabled }); } catch (e) {}
     }
     async function updateLobbyStarter(starter) {
         if (!roomRef || !isHost) return;
         try {
             if (starter) await roomRef.child('meta/storyStarter').set(starter);
             else await roomRef.child('meta/storyStarter').remove();
+            patchPublicIndex({ storyStarter: starter || '' });
         } catch (e) {}
     }
 
@@ -254,6 +306,9 @@ const Room = (() => {
                              gameMode === 'FIVE_WORDS' ? 5 : 0,
             timerStartedAt: firebase.database.ServerValue.TIMESTAMP
         });
+        // Once the game is running, remove the public index entry so it
+        // stops appearing in the discovery list.
+        removeFromPublicIndex();
     }
 
     function saveActiveRoom() {
@@ -322,15 +377,24 @@ const Room = (() => {
     }
 
     function leave() {
+        // If we're the host of a public room, drop the index entry so other
+        // players don't see a ghost lobby. Best-effort — onDisconnect cleans
+        // up if this fire-and-forget never lands.
+        if (isHost && isPublic) removeFromPublicIndex();
         stopListening();
         clearActiveRoom();
         if (connectedListener) {
             db.ref('.info/connected').off('value', connectedListener);
             connectedListener = null;
         }
+        if (publicCountSubscribed && roomRef) {
+            roomRef.child('players').off('value');
+        }
+        publicCountSubscribed = false;
         roomRef = null;
         roomCode = '';
         isHost = false;
+        isPublic = false;
         myPlayerIndex = -1;
     }
 
@@ -340,9 +404,52 @@ const Room = (() => {
         if (code) {
             try {
                 await db.ref('rooms/' + code).remove();
+                await db.ref('publicRooms/' + code).remove();
             } catch (e) {
                 console.error('Failed to delete room:', e);
             }
+        }
+    }
+
+    // ── Public-rooms discovery ────────────────────────────────────────
+    // Decoupled from any one room. Subscribers register a callback that
+    // receives the live, sorted list of public-room summaries. Only one
+    // Firebase listener runs regardless of subscriber count.
+    let publicListeners = [];
+    let publicListenerAttached = false;
+    function _publicCallback(snap) {
+        const list = [];
+        snap.forEach((child) => {
+            const v = child.val() || {};
+            if (!v.hostName) return;
+            list.push({
+                code: child.key,
+                hostName: v.hostName,
+                hostAvatar: v.hostAvatar || '',
+                gameMode: v.gameMode || 'ONE_WORD',
+                turnTimerSeconds: v.turnTimerSeconds || 0,
+                storyStarter: v.storyStarter || '',
+                hiddenObjectivesEnabled: !!v.hiddenObjectivesEnabled,
+                playerCount: v.playerCount || 0,
+                maxPlayers: v.maxPlayers || 8,
+                createdAt: v.createdAt || 0
+            });
+        });
+        list.sort((a, b) => b.createdAt - a.createdAt);
+        publicListeners.forEach((cb) => { try { cb(list); } catch (e) { console.error(e); } });
+    }
+    function listenPublicRooms(callback) {
+        publicListeners.push(callback);
+        if (!publicListenerAttached) {
+            db.ref('publicRooms').on('value', _publicCallback);
+            publicListenerAttached = true;
+        }
+    }
+    function unlistenPublicRooms(callback) {
+        publicListeners = publicListeners.filter((c) => c !== callback);
+        if (publicListeners.length === 0 && publicListenerAttached) {
+            db.ref('publicRooms').off('value', _publicCallback);
+            publicListenerAttached = false;
         }
     }
 
@@ -364,6 +471,8 @@ const Room = (() => {
         updateLobbyTimer,
         updateLobbyObjectives,
         updateLobbyStarter,
+        listenPublicRooms,
+        unlistenPublicRooms,
         pauseGame,
         unpauseGame,
         leave,

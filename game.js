@@ -1,14 +1,65 @@
 // Game logic module for WordWeft web client
 const Game = (() => {
     let profanitySet = new Set();
-    // Load profanity list
+    let reservedNames = new Set();
+    // Load profanity + reserved-names lists
     fetch('profanity.json').then(r => r.json()).then(list => {
         list.forEach(w => profanitySet.add(w.toLowerCase()));
     }).catch(() => {});
+    fetch('reserved_names.json').then(r => r.json()).then(list => {
+        list.forEach(w => reservedNames.add(w.toLowerCase()));
+    }).catch(() => {});
 
+    // Gameplay filter: word-boundary match, no leetspeak (avoids false
+    // positives in prose like "the assassin" or "scunthorpe").
     function containsProfanity(text) {
         if (profanitySet.size === 0) return false;
         return text.toLowerCase().split(/\s+/).some(w => profanitySet.has(w.replace(/[^a-z]/g, '')));
+    }
+
+    // Leetspeak normalization — map common digit/symbol substitutions back
+    // to letters so "5h1t" / "fuk" / "@ssh0le" match the list.
+    const LEET_MAP = { '0':'o','1':'i','|':'i','3':'e','4':'a','@':'a','5':'s','$':'s','7':'t','+':'t','8':'b','9':'g' };
+    function deleet(s) {
+        let out = '';
+        for (const c of s) out += (LEET_MAP[c] || c);
+        return out;
+    }
+    function normalizeUsername(name) {
+        return deleet(name.toLowerCase()).replace(/[^a-z]/g, '');
+    }
+
+    function isReservedUsername(name) {
+        if (reservedNames.size === 0) return false;
+        const norm = normalizeUsername(name);
+        if (!norm) return false;
+        if (reservedNames.has(norm)) return true;
+        for (const r of reservedNames) {
+            if (r.length >= 3 && norm.startsWith(r)) return true;
+        }
+        return false;
+    }
+
+    function containsProfanityInUsername(name) {
+        if (profanitySet.size === 0) return false;
+        const norm = normalizeUsername(name);
+        if (!norm) return false;
+        for (const w of profanitySet) {
+            if (w.length >= 3 && norm.indexOf(w) >= 0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Combined username gate. Returns null if OK, or a user-facing reason
+     * string if rejected.
+     */
+    function rejectUsername(name) {
+        const trimmed = (name || '').trim();
+        if (!trimmed) return null;
+        if (isReservedUsername(trimmed)) return "That name is reserved \u2014 please pick another.";
+        if (containsProfanityInUsername(trimmed)) return "Let's keep it clean! Please pick a different name.";
+        return null;
     }
 
     let players = [];
@@ -1132,6 +1183,14 @@ const Game = (() => {
         finishGame,
         endPausedGame,
         cleanup,
+        // Exposed so other modules (e.g., app.js profile forms) can gate
+        // name entry on profanity and show the same styled toast used in
+        // gameplay. rejectUsername is the stricter gate (leetspeak +
+        // reserved names); containsProfanity is the word-boundary gameplay
+        // gate. Callers should use rejectUsername for user identity.
+        containsProfanity,
+        rejectUsername,
+        showToast,
         get ACHIEVEMENTS() { return Results.ACHIEVEMENTS; },
         get players() { return players; },
         get words() { return words; },

@@ -523,9 +523,28 @@ const Results = (() => {
                 lastPlayed: firebase.database.ServerValue.TIMESTAMP
             };
             await statsRef.update(newStats);
-            const lbEntry = { xp: newStats.totalXp, displayName: Auth.name, avatar: Auth.avatar };
-            await db.ref('leaderboard/allTime/' + Auth.uid).set(lbEntry);
-            await db.ref('leaderboard/weekly/' + Auth.uid).set(lbEntry);
+            // Gate leaderboard writes on non-anonymous: anonymous users get a
+            // fresh UID per install, so writing them to the global board just
+            // accumulates orphan entries that can never be reclaimed.
+            if (!Auth.isAnonymous) {
+                // Write both `xp` (web's historical field) and `totalXp` (Android's
+                // field) plus level/rank/gamesPlayed/gamesWon so the Android
+                // leaderboard reader has full info. See UserRepository.updateLeaderboard.
+                const lbLevel = (typeof Auth.calculateLevel === 'function') ? Auth.calculateLevel(newStats.totalXp) : 0;
+                const lbRank = (typeof Auth.getRank === 'function') ? Auth.getRank(lbLevel) : '';
+                const lbEntry = {
+                    xp: newStats.totalXp,
+                    totalXp: newStats.totalXp,
+                    displayName: Auth.name,
+                    avatar: Auth.avatar,
+                    level: lbLevel,
+                    rank: lbRank,
+                    gamesPlayed: newStats.gamesPlayed,
+                    gamesWon: newStats.gamesWon
+                };
+                await db.ref('leaderboard/allTime/' + Auth.uid).set(lbEntry);
+                await db.ref('leaderboard/weekly/' + Auth.uid).set(lbEntry);
+            }
 
             const xpSection = document.getElementById('xp-earned-section');
             const xpText = document.getElementById('xp-earned-text');
