@@ -831,6 +831,39 @@ html, body {
     50%      { transform: translateY(-10px) rotate(3deg); }
 }
 
+/* Easter-egg: small waving Wefty in the home-screen corner — tap to
+   launch the Wefty Weave mini-game. Positioned so it doesn't interfere
+   with the main CTA stack. */
+.wefty-egg {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    width: 64px;
+    height: 64px;
+    z-index: 50;
+    display: block;
+    text-decoration: none;
+    cursor: pointer;
+    animation: wefty-egg-bob 2.6s ease-in-out infinite;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.35));
+}
+.wefty-egg img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+}
+.wefty-egg .wefty-egg-arm {
+    transform-origin: 16% 48%;
+    animation: wefty-arm-wave 0.9s ease-in-out infinite;
+}
+@keyframes wefty-egg-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-3px); }
+}
+
 /* Splash screen: waving Wefty that fades out over the home screen */
 .splash-screen {
     position: fixed;
