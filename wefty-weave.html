@@ -237,7 +237,7 @@
         <div class="hint" id="hint">Draw the missing thread in one stroke</div>
 
         <div class="btn-row">
-            <button id="btn-clear" class="ghost">Erase</button>
+            <button id="btn-clear" class="ghost">Undo</button>
             <button id="btn-skip" class="ghost">Skip word</button>
         </div>
     </div>
@@ -694,13 +694,32 @@
             if (best.ok) passing++;
             accSum += best.accuracy;
         }
-        const accuracy = accSum / samples.length;
+        const coverage = accSum / samples.length;
+        // Overshoot penalty: fraction of ink points near any target. Sloppy
+        // lines that stray away from the targets drag accuracy down so
+        // 3-star ratings are earned, not automatic.
+        let totalPts = 0, closePts = 0;
+        const overshootTol = tol * 1.4;
+        for (const ink of inkStrokes) {
+            for (const p of ink) {
+                totalPts++;
+                let near = false;
+                for (const t of samples) {
+                    for (const q of t) {
+                        if (Math.hypot(p[0] - q[0], p[1] - q[1]) < overshootTol) { near = true; break; }
+                    }
+                    if (near) break;
+                }
+                if (near) closePts++;
+            }
+        }
+        const precision = totalPts === 0 ? 0 : closePts / totalPts;
+        const accuracy = coverage * precision;
         return { ok: passing === samples.length, accuracy, passing, total: samples.length };
     }
     function rateAccuracy(a) {
-        if (a >= 0.97) return { stars: 3, label: 'Masterweave!' };
-        if (a >= 0.92) return { stars: 3, label: 'Perfect!' };
-        if (a >= 0.88) return { stars: 2, label: 'Nice!' };
+        if (a >= 0.88) return { stars: 3, label: 'Masterweave!' };
+        if (a >= 0.72) return { stars: 2, label: 'Nice!' };
         return { stars: 1, label: 'Woven' };
     }
 
@@ -751,11 +770,12 @@
     }
 
     document.getElementById('btn-clear').addEventListener('click', () => {
-        if (levelLocked) return;
-        inkStrokes = [];
+        if (levelLocked || inkStrokes.length === 0) return;
+        inkStrokes.pop();
         currentStroke = null;
         redrawInk();
-        document.getElementById('hint').textContent = 'Draw each missing thread';
+        document.getElementById('hint').textContent =
+            inkStrokes.length === 0 ? 'Draw each missing thread' : 'Keep going…';
     });
     document.getElementById('btn-skip').addEventListener('click', () => {
         const nxt = levelIdx + 1;
