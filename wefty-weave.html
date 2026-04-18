@@ -21,30 +21,69 @@
         color: #fff;
         background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
         min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
         padding: 20px 16px 40px;
         overflow-x: hidden;
     }
-    h1 { margin: 8px 0 0; font-size: 22px; }
-    .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
 
-    .wefty-row {
+    /* Two-column on wide screens: Wefty on the left, game on the right.
+       Stacks vertically on narrow / mobile widths. */
+    .layout {
         display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 32px;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    .side {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
         align-items: center;
         gap: 12px;
-        margin-bottom: 16px;
     }
-    .wefty-row img { width: 56px; height: 56px; }
+    .side img {
+        width: 240px;
+        height: 240px;
+        animation: wefty-bob 2.4s ease-in-out infinite;
+    }
     .bubble {
         background: #1E1E36;
-        padding: 10px 14px;
-        border-radius: 14px;
+        padding: 12px 16px;
+        border-radius: 16px;
         border: 1px solid rgba(255,255,255,0.08);
         font-size: 13px;
         max-width: 220px;
+        text-align: center;
+        position: relative;
     }
+    .bubble::after {
+        content: "";
+        position: absolute;
+        top: -8px;
+        left: 50%;
+        transform: translateX(-50%) rotate(45deg);
+        width: 12px;
+        height: 12px;
+        background: #1E1E36;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        border-left: 1px solid rgba(255,255,255,0.08);
+    }
+    @keyframes wefty-bob {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-8px); }
+    }
+
+    .col {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    h1 { margin: 8px 0 0; font-size: 22px; }
+    .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
 
     .hud {
         display: flex;
@@ -78,6 +117,16 @@
         inset: 0;
         width: 100%;
         height: 100%;
+    }
+
+    @media (max-width: 720px) {
+        .layout {
+            flex-direction: column;
+            gap: 12px;
+        }
+        .side img { width: 140px; height: 140px; }
+        .side { flex-direction: row; }
+        .bubble::after { top: 50%; left: -6px; transform: translateY(-50%) rotate(45deg); }
     }
 
     .hint {
@@ -133,32 +182,37 @@
 </head>
 <body>
 
-<div class="wefty-row">
-    <img src="wefty.png" alt="Wefty">
-    <div class="bubble">Finish weaving my letters! Trace the missing thread.</div>
-</div>
+<div class="layout">
+    <div class="side">
+        <img src="wefty.png" alt="Wefty">
+        <div class="bubble">Finish weaving my letters! Trace the missing thread.</div>
+    </div>
 
-<div class="hud">
-    <div class="pill">Letter <strong id="hud-letter">—</strong></div>
-    <div class="pill">Score <strong id="hud-score">0</strong></div>
-    <div class="pill"><strong id="hud-progress">0</strong>/<span id="hud-total">5</span></div>
-</div>
+    <div class="col">
+        <div class="hud">
+            <div class="pill">Letter <strong id="hud-letter">—</strong></div>
+            <div class="pill">Score <strong id="hud-score">0</strong></div>
+            <div class="pill"><strong id="hud-progress">0</strong>/<span id="hud-total">5</span></div>
+        </div>
 
-<div class="stage" id="stage">
-    <!-- Two layered canvases:
-         - #bg renders the target letter: the "already-woven" static strokes
-           plus a faint guide for the missing stroke. Rendered once per letter.
-         - #ink captures the player's drawing. -->
-    <canvas id="bg"></canvas>
-    <canvas id="ink"></canvas>
-</div>
+        <div class="stage" id="stage">
+            <!-- Layered canvases:
+                 - #bg renders the target letter: the "already-woven" static
+                   strokes plus a faint guide for the missing stroke. Rendered
+                   once per letter.
+                 - #ink captures the player's drawing. -->
+            <canvas id="bg"></canvas>
+            <canvas id="ink"></canvas>
+        </div>
 
-<div class="hint" id="hint">Draw the missing thread in one stroke</div>
+        <div class="hint" id="hint">Draw the missing thread in one stroke</div>
 
-<div class="btn-row">
-    <button id="btn-clear" class="ghost">Erase</button>
-    <button id="btn-skip" class="ghost">Skip</button>
-    <button id="btn-check">Check</button>
+        <div class="btn-row">
+            <button id="btn-clear" class="ghost">Erase</button>
+            <button id="btn-skip" class="ghost">Skip</button>
+            <button id="btn-check">Check</button>
+        </div>
+    </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -218,8 +272,16 @@
     const TOTAL = LETTERS.length;
     document.getElementById('hud-total').textContent = TOTAL;
 
-    // Thread-color palette, cycled per letter so it feels yarn-ish.
-    const THREADS = ['#EC4899', '#10B981', '#F59E0B', '#6366F1', '#06B6D4'];
+    // Per-letter thread palettes. Each palette is three strands (main,
+    // highlight, shadow) so the stroke looks like braided yarn instead of
+    // a flat line. Cycled per letter to match the logo's multi-color vibe.
+    const THREAD_PALETTES = [
+        { main: '#EC4899', light: '#F9A8D4', dark: '#9D174D' },
+        { main: '#10B981', light: '#6EE7B7', dark: '#065F46' },
+        { main: '#F59E0B', light: '#FCD34D', dark: '#92400E' },
+        { main: '#6366F1', light: '#A5B4FC', dark: '#3730A3' },
+        { main: '#06B6D4', light: '#67E8F9', dark: '#155E75' },
+    ];
 
     // ── Canvas setup ───────────────────────────────────────────────────
     const stage = document.getElementById('stage');
@@ -255,60 +317,94 @@
     let inkPoints = [];   // player stroke, pixel coords
 
     // ── Rendering ──────────────────────────────────────────────────────
+    // A "thread" is drawn in 4 passes:
+    //   1. Soft drop shadow underneath (halo)
+    //   2. Dark outline for depth
+    //   3. Main fill color
+    //   4. Highlight band offset up-left for a rounded cord look
+    //   5. Thin dashed overlay (perpendicular stitches) so it reads as yarn
+    function drawThread(ctx, pts, palette, baseWidth) {
+        if (pts.length < 2) return;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        // 1) Soft halo (the stage background is dark, so this sells depth)
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.45)';
+        ctx.shadowBlur = baseWidth * 0.5;
+        ctx.strokeStyle = palette.dark;
+        ctx.lineWidth = baseWidth * 1.15;
+        stroke(ctx, pts);
+        ctx.restore();
+        // 2) Dark outline
+        ctx.strokeStyle = palette.dark;
+        ctx.lineWidth = baseWidth * 1.08;
+        stroke(ctx, pts);
+        // 3) Main color
+        ctx.strokeStyle = palette.main;
+        ctx.lineWidth = baseWidth * 0.9;
+        stroke(ctx, pts);
+        // 4) Highlight — thinner, lighter, offset up-left
+        ctx.save();
+        ctx.translate(-baseWidth * 0.12, -baseWidth * 0.18);
+        ctx.strokeStyle = palette.light;
+        ctx.lineWidth = baseWidth * 0.35;
+        ctx.globalAlpha = 0.85;
+        stroke(ctx, pts);
+        ctx.restore();
+        // 5) Stitch texture — dashed perpendicular ticks across the main strand
+        ctx.save();
+        ctx.setLineDash([baseWidth * 0.22, baseWidth * 0.55]);
+        ctx.lineDashOffset = 0;
+        ctx.strokeStyle = palette.dark;
+        ctx.lineWidth = baseWidth * 0.95;
+        ctx.globalAlpha = 0.35;
+        stroke(ctx, pts);
+        ctx.restore();
+    }
+    function stroke(ctx, pts) {
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+        ctx.stroke();
+    }
+    function polylineToPx(pts) { return pts.map(toPx); }
+
     function renderBackground() {
         const rect = stage.getBoundingClientRect();
         bgCtx.clearRect(0, 0, rect.width, rect.height);
 
         const letter = LETTERS[letterIdx];
-        const color = THREADS[letterIdx % THREADS.length];
+        const palette = THREAD_PALETTES[letterIdx % THREAD_PALETTES.length];
+        const w = rect.width * 0.055;
 
-        // Woven letter strokes — bold, yarn-like rounded line
-        bgCtx.lineCap = 'round';
-        bgCtx.lineJoin = 'round';
-        // Shadow/outline for a subtle yarn look
-        bgCtx.strokeStyle = '#1a1a2e';
-        bgCtx.lineWidth = rect.width * 0.058;
-        for (const s of letter.strokes) drawPolyline(bgCtx, s);
-        bgCtx.strokeStyle = color;
-        bgCtx.lineWidth = rect.width * 0.045;
-        for (const s of letter.strokes) drawPolyline(bgCtx, s);
+        // Pre-woven letter strands
+        for (const s of letter.strokes) drawThread(bgCtx, polylineToPx(s), palette, w);
 
-        // Missing-thread guide: faint dashed line where the player should trace
+        // Missing-thread guide: a faint braided ghost of the target + dashed
+        // centerline so players see exactly where the thread should go.
+        const guidePalette = {
+            main: 'rgba(255,255,255,0.10)',
+            light: 'rgba(255,255,255,0.18)',
+            dark: 'rgba(255,255,255,0.05)',
+        };
+        bgCtx.save();
+        bgCtx.globalAlpha = 0.9;
+        drawThread(bgCtx, polylineToPx(letter.target), guidePalette, w * 0.85);
+        bgCtx.restore();
         bgCtx.save();
         bgCtx.setLineDash([8, 10]);
-        bgCtx.strokeStyle = 'rgba(255,255,255,0.25)';
+        bgCtx.strokeStyle = 'rgba(255,255,255,0.4)';
         bgCtx.lineWidth = 2;
-        drawPolyline(bgCtx, letter.target);
+        stroke(bgCtx, polylineToPx(letter.target));
         bgCtx.restore();
-    }
-    function drawPolyline(ctx, pts) {
-        ctx.beginPath();
-        for (let i = 0; i < pts.length; i++) {
-            const [x, y] = toPx(pts[i]);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
     }
 
     function redrawInk() {
         const rect = stage.getBoundingClientRect();
         inkCtx.clearRect(0, 0, rect.width, rect.height);
         if (inkPoints.length < 2) return;
-        const color = THREADS[letterIdx % THREADS.length];
-        inkCtx.lineCap = 'round';
-        inkCtx.lineJoin = 'round';
-        inkCtx.strokeStyle = '#1a1a2e';
-        inkCtx.lineWidth = rect.width * 0.06;
-        tracePts(inkCtx, inkPoints);
-        inkCtx.strokeStyle = color;
-        inkCtx.lineWidth = rect.width * 0.045;
-        tracePts(inkCtx, inkPoints);
-    }
-    function tracePts(ctx, pts) {
-        ctx.beginPath();
-        ctx.moveTo(pts[0][0], pts[0][1]);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-        ctx.stroke();
+        const palette = THREAD_PALETTES[letterIdx % THREAD_PALETTES.length];
+        drawThread(inkCtx, inkPoints, palette, rect.width * 0.055);
     }
 
     // ── Input ──────────────────────────────────────────────────────────
