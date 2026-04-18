@@ -98,6 +98,17 @@ const Game = (() => {
         return COLOR_MAP[colorValue] || '#A0A0B8';
     }
 
+    // Light stemmer so "marshmallows" still satisfies a "marshmallow" secret.
+    // Handles regular -s, -es, and -ies plurals; both directions because
+    // submit-or-secret could be either form.
+    function stemForSecret(word) {
+        const w = (word || '').toLowerCase().replace(/[^a-z]/g, '');
+        if (w.length > 3 && w.endsWith('ies')) return w.slice(0, -3) + 'y';
+        if (w.length > 3 && w.endsWith('es')) return w.slice(0, -2);
+        if (w.length > 2 && w.endsWith('s')) return w.slice(0, -1);
+        return w;
+    }
+
     function startListening() {
         // Players
         Room.listen('players', (snap) => {
@@ -121,6 +132,10 @@ const Game = (() => {
             updatePlayerList();
             updateLobbyPlayers();
             updateTurnIndicator();
+            // Vote thresholds depend on connected count, so recompute when
+            // connection set changes (e.g. someone leaves mid-vote).
+            if (typeof recomputeFinishVotes === 'function') recomputeFinishVotes();
+            if (typeof recomputeExtensionVotes === 'function') recomputeExtensionVotes();
 
             // Auto-promote host if host disconnected
             const host = players.find(p => p.isHost);
@@ -208,6 +223,8 @@ const Game = (() => {
                 if (typeof Sound !== 'undefined') Sound.playTurnChange();
                 hasVotedToExtend = false;
                 extensionGrantedThisTurn = false;
+                // Active player just changed → extension eligibility shifts.
+                if (typeof recomputeExtensionVotes === 'function') recomputeExtensionVotes();
 
                 // Waiting-for-turn music: play when it's NOT my turn, stop when it IS
                 const isMyTurn = currentPlayerIndex === Room.myIndex;
@@ -272,26 +289,43 @@ const Game = (() => {
             updatePauseBanner();
         });
 
-        // Finish votes
-        Room.listen('votes/finish', (snap) => {
-            finishVoteCount = snap.numChildren();
+        // Finish votes — only count votes from currently-connected players,
+        // and use the connected count as the denominator. Otherwise a
+        // disconnected player can't vote and the threshold is unreachable.
+        let lastFinishVoters = {};
+        function recomputeFinishVotes() {
+            const connectedIds = players.filter(p => p.isConnected).map(p => p.id);
+            const connectedSet = new Set(connectedIds);
+            const effective = Object.keys(lastFinishVoters)
+                .map(Number)
+                .filter(id => connectedSet.has(id)).length;
+            const denom = connectedIds.length;
+            finishVoteCount = effective;
             const voteEl = document.getElementById('vote-count');
-            const humanCount = players.length;
             if (voteEl) {
-                voteEl.textContent = finishVoteCount > 0 ? '(' + finishVoteCount + '/' + humanCount + ')' : '';
+                voteEl.textContent = effective > 0 ? '(' + effective + '/' + denom + ')' : '';
             }
-            // Any player can trigger finish when all votes are in
-            if (finishVoteCount >= humanCount && humanCount > 0) {
+            if (effective >= denom && denom > 0) {
                 finishGame();
             }
+        }
+        Room.listen('votes/finish', (snap) => {
+            lastFinishVoters = snap.val() || {};
+            recomputeFinishVotes();
         });
 
-        // Time extension votes
-        let lastExtensionVoteCount = 0;
-        Room.listen('meta/timeExtensionVotes', (snap) => {
-            const votes = snap.numChildren();
-            const humanCount = players.length;
-            const eligible = Math.max(1, humanCount - 1);
+        // Time extension votes — eligibility excludes disconnected players
+        // and the active turn player.
+        let lastExtensionVoters = {};
+        function recomputeExtensionVotes() {
+            const eligibleIds = players
+                .filter(p => p.isConnected && p.id !== currentPlayerIndex)
+                .map(p => p.id);
+            const eligibleSet = new Set(eligibleIds);
+            const eligible = eligibleIds.length;
+            const votes = Object.keys(lastExtensionVoters)
+                .map(Number)
+                .filter(id => eligibleSet.has(id)).length;
             const el = document.getElementById('extend-vote-count');
             if (el) el.textContent = votes > 0 ? '(' + votes + '/' + eligible + ')' : '';
             if (eligible > 0 && votes > eligible / 2) {
@@ -300,14 +334,16 @@ const Game = (() => {
                 if (lc && lc.id === Room.myIndex) {
                     if (Room.ref) {
                         Room.ref.child('meta/timeExtensionVotes').remove();
-                        // Increment extension counter so all clients know to add 30s
                         Room.ref.child('meta/timeExtensionGranted').once('value', (s) => {
                             Room.ref.child('meta/timeExtensionGranted').set((s.val() || 0) + 1);
                         });
                     }
                 }
             }
-            lastExtensionVoteCount = votes;
+        }
+        Room.listen('meta/timeExtensionVotes', (snap) => {
+            lastExtensionVoters = snap.val() || {};
+            recomputeExtensionVotes();
         });
 
         // All clients listen for granted extensions (max one per turn)
@@ -648,8 +684,9 @@ const Game = (() => {
                     const objSnap = await Room.ref.child('objectives/' + Room.myIndex).once('value');
                     const obj = objSnap.val();
                     if (obj && obj.secretWord && !obj.completed) {
-                        const submitted = wordsToSubmit.map(w => w.toLowerCase().replace(/[^a-z]/g, ''));
-                        if (submitted.includes(obj.secretWord.toLowerCase())) {
+                        const target = stemForSecret(obj.secretWord);
+                        const submitted = wordsToSubmit.map(stemForSecret);
+                        if (submitted.includes(target)) {
                             await Room.ref.child('objectives/' + Room.myIndex + '/completed').set(true);
                         }
                     }
@@ -1020,7 +1057,7 @@ const Game = (() => {
             Room.ref.child('objectives/' + guessTargetIdx).once('value').then(snap => {
                 const obj = snap.val();
                 if (!obj || !obj.secretWord) return;
-                const correct = guess === obj.secretWord.toLowerCase();
+                const correct = stemForSecret(guess) === stemForSecret(obj.secretWord);
                 if (correct) {
                     Room.ref.child('objectives/' + guessTargetIdx + '/busted').set(true);
                     Room.ref.child('objectives/' + guessTargetIdx + '/bustedBy').set(Room.myIndex);
