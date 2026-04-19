@@ -190,6 +190,18 @@
     .tutorial-card img { width: 72px; height: 72px; object-fit: contain; }
     .tutorial-card h2 { margin: 6px 0 4px; font-size: 19px; }
     .tutorial-card p { color: #d0d0e0; font-size: 13px; line-height: 1.4; margin: 0 0 10px; }
+    .tut-keys {
+        display: inline-grid;
+        grid-template-columns: auto auto;
+        column-gap: 18px;
+        row-gap: 4px;
+        margin: 0 auto 10px;
+        text-align: left;
+        font-size: 13px;
+    }
+    .tut-key-row { display: contents; }
+    .tut-key-label { color: #d0d0e0; }
+    .tut-key-combo { color: #fff; font-weight: 700; font-family: ui-monospace, monospace; }
     .tutorial-dots { display: flex; justify-content: center; gap: 6px; margin: 8px 0 18px; }
     .tutorial-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.35); }
     .tutorial-dot.active { width: 9px; height: 9px; background: #fff; }
@@ -259,7 +271,22 @@
         text-align: center;
     }
     .go-panel h2 { margin: 0 0 6px; font-size: 22px; }
-    .go-panel .score { color: var(--muted); font-size: 15px; margin-bottom: 16px; }
+    .go-panel .score { color: var(--muted); font-size: 15px; margin-bottom: 10px; }
+    .go-panel .scoreboard {
+        margin: 0 auto 16px;
+        font-size: 13px;
+        color: #d0d0e0;
+        text-align: left;
+        display: inline-grid;
+        grid-template-columns: auto auto auto;
+        column-gap: 14px;
+        row-gap: 3px;
+    }
+    .go-panel .scoreboard .rank { color: #888; text-align: right; }
+    .go-panel .scoreboard .dist { color: #fff; font-weight: 700; font-family: ui-monospace, monospace; }
+    .go-panel .scoreboard .when { color: #8888a0; font-size: 11px; }
+    .go-panel .scoreboard .new { color: #FBBF24; }
+    .go-panel .scoreboard .hdr { color: #fff; font-weight: 700; font-size: 12px; letter-spacing: 0.5px; margin-bottom: 4px; grid-column: 1 / -1; text-align: center; }
     .go-panel button {
         background: transparent;
         color: #fff;
@@ -332,15 +359,33 @@
     <div class="go-panel">
         <h2>Run over</h2>
         <div class="score" id="go-score">Distance 0 m</div>
+        <div class="scoreboard" id="go-scoreboard"></div>
         <button id="btn-restart">Restart</button>
         <a class="back-link" href="wefty-hub.html"><button>Back to Hub</button></a>
     </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="auth.js"></script>
 <script src="sound.js"></script>
 <script src="wefty-thread.js"></script>
 <script>
 (() => {
+    // Kick off Firebase auth early so by the time the player finishes
+    // a run we already know their uid + displayName. Fire-and-forget —
+    // the game is fully playable offline and scores just won't publish.
+    (async () => {
+        try {
+            if (typeof Auth !== 'undefined') {
+                await Auth.init();
+                await Auth.ensureSignedIn();
+            }
+        } catch (_) {}
+    })();
+
     // ── Constants (mirror of WeftyRunWorld companion) ──────────────────
     const PLATFORM_Y = 0.72;
     const DEATH_Y = 1.10;
@@ -403,8 +448,47 @@
     // Biome: NORMAL default, STORM at/past 50m.
     function currentBiome() { return world.distance >= 30 ? 'STORM' : 'NORMAL'; }
 
-    // Local best distance
+    // Local best distance + personal top-5 scoreboard
     let bestDistance = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
+    function loadHistory() {
+        try {
+            const raw = localStorage.getItem('wefty_run_history');
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) { return []; }
+    }
+    function recordRun(score) {
+        const list = loadHistory();
+        const ts = Date.now();
+        list.push({ score, ts });
+        list.sort((a, b) => b.score - a.score);
+        const top = list.slice(0, 5);
+        try { localStorage.setItem('wefty_run_history', JSON.stringify(top)); } catch (_) {}
+        return ts;
+    }
+    function formatWhen(ts) {
+        const d = Date.now() - ts;
+        if (d < 60_000) return 'just now';
+        if (d < 3_600_000) return Math.floor(d / 60_000) + 'm ago';
+        if (d < 86_400_000) return Math.floor(d / 3_600_000) + 'h ago';
+        const days = Math.floor(d / 86_400_000);
+        return days + (days === 1 ? ' day ago' : ' days ago');
+    }
+    function renderScoreboard(justScored) {
+        const el = document.getElementById('go-scoreboard');
+        if (!el) return;
+        const list = loadHistory();
+        if (list.length === 0) { el.innerHTML = ''; return; }
+        let html = '<div class="hdr">PERSONAL TOP 5</div>';
+        list.forEach((r, i) => {
+            const isNew = justScored && r.ts === justScored;
+            html += `<span class="rank">${i + 1}.</span>` +
+                    `<span class="dist${isNew ? ' new' : ''}">${r.score} m${isNew ? '  ★' : ''}</span>` +
+                    `<span class="when">${formatWhen(r.ts)}</span>`;
+        });
+        el.innerHTML = html;
+    }
 
     // Tutorial pages — kept here so we add more panels alongside new features.
     const TUTORIAL = [
@@ -424,8 +508,17 @@
           body: 'Blue kite, green orb, lilac clock, and navy shield go into your inventory. Tap the coloured buttons (or 1–4) to activate: 2× double-jump, Slow 5s slow-mo, Glide 10s slow-fall (hold Jump mid-air), Shield absorbs next hit.' },
         { icon: 'yarn_knot.png', title: 'Level 2 at 300 m',
           body: 'Past 300m the world storms: crimson palette, angry scowling yarn knots on the ground, and run speed ramps from 1.0× to 1.3× over the next 100m. Jump or lasso the knots.' },
-        { icon: 'needle_icon.png', title: 'PC key bindings',
-          body: 'Jump: Space / ↑ / W   ·   Lasso: L or F   ·   Double-jump orb: 1   ·   Slow-mo: 2   ·   Glider: 3   ·   Shield: 4   ·   Pause: P   ·   Help: H or ?   ·   Glider slow-fall: hold Jump while airborne.' },
+        { icon: 'needle_icon.png', title: 'PC key bindings', keys: [
+            ['Jump', 'Space / ↑ / W'],
+            ['Lasso', 'L or F'],
+            ['Double-jump orb', '1'],
+            ['Slow-mo', '2'],
+            ['Glider', '3'],
+            ['Shield', '4'],
+            ['Pause', 'P'],
+            ['Help', 'H or ?'],
+            ['Glider slow-fall', 'hold Jump while airborne'],
+        ] },
         { icon: 'wefty_celebrate.png', title: 'Chase your best',
           body: 'Your best distance sticks across runs. At 750m a new game mode unlocks on the hub. Reopen this help anytime with the ? button — even while paused.' },
     ];
@@ -441,7 +534,22 @@
         const p = TUTORIAL[tutorialPage];
         tutIcon.src = p.icon;
         tutTitle.textContent = p.title;
-        tutBody.textContent = p.body;
+        if (p.keys) {
+            // Render a crisp two-column table, one command per line.
+            tutBody.innerHTML = '';
+            const table = document.createElement('div');
+            table.className = 'tut-keys';
+            for (const [label, combo] of p.keys) {
+                const row = document.createElement('div');
+                row.className = 'tut-key-row';
+                row.innerHTML = `<span class="tut-key-label">${label}</span>` +
+                                `<span class="tut-key-combo">${combo}</span>`;
+                table.appendChild(row);
+            }
+            tutBody.appendChild(table);
+        } else {
+            tutBody.textContent = p.body;
+        }
         tutDots.innerHTML = '';
         TUTORIAL.forEach((_, i) => {
             const d = document.createElement('span');
@@ -856,11 +964,17 @@
 
     function addStroke(worldPts) {
         if (world.gameOver || worldPts.length < 2) return;
-        // Any stroke is a permanent walkable bridge, capped at 1/3 of
-        // the viewport so the widest (~0.50) gaps demand a bridge +
-        // jump combo.
+        // Capped at 1/3 of the viewport so the widest (~0.50) gaps demand
+        // a bridge + jump combo. Anti-cheese: a new stroke evicts any
+        // bridges that sit entirely ahead of Wefty (so the player can't
+        // stack three 33% strokes into a ladder), but keeps ones she's
+        // currently on or has already crossed.
         const capped = capStrokeSpan(worldPts);
         if (capped.length < 2) return;
+        const weftyWX = world.cameraX + WEFTY_SCREEN_X;
+        world.bridges = world.bridges.filter(b =>
+            b.pts.some(([x]) => x <= weftyWX + 0.05)
+        );
         world.bridges.push({ pts: capped, valid: true, ttl: Infinity });
         world.events.push('bridge-valid');
     }
@@ -1173,7 +1287,23 @@
                 if (score > bestDistance) {
                     bestDistance = score;
                     localStorage.setItem('wefty_run_best', String(score));
+                    // Publish the new personal best to the global
+                    // Wefty Run leaderboard. Fire-and-forget; auth/db
+                    // may not be ready (e.g., offline) and that's OK.
+                    try {
+                        if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous) {
+                            firebase.database().ref('wefty_run_leaderboard/' + Auth.uid).set({
+                                uid: Auth.uid,
+                                displayName: Auth.name || 'Player',
+                                avatar: Auth.avatar || '',
+                                bestDistance: score,
+                                updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                            });
+                        }
+                    } catch (_) {}
                 }
+                const runTs = recordRun(score);
+                renderScoreboard(runTs);
             }
         }
     }

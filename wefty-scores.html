@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Wefty Run — Top Runs</title>
+<style>
+    :root {
+        --bg-0: #0F0F23;
+        --bg-1: #1A1A2E;
+        --muted: #A0A0B8;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+        margin: 0;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        color: #fff;
+        background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
+        min-height: 100vh;
+        padding: 24px 20px 40px;
+    }
+    .wrap { max-width: 560px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    header a.back {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 14px;
+    }
+    header h1 { font-size: 22px; margin: 0; flex: 1; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+    .row {
+        display: grid;
+        grid-template-columns: 48px 1fr auto;
+        align-items: center;
+        column-gap: 12px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #15152B;
+        margin-bottom: 6px;
+    }
+    .row.me   { background: #1E1E36; border: 1px solid rgba(251, 191, 36, 0.4); }
+    .rank     { color: #888; font-weight: 700; font-size: 14px; text-align: right; }
+    .rank.g1  { color: #FBBF24; }
+    .rank.g2  { color: #C0C0C0; }
+    .rank.g3  { color: #CD7F32; }
+    .name     { color: #fff; font-size: 14px; }
+    .name .avatar { margin-right: 6px; }
+    .me-tag   { color: #FBBF24; font-size: 11px; margin-left: 6px; font-weight: 700; }
+    .dist     { color: #fff; font-weight: 700; font-size: 15px; font-family: ui-monospace, monospace; }
+    .empty, .loading {
+        color: var(--muted);
+        font-size: 14px;
+        text-align: center;
+        padding: 40px 0;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a class="back" href="wefty-hub.html">← Hub</a>
+        <h1>Top Runs 🏆</h1>
+    </header>
+    <div class="sub">Personal bests from every Wefty Run player worldwide.</div>
+    <div id="board" class="loading">Loading…</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="auth.js"></script>
+<script>
+(async () => {
+    const board = document.getElementById('board');
+    let myUid = null;
+    try {
+        await Auth.init();
+        await Auth.ensureSignedIn();
+        myUid = Auth.uid;
+    } catch (_) { /* anon or offline — still try to read */ }
+    try {
+        const snap = await firebase.database().ref('wefty_run_leaderboard').get();
+        const entries = [];
+        snap.forEach(child => {
+            const v = child.val() || {};
+            if (typeof v.bestDistance !== 'number' || !v.displayName) return;
+            entries.push({
+                uid: child.key,
+                displayName: v.displayName,
+                avatar: v.avatar || '',
+                bestDistance: v.bestDistance,
+            });
+        });
+        entries.sort((a, b) => b.bestDistance - a.bestDistance);
+        const top = entries.slice(0, 50);
+        if (top.length === 0) {
+            board.className = 'empty';
+            board.textContent = 'No runs yet. Be the first — head back and play!';
+            return;
+        }
+        board.className = '';
+        board.innerHTML = '';
+        top.forEach((e, i) => {
+            const rank = i + 1;
+            const isMe = myUid && e.uid === myUid;
+            const rankClass = rank === 1 ? 'g1' : rank === 2 ? 'g2' : rank === 3 ? 'g3' : '';
+            const row = document.createElement('div');
+            row.className = 'row' + (isMe ? ' me' : '');
+            row.innerHTML =
+                `<div class="rank ${rankClass}">#${rank}</div>` +
+                `<div class="name">` +
+                    (e.avatar ? `<span class="avatar">${e.avatar}</span>` : '') +
+                    escapeHtml(e.displayName) +
+                    (isMe ? `<span class="me-tag">YOU</span>` : '') +
+                `</div>` +
+                `<div class="dist">${e.bestDistance} m</div>`;
+            board.appendChild(row);
+        });
+    } catch (e) {
+        board.className = 'empty';
+        board.textContent = 'Couldn\'t load scores — ' + (e && e.message ? e.message : 'try again later.');
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+})();
+</script>
+</body>
+</html>
