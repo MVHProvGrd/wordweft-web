@@ -1,5 +1,5 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v50';
+const CACHE_NAME = 'wordweft-v51';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -45,6 +45,7 @@ const STATIC_ASSETS = [
     '/yarn_shield.png',
     '/yarn_knot.png',
     '/lasso.png',
+    '/rope_texture.png',
     '/wefty_glider.png',
     '/wefty_shield.png',
     '/wefty_spring.png',

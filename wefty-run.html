@@ -1369,6 +1369,7 @@
     const weftyShield = loadImg('wefty_shield.png');
     const weftySpring = loadImg('wefty_spring.png');
     const lassoImg   = loadImg('lasso.png');
+    const ropeImg    = loadImg('rope_texture.png');
     const parallaxImg = loadImg('parallax_bg.png');
     const scissorsImg = loadImg('scissors_hazard.png');
     const scissorsOpenImg = loadImg('scissors_open.png');
@@ -1936,35 +1937,52 @@
         const sSize = shrunk ? baseSize * 0.55 : baseSize;
         const cx = WEFTY_SCREEN_X * w;
         const feetY = world.weftyY * h;
-        // Ability-state overlays take priority so Wefty visibly
-        // transforms while a power-up is active. Priority mirrors
-        // Android: glider > shield > spring-launch > default.
+        // Base Wefty always at rolling size. Power-ups are rendered as
+        // separate overlay sprites anchored to her, so the mascot body
+        // never shrinks when an effect kicks in.
         const gliderActive = world.gliderUntil > performance.now() && !world.grounded;
-        const springPose = !world.grounded && world.weftyVy < -0.3;
-        let sprite;
-        if (gliderActive && weftyGlider.complete && weftyGlider.naturalWidth) sprite = weftyGlider;
-        else if (world.shieldCharges > 0 && weftyShield.complete && weftyShield.naturalWidth) sprite = weftyShield;
-        else if (springPose && weftySpring.complete && weftySpring.naturalWidth) sprite = weftySpring;
-        else sprite = !world.grounded ? weftyFall : weftyRunA;
+        const hasShield = world.shieldCharges > 0;
+        const hasDoubleJump = world.doubleJumpUntil > performance.now();
+        const base = !world.grounded ? weftyFall : weftyRunA;
         const circ = sSize * Math.PI;
         const rollDeg = world.grounded ? (world.cameraX * w / circ) * 360 : 0;
         const iframes = world.invincibleUntil > performance.now();
         const blink = iframes ? (Math.floor(performance.now() / 50) % 2 === 0 ? 0.4 : 1) : 1;
-        if (sprite.complete && sprite.naturalWidth > 0) {
+        const ballTopY = feetY - sSize * 0.86;
+        // Springs BELOW the base so Wefty stands on top of the coils.
+        if (hasDoubleJump && springImg.complete && springImg.naturalWidth) {
+            const springSize = sSize * 0.8;
             fgCtx.save();
             fgCtx.globalAlpha = blink;
-            // Ball occupies 72% of the 256px sprite canvas (centered), so
-            // its bottom is at 0.86 of canvas height. Anchor rotation at
-            // the ball center — 0.36 * sSize above feetY — so the ball
-            // bottom actually touches the ground and the roll spin is
-            // around the ball's own axis.
+            fgCtx.drawImage(springImg, cx - springSize / 2, feetY - springSize * 0.1, springSize, springSize);
+            fgCtx.restore();
+        }
+        if (base.complete && base.naturalWidth > 0) {
+            fgCtx.save();
+            fgCtx.globalAlpha = blink;
             fgCtx.translate(cx, feetY - sSize * 0.36);
             fgCtx.rotate(rollDeg * Math.PI / 180);
-            fgCtx.drawImage(sprite, -sSize / 2, -sSize / 2, sSize, sSize);
+            fgCtx.drawImage(base, -sSize / 2, -sSize / 2, sSize, sSize);
             fgCtx.restore();
         } else {
             fgCtx.fillStyle = palette.main;
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
+        }
+        // Kite ABOVE the base for glider mode.
+        if (gliderActive && gliderImg.complete && gliderImg.naturalWidth) {
+            const kiteSize = sSize * 1.2;
+            fgCtx.save();
+            fgCtx.globalAlpha = blink;
+            fgCtx.drawImage(gliderImg, cx - kiteSize / 2, ballTopY - kiteSize * 0.85, kiteSize, kiteSize);
+            fgCtx.restore();
+        }
+        // Shield ring — wraps Wefty in the knit bubble.
+        if (hasShield && shieldImg.complete && shieldImg.naturalWidth) {
+            const shieldSize = sSize * 1.35;
+            fgCtx.save();
+            fgCtx.globalAlpha = 0.85 * blink;
+            fgCtx.drawImage(shieldImg, cx - shieldSize / 2, ballTopY - (shieldSize - sSize) / 2, shieldSize, shieldSize);
+            fgCtx.restore();
         }
 
         // Lasso flash — yarn rope from Wefty toward target, plus a
@@ -1982,14 +2000,19 @@
             const extend = elapsed <= half ? elapsed / half : (totalTicks - elapsed) / half;
             const endX = fromX + (toX - fromX) * extend;
             const endY = fromY + (toY - fromY) * extend;
-            // Thick yarn rope between Wefty and the loop sprite.
-            WeftyThread.drawThread(
-                fgCtx,
-                [[fromX, fromY], [endX, endY]],
-                WeftyThread.PALETTES[2],
-                h * 0.032,
-                yarnPattern,
-            );
+            // Braided-rope line from Wefty to the loop — same tan braid
+            // texture as lasso.png so the rope + loop read as one piece.
+            const ropeDx = endX - fromX;
+            const ropeDy = endY - fromY;
+            const ropeDist = Math.hypot(ropeDx, ropeDy);
+            const ropeThickness = h * 0.035;
+            if (ropeDist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
+                fgCtx.save();
+                fgCtx.translate(fromX, fromY);
+                fgCtx.rotate(Math.atan2(ropeDy, ropeDx));
+                fgCtx.drawImage(ropeImg, 0, -ropeThickness / 2, ropeDist, ropeThickness);
+                fgCtx.restore();
+            }
             // Lasso loop sprite at the tip, rotated along throw vector.
             if (lassoImg.complete && lassoImg.naturalWidth) {
                 const angle = Math.atan2(endY - fromY, endX - fromX);
