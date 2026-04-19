@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Wefty Run</title>
+<style>
+    :root {
+        --bg-0: #0F0F23;
+        --bg-1: #1A1A2E;
+        --muted: #A0A0B8;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+        margin: 0;
+        width: 100%; height: 100%;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        color: #fff;
+        background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
+        overflow: hidden;
+        user-select: none;
+    }
+    header {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        padding: 10px 14px;
+        display: flex; align-items: center; gap: 10px;
+        z-index: 5;
+    }
+    header a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
+    header .title { font-weight: 700; font-size: 16px; }
+    header .dist { margin-left: auto; color: var(--muted); font-size: 13px; }
+    #stage {
+        position: absolute;
+        inset: 0;
+        touch-action: none;
+    }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .jump-btn {
+        position: absolute;
+        right: 20px; bottom: 20px;
+        width: 76px; height: 76px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(16, 185, 129, 0.88);
+        color: #fff;
+        font-weight: 700;
+        font-size: 15px;
+        cursor: pointer;
+        z-index: 6;
+        touch-action: manipulation;
+    }
+    .jump-btn:active { transform: scale(0.95); }
+    .help-btn {
+        position: absolute;
+        right: 12px; top: 40px;
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+        font-weight: 700;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 6;
+    }
+
+    .tutorial {
+        position: absolute; inset: 0;
+        background: rgba(15, 15, 35, 0.94);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 20;
+    }
+    .tutorial.hidden { display: none; }
+    .tutorial-card {
+        text-align: center;
+        max-width: 560px;
+        padding: 20px 28px;
+    }
+    .tutorial-card img { width: 110px; height: 110px; object-fit: contain; }
+    .tutorial-card h2 { margin: 10px 0 8px; font-size: 22px; }
+    .tutorial-card p { color: #c0c0d0; font-size: 14px; line-height: 1.4; margin: 0 0 16px; }
+    .tutorial-dots { display: flex; justify-content: center; gap: 6px; margin: 8px 0 18px; }
+    .tutorial-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.35); }
+    .tutorial-dot.active { width: 9px; height: 9px; background: #fff; }
+    .tutorial-buttons { display: flex; justify-content: center; gap: 10px; }
+    .tutorial-buttons button {
+        background: transparent;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 999px;
+        padding: 8px 18px;
+        font: inherit;
+        cursor: pointer;
+    }
+    .tutorial-buttons .skip {
+        color: #707085;
+        border-color: transparent;
+    }
+
+    .game-over {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center; justify-content: center;
+        background: rgba(10, 10, 25, 0.55);
+        z-index: 10;
+    }
+    .game-over.hidden { display: none; }
+    .go-panel {
+        background: rgba(30, 30, 54, 0.96);
+        border-radius: 20px;
+        padding: 22px 28px;
+        text-align: center;
+    }
+    .go-panel h2 { margin: 0 0 6px; font-size: 22px; }
+    .go-panel .score { color: var(--muted); font-size: 15px; margin-bottom: 16px; }
+    .go-panel button {
+        background: transparent;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 999px;
+        padding: 8px 16px;
+        margin: 0 4px;
+        font: inherit;
+        cursor: pointer;
+    }
+    .go-panel button:hover { background: rgba(255,255,255,0.05); }
+    .go-panel a.back-link { color: var(--muted); text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+    <a class="back" href="wefty-hub.html">← Hub</a>
+    <div class="title">Wefty Run</div>
+    <div class="dist" id="dist">0 m</div>
+</header>
+<div id="stage">
+    <canvas id="bg"></canvas>
+    <canvas id="fg"></canvas>
+</div>
+<button id="btn-jump" class="jump-btn">Jump</button>
+<button id="btn-help" class="help-btn">?</button>
+<div id="tutorial" class="tutorial">
+    <div class="tutorial-card">
+        <img id="tut-icon" src="wefty_wave.png" alt="">
+        <h2 id="tut-title"></h2>
+        <p id="tut-body"></p>
+        <div class="tutorial-dots" id="tut-dots"></div>
+        <div class="tutorial-buttons">
+            <button id="tut-back">Back</button>
+            <button id="tut-next">Next</button>
+        </div>
+        <div class="tutorial-buttons" style="margin-top: 8px;">
+            <button class="skip" id="tut-skip">Skip</button>
+        </div>
+    </div>
+</div>
+<div id="game-over" class="game-over hidden">
+    <div class="go-panel">
+        <h2>Run over</h2>
+        <div class="score" id="go-score">Distance 0 m</div>
+        <button id="btn-restart">Restart</button>
+        <a class="back-link" href="wefty-hub.html"><button>Back to Hub</button></a>
+    </div>
+</div>
+
+<script src="sound.js"></script>
+<script src="wefty-thread.js"></script>
+<script>
+(() => {
+    // ── Constants (mirror of WeftyRunWorld companion) ──────────────────
+    const PLATFORM_Y = 0.72;
+    const DEATH_Y = 1.10;
+    const GRAVITY = 2.4;
+    const EDGE_TOL = 0.12;
+    const INVALID_TTL = 0.35;
+    const RUN_SPEED = 0.20;
+    const WEFTY_SCREEN_X = 0.25;
+    const JUMP_VELOCITY = 1.35;
+    const HAZARD_RADIUS = 0.04;
+
+    // ── World state ────────────────────────────────────────────────────
+    const world = {
+        cameraX: 0,
+        weftyY: PLATFORM_Y,
+        weftyVy: 0,
+        grounded: true,
+        distance: 0,
+        gameOver: false,
+        biomeIndex: 0,
+        lastMilestone: 0,
+        isDrawing: false,  // pause cameraX while the player is drawing
+        platforms: [],  // {xStart, xEnd, top, crown}
+        bridges: [],    // {pts:[[x,y]], valid, ttl}
+        hazards: [],    // {worldX, y, rot}
+        lastHazardAtX: -10,
+        letters: [],    // collectible WEFTY letter tokens {worldX, y, letter, collected}
+        collectedLetters: new Set(),  // chars of WEFTY already collected this shrink cycle
+        shrinkUntil: 0, // performance.now() timestamp — Wefty is small until then
+        events: [],     // 'bridge-valid' | 'bridge-invalid' | 'milestone' | 'game-over' | 'jump' | 'hazard-hit'
+    };
+
+    // Local best distance
+    let bestDistance = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
+
+    // Tutorial pages — kept here so we add more panels alongside new features.
+    const TUTORIAL = [
+        { icon: 'wefty_wave.png', title: 'Meet Wefty',
+          body: 'Wefty runs forever — your job is to keep her going. The further, the higher your score.' },
+        { icon: 'wefty.png', title: 'Bridge the gaps',
+          body: 'When you see two bright dots with a dashed line between them, draw a thread from one dot to the other. Your thread becomes a bridge Wefty walks across.' },
+        { icon: 'wefty_celebrate.png', title: 'Tap to jump',
+          body: 'A short tap jumps. Hit the green Jump button, or press Space / ↑ on web.' },
+        { icon: 'scissors_hazard.png', title: 'Dodge the scissors',
+          body: 'Spinning scissors float above platforms. Time your jump to pass under — they are always within jump reach.' },
+        { icon: 'wefty_celebrate.png', title: 'Chase your best',
+          body: 'Your best distance sticks across runs. Hills get higher and gaps wider the further you go, so pace yourself. Reopen this anytime with the ? button.' },
+    ];
+    let tutorialPage = 0;
+    const tutorialEl = document.getElementById('tutorial');
+    const tutIcon = document.getElementById('tut-icon');
+    const tutTitle = document.getElementById('tut-title');
+    const tutBody = document.getElementById('tut-body');
+    const tutDots = document.getElementById('tut-dots');
+    const tutBack = document.getElementById('tut-back');
+    const tutNext = document.getElementById('tut-next');
+    function renderTutorial() {
+        const p = TUTORIAL[tutorialPage];
+        tutIcon.src = p.icon;
+        tutTitle.textContent = p.title;
+        tutBody.textContent = p.body;
+        tutDots.innerHTML = '';
+        TUTORIAL.forEach((_, i) => {
+            const d = document.createElement('span');
+            d.className = 'tutorial-dot' + (i === tutorialPage ? ' active' : '');
+            tutDots.appendChild(d);
+        });
+        tutBack.style.visibility = tutorialPage > 0 ? 'visible' : 'hidden';
+        tutNext.textContent = tutorialPage < TUTORIAL.length - 1 ? 'Next' : "Let's go!";
+    }
+    function closeTutorial() {
+        tutorialEl.classList.add('hidden');
+        localStorage.setItem('wefty_run_tutorial_shown', '1');
+    }
+    function openTutorial() {
+        tutorialPage = 0;
+        renderTutorial();
+        tutorialEl.classList.remove('hidden');
+    }
+    tutBack.addEventListener('click', () => { if (tutorialPage > 0) { tutorialPage--; renderTutorial(); } });
+    tutNext.addEventListener('click', () => {
+        if (tutorialPage < TUTORIAL.length - 1) { tutorialPage++; renderTutorial(); }
+        else closeTutorial();
+    });
+    document.getElementById('tut-skip').addEventListener('click', closeTutorial);
+    document.getElementById('btn-help').addEventListener('click', openTutorial);
+    // Auto-show the first time.
+    if (!localStorage.getItem('wefty_run_tutorial_shown')) {
+        openTutorial();
+    } else {
+        closeTutorial();
+    }
+
+    function resetWorld() {
+        world.cameraX = 0;
+        world.weftyY = PLATFORM_Y;
+        world.weftyVy = 0;
+        world.grounded = true;
+        world.distance = 0;
+        world.gameOver = false;
+        world.biomeIndex = 0;
+        world.lastMilestone = 0;
+        world.isDrawing = false;
+        world.platforms.length = 0;
+        world.bridges.length = 0;
+        world.hazards.length = 0;
+        world.lastHazardAtX = -10;
+        world.letters.length = 0;
+        world.collectedLetters.clear();
+        world.shrinkUntil = 0;
+        world.events.length = 0;
+        seedPlatforms();
+    }
+
+    function seedPlatforms() {
+        // Short flat runway so height variance starts kicking in quickly.
+        world.platforms.push({ xStart: -0.5, xEnd: 1.4, top: PLATFORM_Y });
+        let x = 1.4;
+        for (let i = 0; i < 3; i++) {
+            const gap = Math.random() * 0.12 + 0.12;
+            x += gap;
+            const len = Math.random() * 0.5 + 0.55;
+            world.platforms.push({ xStart: x, xEnd: x + len, top: PLATFORM_Y });
+            x += len;
+        }
+    }
+    seedPlatforms();
+
+    function addNextPlatform() {
+        const last = world.platforms[world.platforms.length - 1];
+        const difficulty = Math.min(world.distance / 8, 1.5);
+        const gapMin = 0.12 + 0.06 * difficulty;
+        const gapMax = 0.30 + 0.20 * difficulty;
+        const gap = Math.random() * (gapMax - gapMin) + gapMin;
+        const x = last.xEnd + gap;
+        const len = Math.random() * 0.75 + 0.35;
+
+        const sampled = PLATFORM_Y + (Math.random() * 0.28 - 0.16);
+        const blended = last.top + (sampled - last.top) * 0.85;
+        const top = Math.max(PLATFORM_Y - 0.18, Math.min(PLATFORM_Y + 0.14, blended));
+
+        // Hill crown — middle of the platform peaks this far above the
+        // flat edges so bridges still connect cleanly but the platform
+        // itself has a rolling hill shape.
+        const crownMax = 0.06 * Math.min(1, len / 1.10);
+        const crown = Math.random() * crownMax;
+
+        world.platforms.push({ xStart: x, xEnd: x + len, top, crown });
+
+        // Scissors — start at ~15m, force one every 2.5 world-units if
+        // the RNG keeps missing, so the player always sees hazards.
+        const since = x - world.lastHazardAtX;
+        const chance = Math.min(0.70, 0.30 + 0.30 * difficulty);
+        const qualifies = world.distance > 1.5 && len > 0.45;
+        const forced = since > 2.5 && qualifies;
+        if (qualifies && (forced || Math.random() < chance)) {
+            const hazardX = x + len * (0.30 + Math.random() * 0.40);
+            const heightAbove = 0.14 + Math.random() * 0.08;
+            world.hazards.push({ worldX: hazardX, y: top - heightAbove, rot: Math.random() * 6.28 });
+            world.lastHazardAtX = hazardX;
+        }
+
+        // Word-power tokens — each letter of WEFTY floats above a
+        // platform. Collect them all (W, E, F, T, Y) for a power-up.
+        if (world.distance > 1 && Math.random() < 0.55 && len > 0.40) {
+            const WEFTY = 'WEFTY';
+            const letter = WEFTY[Math.floor(Math.random() * WEFTY.length)];
+            // Above the platform but BELOW the jump peak so the player
+            // has to actually jump for them.
+            const lx = x + len * (0.15 + Math.random() * 0.70);
+            const ly = top - (0.12 + Math.random() * 0.14);
+            world.letters.push({ worldX: lx, y: ly, letter, collected: false });
+        }
+    }
+
+    function jump() {
+        if (world.gameOver || !world.grounded) return;
+        world.weftyVy = -JUMP_VELOCITY;
+        world.grounded = false;
+        world.events.push('jump');
+    }
+
+    // Y at which a platform's surface sits at a given world X. Edges
+    // flat (t=0 and t=1 → sin=0), middle bulges up by `crown`.
+    function platformSurfaceY(p, worldX) {
+        if (!p.crown) return p.top;
+        const t = Math.max(0, Math.min(1, (worldX - p.xStart) / (p.xEnd - p.xStart)));
+        return p.top - p.crown * Math.sin(Math.PI * t);
+    }
+
+    function supportYAt(worldX) {
+        for (const p of world.platforms) {
+            if (worldX >= p.xStart && worldX <= p.xEnd) return platformSurfaceY(p, worldX);
+        }
+        for (const b of world.bridges) {
+            if (!b.valid) continue;
+            for (let i = 0; i < b.pts.length - 1; i++) {
+                const [x1, y1] = b.pts[i];
+                const [x2, y2] = b.pts[i + 1];
+                const lo = Math.min(x1, x2), hi = Math.max(x1, x2);
+                if (worldX >= lo && worldX <= hi) {
+                    const t = hi === lo ? 0 : (worldX - x1) / (x2 - x1);
+                    return y1 + (y2 - y1) * t;
+                }
+            }
+        }
+        return null;
+    }
+
+    function isBridgeValid(pts) {
+        const startX = pts[0][0];
+        const endX = pts[pts.length - 1][0];
+        const leftX = Math.min(startX, endX);
+        const rightX = Math.max(startX, endX);
+        if (rightX - leftX < 0.10) return false;
+        let leftPlat = null, rightPlat = null;
+        for (const p of world.platforms) {
+            if (Math.abs(p.xEnd - leftX) < EDGE_TOL) leftPlat = p;
+            if (Math.abs(p.xStart - rightX) < EDGE_TOL) rightPlat = p;
+        }
+        if (!leftPlat || !rightPlat || leftPlat === rightPlat) return false;
+        for (const p of world.platforms) {
+            if (p === leftPlat || p === rightPlat) continue;
+            if (p.xStart > leftPlat.xEnd && p.xEnd < rightPlat.xStart) return false;
+        }
+        return true;
+    }
+
+    function addStroke(worldPts) {
+        if (world.gameOver || worldPts.length < 2) return;
+        const valid = isBridgeValid(worldPts);
+        world.bridges.push({
+            pts: worldPts,
+            valid,
+            ttl: valid ? Infinity : INVALID_TTL,
+        });
+        world.events.push(valid ? 'bridge-valid' : 'bridge-invalid');
+    }
+
+    function step(dt) {
+        if (world.gameOver) return;
+        if (!world.isDrawing) {
+            world.cameraX += RUN_SPEED * dt;
+            world.distance = world.cameraX;
+        }
+
+        // Decay bridges
+        for (let i = world.bridges.length - 1; i >= 0; i--) {
+            const b = world.bridges[i];
+            if (!b.valid) {
+                b.ttl -= dt;
+                if (b.ttl <= 0) world.bridges.splice(i, 1);
+            } else if (b.pts[b.pts.length - 1][0] < world.cameraX - 0.2) {
+                world.bridges.splice(i, 1);
+            }
+        }
+
+        // Procedurally add platforms ahead
+        while (world.platforms[world.platforms.length - 1].xEnd < world.cameraX + 4) {
+            addNextPlatform();
+        }
+
+        // Rotate + reap hazards
+        for (let i = world.hazards.length - 1; i >= 0; i--) {
+            const hz = world.hazards[i];
+            hz.rot += dt * 2.4;
+            if (hz.worldX < world.cameraX - 0.5) world.hazards.splice(i, 1);
+        }
+
+        // Hazard collision — circle vs circle
+        const wcx = world.cameraX + WEFTY_SCREEN_X;
+        const wcy = world.weftyY - 0.05;
+        for (const hz of world.hazards) {
+            const dx = hz.worldX - wcx;
+            const dy = hz.y - wcy;
+            if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + 0.035) {
+                world.gameOver = true;
+                world.events.push('hazard-hit');
+                world.events.push('game-over');
+                break;
+            }
+        }
+
+        // Letter collection — fly-through pickup
+        for (let i = world.letters.length - 1; i >= 0; i--) {
+            const lt = world.letters[i];
+            if (lt.worldX < world.cameraX - 0.5) { world.letters.splice(i, 1); continue; }
+            if (lt.collected) continue;
+            const dx = lt.worldX - wcx;
+            const dy = lt.y - wcy;
+            if (Math.sqrt(dx * dx + dy * dy) < 0.055) {
+                lt.collected = true;
+                world.collectedLetters.add(lt.letter);
+                world.events.push('letter');
+                if (world.collectedLetters.size === 5) {
+                    // Full WEFTY word — grant shrink mode for 8s.
+                    world.shrinkUntil = performance.now() + 8000;
+                    world.collectedLetters.clear();
+                    world.events.push('power-up');
+                }
+            }
+        }
+
+        // Physics
+        const weftyWorldX = world.cameraX + WEFTY_SCREEN_X;
+        const support = supportYAt(weftyWorldX);
+        if (support !== null && world.weftyY >= support - 0.001 && world.weftyVy >= 0) {
+            world.weftyY = support;
+            world.weftyVy = 0;
+            world.grounded = true;
+        } else {
+            world.grounded = false;
+            world.weftyVy += GRAVITY * dt;
+            world.weftyY += world.weftyVy * dt;
+            if (support !== null && world.weftyY >= support) {
+                world.weftyY = support;
+                world.weftyVy = 0;
+                world.grounded = true;
+            }
+        }
+        // Milestones — one per world-distance unit
+        const m = Math.floor(world.distance);
+        if (m > world.lastMilestone) {
+            world.lastMilestone = m;
+            world.biomeIndex++;
+            world.events.push('milestone');
+        }
+
+        if (world.weftyY > DEATH_Y && !world.gameOver) {
+            world.gameOver = true;
+            world.events.push('game-over');
+        }
+    }
+
+    function drainEvents() {
+        while (world.events.length > 0) {
+            const e = world.events.shift();
+            const hasSound = (typeof Sound !== 'undefined');
+            if (e === 'bridge-valid')   hasSound && Sound.playWordSubmit();
+            else if (e === 'bridge-invalid') hasSound && Sound.playTimerWarning();
+            else if (e === 'milestone') hasSound && Sound.playTurnChange();
+            else if (e === 'jump')      hasSound && Sound.playClick();
+            else if (e === 'hazard-hit') hasSound && Sound.playTimerWarning();
+            else if (e === 'letter')    hasSound && Sound.playClick();
+            else if (e === 'power-up')  hasSound && Sound.playGameStart();
+            else if (e === 'game-over') {
+                hasSound && Sound.playGameEnd();
+                const score = Math.round(world.distance * 10);
+                if (score > bestDistance) {
+                    bestDistance = score;
+                    localStorage.setItem('wefty_run_best', String(score));
+                }
+            }
+        }
+    }
+
+    // ── Canvas setup ───────────────────────────────────────────────────
+    const bg = document.getElementById('bg');
+    const fg = document.getElementById('fg');
+    const bgCtx = bg.getContext('2d');
+    const fgCtx = fg.getContext('2d');
+
+    function fit() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        for (const c of [bg, fg]) {
+            c.width = Math.round(window.innerWidth * dpr);
+            c.height = Math.round(window.innerHeight * dpr);
+            c.style.width = window.innerWidth + 'px';
+            c.style.height = window.innerHeight + 'px';
+            c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+    }
+    window.addEventListener('resize', () => fit());
+    fit();
+
+    let yarnPattern = null;
+    WeftyThread.loadYarnPattern(bgCtx, 'yarn_texture.png', (p) => { yarnPattern = p; });
+
+    // Wefty sprites — 2-frame run cycle + fall pose + parallax bg.
+    function loadImg(src) {
+        const img = new Image();
+        img.src = src;
+        return img;
+    }
+    const weftyRunA = loadImg('wefty_run_a.png');
+    const weftyRunB = loadImg('wefty_run_b.png');
+    const weftyFall = loadImg('wefty_fall.png');
+    const parallaxImg = loadImg('parallax_bg.png');
+    const scissorsImg = loadImg('scissors_hazard.png');
+
+    const badPalette = { main: '#EF4444', light: '#FCA5A5', dark: '#7F1D1D' };
+
+    // ── Input ──────────────────────────────────────────────────────────
+    const stage = document.getElementById('stage');
+    let drawing = false;
+    let currentStroke = null; // screen-space pts
+
+    function pxToWorld(px, py) {
+        return [world.cameraX + px / window.innerWidth, py / window.innerHeight];
+    }
+    function pointFromEvent(e) {
+        if (e.touches && e.touches[0]) return [e.touches[0].clientX, e.touches[0].clientY];
+        return [e.clientX, e.clientY];
+    }
+
+    let drawStart = 0;
+    let drawMaxDrift = 0;
+    function tutorialOpen() {
+        return !tutorialEl.classList.contains('hidden');
+    }
+    function startDraw(e) {
+        if (world.gameOver || tutorialOpen()) return;
+        e.preventDefault();
+        drawing = true;
+        world.isDrawing = true;
+        drawStart = performance.now();
+        drawMaxDrift = 0;
+        currentStroke = [pointFromEvent(e)];
+    }
+    function moveDraw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const [x, y] = pointFromEvent(e);
+        const [sx, sy] = currentStroke[0];
+        const drift = Math.hypot(x - sx, y - sy);
+        if (drift > drawMaxDrift) drawMaxDrift = drift;
+        const last = currentStroke[currentStroke.length - 1];
+        if (Math.hypot(x - last[0], y - last[1]) >= 3) currentStroke.push([x, y]);
+    }
+    function endDraw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        drawing = false;
+        world.isDrawing = false;
+        const held = performance.now() - drawStart;
+        // Short, still tap → jump. Otherwise → bridge.
+        if (held < 180 && drawMaxDrift < 16) {
+            jump();
+        } else if (currentStroke && currentStroke.length >= 2) {
+            const worldPts = currentStroke.map(([x, y]) => pxToWorld(x, y));
+            addStroke(worldPts);
+        }
+        currentStroke = null;
+    }
+    stage.addEventListener('mousedown', startDraw);
+    stage.addEventListener('mousemove', moveDraw);
+    stage.addEventListener('mouseup', endDraw);
+    stage.addEventListener('touchstart', startDraw, { passive: false });
+    stage.addEventListener('touchmove', moveDraw, { passive: false });
+    stage.addEventListener('touchend', endDraw, { passive: false });
+    stage.addEventListener('touchcancel', endDraw, { passive: false });
+
+    // Jump button + keyboard.
+    document.getElementById('btn-jump').addEventListener('click', (e) => {
+        e.stopPropagation();
+        jump();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (tutorialOpen()) {
+            if (e.code === 'ArrowRight' || e.code === 'Enter' || e.code === 'Space') {
+                e.preventDefault();
+                if (tutorialPage < TUTORIAL.length - 1) { tutorialPage++; renderTutorial(); }
+                else closeTutorial();
+            } else if (e.code === 'ArrowLeft') {
+                e.preventDefault();
+                if (tutorialPage > 0) { tutorialPage--; renderTutorial(); }
+            } else if (e.code === 'Escape') {
+                e.preventDefault();
+                closeTutorial();
+            }
+            return;
+        }
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            e.preventDefault();
+            jump();
+        }
+    });
+
+    // ── Rendering ──────────────────────────────────────────────────────
+    const distEl = document.getElementById('dist');
+    const overlay = document.getElementById('game-over');
+    const goScore = document.getElementById('go-score');
+    document.getElementById('btn-restart').addEventListener('click', () => {
+        resetWorld();
+        overlay.classList.add('hidden');
+    });
+
+    function renderFrame() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const palette = WeftyThread.PALETTES[world.biomeIndex % WeftyThread.PALETTES.length];
+        bgCtx.clearRect(0, 0, w, h);
+
+        // Parallax background — tiles horizontally, scrolls 0.3x camera.
+        if (parallaxImg.complete && parallaxImg.naturalWidth > 0) {
+            const bgW = h * (parallaxImg.naturalWidth / parallaxImg.naturalHeight);
+            const bgOffset = -((world.cameraX * 0.3 * w) % bgW);
+            bgCtx.globalAlpha = 0.85;
+            for (let x = bgOffset; x < w; x += bgW) {
+                bgCtx.drawImage(parallaxImg, x, 0, bgW, h);
+            }
+            bgCtx.globalAlpha = 1;
+        }
+
+        // Floor shadow band
+        const bandTop = PLATFORM_Y * h + h * 0.04;
+        bgCtx.fillStyle = 'rgba(26, 22, 48, 0.45)';
+        bgCtx.fillRect(0, bandTop, w, h - bandTop);
+
+        // Platforms
+        // Build platform paths in WORLD coordinates (multiplied by w/h)
+        // then translate the ctx by -cameraX*w. The yarn pattern tiles
+        // from ctx 0,0 so once we're in world coords the pattern stays
+        // pinned to the platform instead of sliding across it.
+        const samples = 24;
+        const camOffsetX = world.cameraX * w;
+        bgCtx.save();
+        bgCtx.translate(-camOffsetX, 0);
+        for (const p of world.platforms) {
+            if (p.xEnd < world.cameraX || p.xStart > world.cameraX + 1) continue;
+            const span = p.xEnd - p.xStart;
+            function tracePath(ctx) {
+                ctx.beginPath();
+                for (let i = 0; i <= samples; i++) {
+                    const t = i / samples;
+                    const wx = (p.xStart + t * span) * w;
+                    const yTop = p.crown
+                        ? (p.top - p.crown * Math.sin(Math.PI * t)) * h
+                        : p.top * h;
+                    if (i === 0) ctx.moveTo(wx, yTop);
+                    else ctx.lineTo(wx, yTop);
+                }
+            }
+
+            tracePath(bgCtx);
+            bgCtx.lineTo(p.xEnd * w, h);
+            bgCtx.lineTo(p.xStart * w, h);
+            bgCtx.closePath();
+            bgCtx.fillStyle = '#2a2140';
+            bgCtx.fill();
+            if (yarnPattern) {
+                bgCtx.save();
+                bgCtx.globalCompositeOperation = 'multiply';
+                bgCtx.globalAlpha = 0.85;
+                bgCtx.fillStyle = yarnPattern;
+                bgCtx.fill();
+                bgCtx.restore();
+            }
+            tracePath(bgCtx);
+            bgCtx.strokeStyle = 'rgba(0,0,0,0.45)';
+            bgCtx.lineWidth = 3;
+            bgCtx.lineCap = 'round';
+            bgCtx.lineJoin = 'round';
+            bgCtx.stroke();
+        }
+        bgCtx.restore();
+
+        // Foreground: bridges, live stroke, Wefty
+        fgCtx.clearRect(0, 0, w, h);
+        const bridgeWidth = h * 0.024;
+
+        // Gap guides — show players exactly where to land endpoints.
+        const markerRadius = h * 0.018;
+        for (let i = 0; i < world.platforms.length - 1; i++) {
+            const p1 = world.platforms[i];
+            const p2 = world.platforms[i + 1];
+            if (p2.xStart < world.cameraX || p1.xEnd > world.cameraX + 1) continue;
+            const bridged = world.bridges.some((b) => {
+                if (!b.valid) return false;
+                const f = b.pts[0][0], l = b.pts[b.pts.length - 1][0];
+                return (Math.abs(f - p1.xEnd) < EDGE_TOL && Math.abs(l - p2.xStart) < EDGE_TOL) ||
+                       (Math.abs(f - p2.xStart) < EDGE_TOL && Math.abs(l - p1.xEnd) < EDGE_TOL);
+            });
+            if (bridged) continue;
+            const x1 = (p1.xEnd - world.cameraX) * w;
+            const x2 = (p2.xStart - world.cameraX) * w;
+            const gy = p1.top * h;
+            // Dashed hint line
+            fgCtx.save();
+            fgCtx.strokeStyle = 'rgba(255,255,255,0.35)';
+            fgCtx.lineWidth = 2;
+            fgCtx.setLineDash([10, 12]);
+            fgCtx.beginPath();
+            fgCtx.moveTo(x1, gy);
+            fgCtx.lineTo(x2, gy);
+            fgCtx.stroke();
+            fgCtx.restore();
+            // Edge markers
+            for (const ex of [x1, x2]) {
+                fgCtx.fillStyle = palette.main;
+                fgCtx.beginPath(); fgCtx.arc(ex, gy, markerRadius, 0, Math.PI * 2); fgCtx.fill();
+                fgCtx.fillStyle = palette.light;
+                fgCtx.beginPath(); fgCtx.arc(ex, gy, markerRadius * 0.5, 0, Math.PI * 2); fgCtx.fill();
+            }
+        }
+
+        for (const b of world.bridges) {
+            const pts = b.pts.map(([wx, wy]) => [(wx - world.cameraX) * w, wy * h]);
+            if (b.valid) {
+                WeftyThread.drawThread(fgCtx, pts, palette, bridgeWidth, yarnPattern);
+            } else {
+                const alpha = Math.max(0, b.ttl / INVALID_TTL);
+                fgCtx.globalAlpha = alpha;
+                WeftyThread.drawThread(fgCtx, pts, badPalette, bridgeWidth * 0.85);
+                fgCtx.globalAlpha = 1;
+            }
+        }
+        if (currentStroke && currentStroke.length >= 2) {
+            WeftyThread.drawThread(fgCtx, currentStroke, palette, bridgeWidth * 0.9, yarnPattern);
+        }
+
+        // Word-letter collectibles
+        for (const lt of world.letters) {
+            if (lt.collected) continue;
+            if (lt.worldX < world.cameraX - 0.1 || lt.worldX > world.cameraX + 1.1) continue;
+            const sx = (lt.worldX - world.cameraX) * w;
+            const sy = lt.y * h + Math.sin(performance.now() / 400 + lt.worldX * 10) * 4;
+            const r = h * 0.035;
+            // Halo + body
+            fgCtx.save();
+            fgCtx.fillStyle = palette.dark;
+            fgCtx.beginPath(); fgCtx.arc(sx, sy, r + 2, 0, Math.PI * 2); fgCtx.fill();
+            fgCtx.fillStyle = palette.main;
+            fgCtx.beginPath(); fgCtx.arc(sx, sy, r, 0, Math.PI * 2); fgCtx.fill();
+            fgCtx.fillStyle = '#fff';
+            fgCtx.font = `bold ${Math.round(r * 1.2)}px -apple-system, system-ui, sans-serif`;
+            fgCtx.textAlign = 'center';
+            fgCtx.textBaseline = 'middle';
+            fgCtx.fillText(lt.letter, sx, sy + 1);
+            fgCtx.restore();
+        }
+
+        // Show collected-letter progress in a small HUD row
+        if (world.collectedLetters.size > 0) {
+            const WEFTY = ['W','E','F','T','Y'];
+            fgCtx.save();
+            fgCtx.font = 'bold 14px -apple-system, system-ui, sans-serif';
+            let xOff = 14;
+            for (const ch of WEFTY) {
+                const got = world.collectedLetters.has(ch);
+                fgCtx.fillStyle = got ? palette.main : 'rgba(160,160,184,0.35)';
+                fgCtx.fillText(ch, xOff, 64);
+                xOff += 18;
+            }
+            fgCtx.restore();
+        }
+
+        // Hazards — rotating scissors
+        if (scissorsImg.complete && scissorsImg.naturalWidth > 0) {
+            const hSize = h * 0.10;
+            for (const hz of world.hazards) {
+                if (hz.worldX < world.cameraX - 0.1 || hz.worldX > world.cameraX + 1.1) continue;
+                const sx = (hz.worldX - world.cameraX) * w;
+                const sy = hz.y * h;
+                fgCtx.save();
+                fgCtx.translate(sx, sy);
+                fgCtx.rotate(hz.rot);
+                fgCtx.drawImage(scissorsImg, -hSize / 2, -hSize / 2, hSize, hSize);
+                fgCtx.restore();
+            }
+        }
+
+        // Wefty sprite — fall pose if airborne, otherwise alternate the
+        // 2-frame run cycle on a brisk footstep phase (faster than
+        // before so the legs visibly move). Shrink mode renders at
+        // half size for 8s after a full WEFTY collect.
+        const shrunk = world.shrinkUntil > performance.now();
+        const baseSize = Math.max(h * 0.22, 72);
+        const sSize = shrunk ? baseSize * 0.55 : baseSize;
+        const cx = WEFTY_SCREEN_X * w;
+        const feetY = world.weftyY * h;
+        const frameIdx = Math.floor(performance.now() / 80) % 2;
+        const sprite = !world.grounded ? weftyFall : (frameIdx === 0 ? weftyRunA : weftyRunB);
+        const bob = world.grounded ? Math.sin(performance.now() / 80) * 3 : 0;
+        if (sprite.complete && sprite.naturalWidth > 0) {
+            fgCtx.drawImage(sprite, cx - sSize / 2, feetY - sSize + bob, sSize, sSize);
+        } else {
+            fgCtx.fillStyle = palette.main;
+            fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
+        }
+
+        // HUD
+        const cur = Math.round(world.distance * 10);
+        distEl.textContent = `best ${bestDistance} m   ${cur} m`;
+        if (world.gameOver) {
+            overlay.classList.remove('hidden');
+            goScore.textContent = `Distance ${cur} m${cur >= bestDistance ? ' (new best!)' : ''}`;
+        }
+    }
+
+    // ── Loop ───────────────────────────────────────────────────────────
+    let last = 0;
+    function frame(ts) {
+        const dt = last ? Math.min((ts - last) / 1000, 1 / 30) : 0;
+        last = ts;
+        step(dt);
+        drainEvents();
+        renderFrame();
+        requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

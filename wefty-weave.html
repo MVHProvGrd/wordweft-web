@@ -245,6 +245,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="wefty-thread.js"></script>
 <script>
 (() => {
     // ── Letter definitions ─────────────────────────────────────────────
@@ -344,16 +345,9 @@
         return 2 * MARGIN + word.length * LETTER_W + (word.length - 1) * GAP;
     }
 
-    // Per-letter thread palettes. Each palette is three strands (main,
-    // highlight, shadow) so the stroke looks like braided yarn instead of
-    // a flat line. Cycled per letter to match the logo's multi-color vibe.
-    const THREAD_PALETTES = [
-        { main: '#EC4899', light: '#F9A8D4', dark: '#9D174D' },
-        { main: '#10B981', light: '#6EE7B7', dark: '#065F46' },
-        { main: '#F59E0B', light: '#FCD34D', dark: '#92400E' },
-        { main: '#6366F1', light: '#A5B4FC', dark: '#3730A3' },
-        { main: '#06B6D4', light: '#67E8F9', dark: '#155E75' },
-    ];
+    // Thread palettes + rendering come from wefty-thread.js so Wefty Run
+    // can reuse the same yarn look without drift.
+    const THREAD_PALETTES = WeftyThread.PALETTES;
 
     // ── Canvas setup ───────────────────────────────────────────────────
     const stage = document.getElementById('stage');
@@ -409,16 +403,11 @@
     // Optional yarn texture overlay. Drop a tileable PNG at /yarn_texture.png
     // and it renders as a multiplied pattern on top of every thread.
     let yarnPattern = null;
-    (() => {
-        const img = new Image();
-        img.onload = () => {
-            yarnPattern = bgCtx.createPattern(img, 'repeat');
-            renderBackground();
-            redrawInk();
-        };
-        img.onerror = () => { /* texture is optional — ignore */ };
-        img.src = 'yarn_texture.png';
-    })();
+    WeftyThread.loadYarnPattern(bgCtx, 'yarn_texture.png', (p) => {
+        yarnPattern = p;
+        renderBackground();
+        redrawInk();
+    });
 
     function currentWord() { return WORDS[levelIdx]; }
     function currentVirtualWidth() { return wordVirtualWidth(currentWord()); }
@@ -455,63 +444,11 @@
         return [];
     }
 
+    // drawThread + strokePath live in wefty-thread.js (WeftyThread module).
+    // Local wrapper binds the current yarnPattern so the call sites can
+    // stay concise.
     function drawThread(ctx, pts, palette, baseWidth) {
-        if (pts.length < 2) return;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.45)';
-        ctx.shadowBlur = baseWidth * 0.5;
-        ctx.strokeStyle = palette.dark;
-        ctx.lineWidth = baseWidth * 1.15;
-        strokePath(ctx, pts);
-        ctx.restore();
-        ctx.strokeStyle = palette.dark;
-        ctx.lineWidth = baseWidth * 1.08;
-        strokePath(ctx, pts);
-        ctx.strokeStyle = palette.main;
-        ctx.lineWidth = baseWidth * 0.9;
-        strokePath(ctx, pts);
-        // Yarn texture (if loaded) — multiplies over main color so tint
-        // survives. Stronger alpha so drawn fibers read clearly too.
-        if (yarnPattern) {
-            ctx.save();
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.globalAlpha = 0.9;
-            ctx.strokeStyle = yarnPattern;
-            ctx.lineWidth = baseWidth * 0.9;
-            strokePath(ctx, pts);
-            ctx.restore();
-            // Screen pass on top with same pattern — adds the bright fiber
-            // highlights that multiply alone can't produce.
-            ctx.save();
-            ctx.globalCompositeOperation = 'screen';
-            ctx.globalAlpha = 0.35;
-            ctx.strokeStyle = yarnPattern;
-            ctx.lineWidth = baseWidth * 0.78;
-            strokePath(ctx, pts);
-            ctx.restore();
-        }
-        ctx.save();
-        ctx.translate(-baseWidth * 0.12, -baseWidth * 0.18);
-        ctx.strokeStyle = palette.light;
-        ctx.lineWidth = baseWidth * 0.35;
-        ctx.globalAlpha = 0.85;
-        strokePath(ctx, pts);
-        ctx.restore();
-        ctx.save();
-        ctx.setLineDash([baseWidth * 0.22, baseWidth * 0.55]);
-        ctx.strokeStyle = palette.dark;
-        ctx.lineWidth = baseWidth * 0.95;
-        ctx.globalAlpha = 0.35;
-        strokePath(ctx, pts);
-        ctx.restore();
-    }
-    function strokePath(ctx, pts) {
-        ctx.beginPath();
-        ctx.moveTo(pts[0][0], pts[0][1]);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-        ctx.stroke();
+        WeftyThread.drawThread(ctx, pts, palette, baseWidth, yarnPattern);
     }
 
     // Thread width scaled off the LETTER HEIGHT (constant across word

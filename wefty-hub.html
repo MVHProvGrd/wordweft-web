@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Wefty's Playground</title>
+<style>
+    :root {
+        --bg-0: #0F0F23;
+        --bg-1: #1A1A2E;
+        --muted: #A0A0B8;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+        margin: 0;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        color: #fff;
+        background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
+        min-height: 100vh;
+        padding: 24px 20px 40px;
+    }
+    .wrap { max-width: 480px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    header a.back {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    header h1 { font-size: 20px; margin: 0; flex: 1; }
+    .mascot {
+        display: flex;
+        justify-content: center;
+        margin: 18px 0 6px;
+    }
+    .mascot img {
+        width: 140px; height: 140px;
+        animation: bob 2.6s ease-in-out infinite;
+    }
+    @keyframes bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+    }
+    .tagline {
+        text-align: center;
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 22px;
+    }
+    .tile {
+        display: block;
+        background: rgba(30, 30, 54, 0.9);
+        border-radius: 20px;
+        padding: 20px 22px;
+        margin-bottom: 14px;
+        text-decoration: none;
+        color: #fff;
+        transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .tile:hover { background: rgba(40, 40, 70, 0.95); transform: translateY(-1px); }
+    .tile:active { transform: translateY(1px); }
+    .tile-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        font-size: 17px;
+    }
+    .dot {
+        width: 12px; height: 12px; border-radius: 6px;
+    }
+    .dot.pink  { background: #EC4899; }
+    .dot.green { background: #10B981; }
+    .tile-sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 6px;
+        margin-left: 24px;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a class="back" href="index.html">← Home</a>
+        <h1>Wefty's Playground</h1>
+    </header>
+    <div class="mascot">
+        <img src="wefty.png" alt="Wefty">
+    </div>
+    <div class="tagline">Pick a game</div>
+    <a class="tile" href="wefty-weave.html">
+        <div class="tile-title"><span class="dot pink"></span>Wefty Weave</div>
+        <div class="tile-sub">Draw the missing threads in each letter.</div>
+    </a>
+    <a class="tile" href="wefty-run.html">
+        <div class="tile-title"><span class="dot green"></span>Wefty Run</div>
+        <div class="tile-sub">Auto-runner. Draw thread bridges to survive. Tap the ? in-game for a refresher.</div>
+    </a>
+</div>
+</body>
+</html>
