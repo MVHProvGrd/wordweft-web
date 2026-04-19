@@ -73,14 +73,31 @@
 <script>
 (async () => {
     const board = document.getElementById('board');
+    // Board is public-read. Kick off the Firebase fetch IMMEDIATELY,
+    // don't wait for auth — if auth hangs (first visit, 3rd-party
+    // cookie block, SDK load race) we'd otherwise hang on "Loading"
+    // forever.
+    const boardPromise = firebase.database().ref('wefty_run_leaderboard').get();
+
+    // Resolve auth best-effort in the background, just so we can paint
+    // the YOU pill on the current user's row. Time out after 2.5s and
+    // render without highlight rather than block.
+    async function resolveMyUid() {
+        if (typeof Auth === 'undefined') return null;
+        try {
+            await Promise.race([
+                (async () => { await Auth.init(); await Auth.ensureSignedIn(); })(),
+                new Promise((_, r) => setTimeout(() => r(new Error('auth-timeout')), 2500)),
+            ]);
+            return Auth.uid || null;
+        } catch (_) { return null; }
+    }
+    const myUidPromise = resolveMyUid();
+
     let myUid = null;
     try {
-        await Auth.init();
-        await Auth.ensureSignedIn();
-        myUid = Auth.uid;
-    } catch (_) { /* anon or offline — still try to read */ }
-    try {
-        const snap = await firebase.database().ref('wefty_run_leaderboard').get();
+        const snap = await boardPromise;
+        myUid = await myUidPromise;
         const entries = [];
         snap.forEach(child => {
             const v = child.val() || {};

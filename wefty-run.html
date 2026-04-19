@@ -72,18 +72,26 @@
     .inv-btn {
         position: absolute;
         bottom: 34px;
-        width: 54px; height: 54px;
+        width: 58px; height: 58px;
         border: none;
         border-radius: 14px;
         color: #fff;
         font-weight: 700;
-        font-size: 11px;
+        font-size: 10px;
         cursor: pointer;
         z-index: 6;
         touch-action: manipulation;
-        opacity: 0.25;
+        opacity: 0.32;
         transition: opacity 0.15s ease, transform 0.1s ease;
+        background-size: 78%;
+        background-position: center 40%;
+        background-repeat: no-repeat;
+        padding-top: 40px;   /* push the label below the icon */
     }
+    .inv-btn.inv-2x    { background-image: url('double_jump.png'); }
+    .inv-btn.inv-slow  { background-image: url('slowmo_yarn.png'); }
+    .inv-btn.inv-glide { background-image: url('glider_kite.png'); }
+    .inv-btn.inv-shield{ background-image: url('yarn_shield.png'); }
     .inv-btn.has { opacity: 0.9; }
     .inv-btn.active { opacity: 1; box-shadow: 0 0 0 3px #fff inset; }
     .inv-btn:active { transform: scale(0.95); }
@@ -98,10 +106,10 @@
         min-width: 14px;
         text-align: center;
     }
-    .inv-2x    { background: #22C55E; left: 20px; }
-    .inv-slow  { background: #8B5CF6; left: 80px; }
-    .inv-glide { background: #0EA5E9; left: 140px; }
-    .inv-shield{ background: #FBBF24; left: 200px; }
+    .inv-2x    { background-color: #22C55E; left: 20px; }
+    .inv-slow  { background-color: #8B5CF6; left: 86px; }
+    .inv-glide { background-color: #0EA5E9; left: 152px; }
+    .inv-shield{ background-color: #FBBF24; left: 218px; }
     .active-chips {
         position: absolute;
         top: 72px; left: 16px;
@@ -1352,6 +1360,10 @@
     const weftyRunA = loadImg('wefty_run_a.png');
     const weftyRunB = loadImg('wefty_run_b.png');
     const weftyFall = loadImg('wefty_fall.png');
+    const weftyGlider = loadImg('wefty_glider.png');
+    const weftyShield = loadImg('wefty_shield.png');
+    const weftySpring = loadImg('wefty_spring.png');
+    const lassoImg   = loadImg('lasso.png');
     const parallaxImg = loadImg('parallax_bg.png');
     const scissorsImg = loadImg('scissors_hazard.png');
     const scissorsOpenImg = loadImg('scissors_open.png');
@@ -1919,7 +1931,16 @@
         const sSize = shrunk ? baseSize * 0.55 : baseSize;
         const cx = WEFTY_SCREEN_X * w;
         const feetY = world.weftyY * h;
-        const sprite = !world.grounded ? weftyFall : weftyRunA;
+        // Ability-state overlays take priority so Wefty visibly
+        // transforms while a power-up is active. Priority mirrors
+        // Android: glider > shield > spring-launch > default.
+        const gliderActive = world.gliderUntil > performance.now() && !world.grounded;
+        const springPose = !world.grounded && world.weftyVy < -0.3;
+        let sprite;
+        if (gliderActive && weftyGlider.complete && weftyGlider.naturalWidth) sprite = weftyGlider;
+        else if (world.shieldCharges > 0 && weftyShield.complete && weftyShield.naturalWidth) sprite = weftyShield;
+        else if (springPose && weftySpring.complete && weftySpring.naturalWidth) sprite = weftySpring;
+        else sprite = !world.grounded ? weftyFall : weftyRunA;
         const circ = sSize * Math.PI;
         const rollDeg = world.grounded ? (world.cameraX * w / circ) * 360 : 0;
         const iframes = world.invincibleUntil > performance.now();
@@ -1941,20 +1962,39 @@
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
         }
 
-        // Lasso flash — yarn thread from Wefty to the scissor she just
-        // snagged. Short-lived so it reads as an attack, not a tether.
+        // Lasso flash — yarn rope from Wefty toward target, plus a
+        // real lasso sprite at the rope tip. Interpolated extend +
+        // retract for a snap feel.
         if ((world.frameTick || 0) < world.lassoFlashUntilTick) {
             const fromX = WEFTY_SCREEN_X * w;
             const fromY = world.weftyY * h - h * 0.08;
             const toX = (world.lassoLastHitX - world.cameraX) * w;
             const toY = world.lassoLastHitY * h;
+            const totalTicks = LASSO_FLASH_TICKS;
+            const remaining = world.lassoFlashUntilTick - (world.frameTick || 0);
+            const elapsed = Math.max(0, Math.min(totalTicks, totalTicks - remaining));
+            const half = totalTicks / 2;
+            const extend = elapsed <= half ? elapsed / half : (totalTicks - elapsed) / half;
+            const endX = fromX + (toX - fromX) * extend;
+            const endY = fromY + (toY - fromY) * extend;
+            // Rope
             WeftyThread.drawThread(
                 fgCtx,
-                [[fromX, fromY], [toX, toY]],
-                WeftyThread.PALETTES[2], // amber, matches the lasso button
-                h * 0.018,
+                [[fromX, fromY], [endX, endY]],
+                WeftyThread.PALETTES[2],
+                h * 0.02,
                 yarnPattern,
             );
+            // Lasso loop sprite at the tip, rotated along throw vector.
+            if (lassoImg.complete && lassoImg.naturalWidth) {
+                const angle = Math.atan2(endY - fromY, endX - fromX);
+                const size = h * 0.10;
+                fgCtx.save();
+                fgCtx.translate(endX, endY);
+                fgCtx.rotate(angle);
+                fgCtx.drawImage(lassoImg, -size * 0.35, -size / 2, size, size);
+                fgCtx.restore();
+            }
         }
         // Cooldown visual on the lasso button
         if ((world.frameTick || 0) < world.lassoReadyAtTick) {
