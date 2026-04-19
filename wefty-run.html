@@ -199,6 +199,8 @@
         letters: [],    // collectible WEFTY letter tokens {worldX, y, letter, collected}
         collectedLetters: new Set(),  // chars of WEFTY already collected this shrink cycle
         shrinkUntil: 0, // performance.now() timestamp — Wefty is small until then
+        needles: 3,    // lives, themed as knitting needles
+        invincibleUntil: 0, // performance.now() while i-frames active
         events: [],     // 'bridge-valid' | 'bridge-invalid' | 'milestone' | 'game-over' | 'jump' | 'hazard-hit'
     };
 
@@ -280,6 +282,8 @@
         world.letters.length = 0;
         world.collectedLetters.clear();
         world.shrinkUntil = 0;
+        world.needles = 3;
+        world.invincibleUntil = 0;
         world.events.length = 0;
         seedPlatforms();
     }
@@ -307,15 +311,16 @@
         const x = last.xEnd + gap;
         const len = Math.random() * 0.75 + 0.35;
 
-        const sampled = PLATFORM_Y + (Math.random() * 0.28 - 0.16);
-        const blended = last.top + (sampled - last.top) * 0.85;
-        const top = Math.max(PLATFORM_Y - 0.18, Math.min(PLATFORM_Y + 0.14, blended));
+        // Wider height swing so the terrain actually reads as rolling
+        // hills rather than near-flat with a nudge.
+        const sampled = PLATFORM_Y + (Math.random() * 0.40 - 0.22);
+        const blended = last.top + (sampled - last.top) * 0.80;
+        const top = Math.max(PLATFORM_Y - 0.26, Math.min(PLATFORM_Y + 0.18, blended));
 
-        // Hill crown — middle of the platform peaks this far above the
-        // flat edges so bridges still connect cleanly but the platform
-        // itself has a rolling hill shape.
-        const crownMax = 0.06 * Math.min(1, len / 1.10);
-        const crown = Math.random() * crownMax;
+        // Hill crown — middle of the platform bulges significantly so
+        // each platform has a visible hump.
+        const crownMax = 0.14 * Math.min(1, len / 1.10);
+        const crown = 0.03 + Math.random() * crownMax;
 
         world.platforms.push({ xStart: x, xEnd: x + len, top, crown });
 
@@ -332,16 +337,23 @@
             world.lastHazardAtX = hazardX;
         }
 
-        // Word-power tokens — each letter of WEFTY floats above a
-        // platform. Collect them all (W, E, F, T, Y) for a power-up.
+        // Word-power tokens. Try up to 6 positions and keep the first
+        // that doesn't overlap a scissors hazard.
         if (world.distance > 1 && Math.random() < 0.55 && len > 0.40) {
             const WEFTY = 'WEFTY';
             const letter = WEFTY[Math.floor(Math.random() * WEFTY.length)];
-            // Above the platform but BELOW the jump peak so the player
-            // has to actually jump for them.
-            const lx = x + len * (0.15 + Math.random() * 0.70);
-            const ly = top - (0.12 + Math.random() * 0.14);
-            world.letters.push({ worldX: lx, y: ly, letter, collected: false });
+            for (let i = 0; i < 6; i++) {
+                const lx = x + len * (0.15 + Math.random() * 0.70);
+                const ly = top - (0.12 + Math.random() * 0.14);
+                const clash = world.hazards.some(hz => {
+                    const dx = hz.worldX - lx, dy = hz.y - ly;
+                    return Math.sqrt(dx * dx + dy * dy) < 0.12;
+                });
+                if (!clash) {
+                    world.letters.push({ worldX: lx, y: ly, letter, collected: false });
+                    break;
+                }
+            }
         }
     }
 
@@ -411,10 +423,12 @@
 
     function step(dt) {
         if (world.gameOver) return;
-        if (!world.isDrawing) {
-            world.cameraX += RUN_SPEED * dt;
-            world.distance = world.cameraX;
-        }
+        // 0.2x slow-mo while drawing instead of a full freeze — still
+        // gives the player time to place a bridge without snapping her
+        // to a halt.
+        const effDt = world.isDrawing ? dt * 0.20 : dt;
+        world.cameraX += RUN_SPEED * effDt;
+        world.distance = world.cameraX;
 
         // Decay bridges
         for (let i = world.bridges.length - 1; i >= 0; i--) {
@@ -439,17 +453,27 @@
             if (hz.worldX < world.cameraX - 0.5) world.hazards.splice(i, 1);
         }
 
-        // Hazard collision — circle vs circle
+        // Hazard collision — circle vs circle. Shrink mode → smaller
+        // hitbox. I-frames skip collision briefly after a hit.
         const wcx = world.cameraX + WEFTY_SCREEN_X;
         const wcy = world.weftyY - 0.05;
-        for (const hz of world.hazards) {
-            const dx = hz.worldX - wcx;
-            const dy = hz.y - wcy;
-            if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + 0.035) {
-                world.gameOver = true;
-                world.events.push('hazard-hit');
-                world.events.push('game-over');
-                break;
+        const now = performance.now();
+        const bodyR = (world.shrinkUntil > now) ? 0.018 : 0.035;
+        if (now > world.invincibleUntil) {
+            for (const hz of world.hazards) {
+                const dx = hz.worldX - wcx;
+                const dy = hz.y - wcy;
+                if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + bodyR) {
+                    world.needles--;
+                    world.events.push('hazard-hit');
+                    if (world.needles <= 0) {
+                        world.gameOver = true;
+                        world.events.push('game-over');
+                    } else {
+                        world.invincibleUntil = now + 1400;
+                    }
+                    break;
+                }
             }
         }
 
@@ -514,9 +538,12 @@
             else if (e === 'jump')      hasSound && Sound.playClick();
             else if (e === 'hazard-hit') hasSound && Sound.playTimerWarning();
             else if (e === 'letter')    hasSound && Sound.playClick();
-            else if (e === 'power-up')  hasSound && Sound.playGameStart();
+            else if (e === 'power-up')  { hasSound && Sound.playGameStart(); musicPower.currentTime = 0; musicPower.play().catch(() => {}); }
             else if (e === 'game-over') {
                 hasSound && Sound.playGameEnd();
+                try { musicLoop.pause(); } catch (_) {}
+                musicOver.currentTime = 0;
+                musicOver.play().catch(() => {});
                 const score = Math.round(world.distance * 10);
                 if (score > bestDistance) {
                     bestDistance = score;
@@ -559,6 +586,25 @@
     const weftyFall = loadImg('wefty_fall.png');
     const parallaxImg = loadImg('parallax_bg.png');
     const scissorsImg = loadImg('scissors_hazard.png');
+
+    // ── Music ──────────────────────────────────────────────────────────
+    const musicLoop = new Audio('wefty_run_loop.mp3');
+    musicLoop.loop = true;
+    musicLoop.volume = 0.35;
+    musicLoop.preload = 'auto';
+    const musicOver = new Audio('wefty_game_over.mp3');
+    musicOver.volume = 0.55;
+    const musicPower = new Audio('wefty_powerup.mp3');
+    musicPower.volume = 0.55;
+    // Autoplay policy: can't start until the user gestures once.
+    let musicStarted = false;
+    function startMusic() {
+        if (musicStarted) return;
+        musicStarted = true;
+        musicLoop.play().catch(() => { musicStarted = false; });
+    }
+    document.addEventListener('pointerdown', startMusic, { once: true });
+    document.addEventListener('keydown', startMusic, { once: true });
 
     const badPalette = { main: '#EF4444', light: '#FCA5A5', dark: '#7F1D1D' };
 
@@ -655,6 +701,7 @@
     document.getElementById('btn-restart').addEventListener('click', () => {
         resetWorld();
         overlay.classList.add('hidden');
+        if (musicStarted) musicLoop.play().catch(() => {});
     });
 
     function renderFrame() {
@@ -802,6 +849,23 @@
             fgCtx.restore();
         }
 
+        // Needle icons (3) — knitting needles used as lives.
+        const needleY = 30;
+        for (let i = 0; i < 3; i++) {
+            const nx = 14 + i * 22;
+            const alive = i < world.needles;
+            fgCtx.save();
+            fgCtx.strokeStyle = alive ? '#e0d8ff' : '#44444a';
+            fgCtx.lineWidth = 2.2;
+            fgCtx.beginPath();
+            fgCtx.moveTo(nx + 2, needleY + 14);
+            fgCtx.lineTo(nx + 16, needleY);
+            fgCtx.stroke();
+            fgCtx.fillStyle = alive ? palette.main : '#44444a';
+            fgCtx.beginPath(); fgCtx.arc(nx + 3, needleY + 13, 3.5, 0, Math.PI * 2); fgCtx.fill();
+            fgCtx.restore();
+        }
+
         // Show collected-letter progress in a small HUD row
         if (world.collectedLetters.size > 0) {
             const WEFTY = ['W','E','F','T','Y'];
@@ -844,8 +908,13 @@
         const frameIdx = Math.floor(performance.now() / 80) % 2;
         const sprite = !world.grounded ? weftyFall : (frameIdx === 0 ? weftyRunA : weftyRunB);
         const bob = world.grounded ? Math.sin(performance.now() / 80) * 3 : 0;
+        const iframes = world.invincibleUntil > performance.now();
+        const blink = iframes ? (Math.floor(performance.now() / 50) % 2 === 0 ? 0.4 : 1) : 1;
         if (sprite.complete && sprite.naturalWidth > 0) {
+            fgCtx.save();
+            fgCtx.globalAlpha = blink;
             fgCtx.drawImage(sprite, cx - sSize / 2, feetY - sSize + bob, sSize, sSize);
+            fgCtx.restore();
         } else {
             fgCtx.fillStyle = palette.main;
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
