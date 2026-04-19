@@ -312,6 +312,7 @@
     <canvas id="fg"></canvas>
 </div>
 <button id="btn-pause" class="help-btn" style="right:56px;top:40px;">‖</button>
+<button id="btn-fs" class="help-btn" style="right:100px;top:40px;" title="Toggle fullscreen">⛶</button>
 <button id="inv-double-jump" class="inv-btn inv-2x">2×<span class="count">0</span></button>
 <button id="inv-slow-mo"     class="inv-btn inv-slow">Slow<span class="count">0</span></button>
 <button id="inv-glider"      class="inv-btn inv-glide">Glide<span class="count">0</span></button>
@@ -576,7 +577,10 @@
         tutorialEl.classList.remove('hidden');
         if (demo) {
             // Fresh first-time or cold restart — run the scripted demo
-            // behind the panels.
+            // behind the panels. Hide any lingering game-over panel so
+            // it doesn't bleed through the tutorial layout.
+            const overlay = document.getElementById('game-over');
+            if (overlay) overlay.classList.add('hidden');
             world.tutorialMode = true;
             resetWorld();
             world.tutorialMode = true;
@@ -590,9 +594,13 @@
         else closeTutorial();
     });
     document.getElementById('tut-skip').addEventListener('click', closeTutorial);
-    // Help button: when paused or mid-run, just show the panels (no
-    // demo, no world reset). First-time load auto-starts the demo.
-    document.getElementById('btn-help').addEventListener('click', () => openTutorial(false));
+    // Help button: show the tutorial panels. Start the scripted demo
+    // unless the player is mid-run (not paused, not game-over) — in
+    // that case we leave the world alone so their progress survives.
+    document.getElementById('btn-help').addEventListener('click', () => {
+        const midRun = !world.gameOver && !world.isPaused && world.distance > 0.5;
+        openTutorial(!midRun);
+    });
     if (!localStorage.getItem('wefty_run_tutorial_v3')) {
         openTutorial(true);
     } else {
@@ -1155,13 +1163,18 @@
         // Physics
         const weftyWorldX = world.cameraX + WEFTY_SCREEN_X;
         const support = supportYAt(weftyWorldX, world.weftyY);
-        // "Following the ground" covers both walking a hill's slope
-        // (already grounded → snap feet to new support even when it
-        // drops below the previous frame) and landing from a jump
-        // (feet have reached support). Either way vy must be >= 0
-        // so an active jump still reads as airborne.
-        const followingGround = support !== null && world.weftyVy >= 0 &&
-            (world.grounded || world.weftyY >= support - 0.001);
+        // Ground-follow rules:
+        //  (a) walking terrain — snap feet to a slightly-lower surface
+        //      (hill downslope). Capped at SLOPE_STICK_MAX so a tall
+        //      ramp edge lets her fall instead of teleporting down.
+        //  (b) landing from an arc — feet reached support.
+        // Both require vy >= 0 so an active jump still reads airborne.
+        const drop = support !== null ? support - world.weftyY : 0;
+        const SLOPE_STICK_MAX = 0.045;
+        const followingGround = support !== null && world.weftyVy >= 0 && (
+            (world.grounded && drop <= SLOPE_STICK_MAX) ||
+            world.weftyY >= support - 0.001
+        );
         if (followingGround) {
             world.weftyY = support;
             world.weftyVy = 0;
@@ -2025,17 +2038,26 @@
         setPaused(!world.isPaused);
     });
     pauseOverlay.addEventListener('click', () => setPaused(false));
-    document.getElementById('btn-fullscreen').addEventListener('click', async () => {
+    async function toggleFullscreen() {
+        const root = document.documentElement;
         try {
-            await document.documentElement.requestFullscreen();
-            if (screen.orientation && screen.orientation.lock) {
-                await screen.orientation.lock('landscape');
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) await document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            } else {
+                if (root.requestFullscreen) await root.requestFullscreen();
+                else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+                if (screen.orientation && screen.orientation.lock) {
+                    try { await screen.orientation.lock('landscape'); } catch (_) {}
+                }
             }
-        } catch (_) {
-            // Some browsers (iOS Safari) don't support orientation lock.
-            // The overlay will just wait for the user to rotate physically.
-        }
+        } catch (_) {}
         updateRotate();
+    }
+    document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+    document.getElementById('btn-fs').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFullscreen();
     });
 
     // ── Loop ───────────────────────────────────────────────────────────
