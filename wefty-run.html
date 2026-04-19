@@ -332,7 +332,9 @@
         const forced = since > 2.5 && qualifies;
         if (qualifies && (forced || Math.random() < chance)) {
             const hazardX = x + len * (0.30 + Math.random() * 0.40);
-            const heightAbove = 0.14 + Math.random() * 0.08;
+            // Head-height — running Wefty can actually collide without
+            // jumping. Jump clears them easily.
+            const heightAbove = 0.06 + Math.random() * 0.04;
             world.hazards.push({ worldX: hazardX, y: top - heightAbove, rot: Math.random() * 6.28 });
             world.lastHazardAtX = hazardX;
         }
@@ -586,6 +588,7 @@
     const weftyFall = loadImg('wefty_fall.png');
     const parallaxImg = loadImg('parallax_bg.png');
     const scissorsImg = loadImg('scissors_hazard.png');
+    const needleImg = loadImg('needle_icon.png');
 
     // ── Music ──────────────────────────────────────────────────────────
     const musicLoop = new Audio('wefty_run_loop.mp3');
@@ -849,21 +852,27 @@
             fgCtx.restore();
         }
 
-        // Needle icons (3) — knitting needles used as lives.
-        const needleY = 30;
-        for (let i = 0; i < 3; i++) {
-            const nx = 14 + i * 22;
-            const alive = i < world.needles;
-            fgCtx.save();
-            fgCtx.strokeStyle = alive ? '#e0d8ff' : '#44444a';
-            fgCtx.lineWidth = 2.2;
-            fgCtx.beginPath();
-            fgCtx.moveTo(nx + 2, needleY + 14);
-            fgCtx.lineTo(nx + 16, needleY);
-            fgCtx.stroke();
-            fgCtx.fillStyle = alive ? palette.main : '#44444a';
-            fgCtx.beginPath(); fgCtx.arc(nx + 3, needleY + 13, 3.5, 0, Math.PI * 2); fgCtx.fill();
-            fgCtx.restore();
+        // Needle icons (3) — crossed knitting needles + yarn-ball lives.
+        // Dim when broken, pulse during i-frames so hits are visible.
+        if (needleImg.complete && needleImg.naturalWidth > 0) {
+            const size = 40;
+            const now = performance.now();
+            for (let i = 0; i < 3; i++) {
+                const nx = 14 + i * (size + 2);
+                const ny = 48;
+                const alive = i < world.needles;
+                const invi = world.invincibleUntil > now;
+                let alpha;
+                if (invi && i === world.needles) {
+                    alpha = 0.3 + 0.5 * ((Math.floor(now / 33) % 20) / 20);
+                } else {
+                    alpha = alive ? 1 : 0.25;
+                }
+                fgCtx.save();
+                fgCtx.globalAlpha = alpha;
+                fgCtx.drawImage(needleImg, nx, ny, size, size);
+                fgCtx.restore();
+            }
         }
 
         // Show collected-letter progress in a small HUD row
@@ -896,24 +905,26 @@
             }
         }
 
-        // Wefty sprite — fall pose if airborne, otherwise alternate the
-        // 2-frame run cycle on a brisk footstep phase (faster than
-        // before so the legs visibly move). Shrink mode renders at
-        // half size for 8s after a full WEFTY collect.
+        // Wefty is a yarn ball → she ROLLS. Continuous rotation
+        // proportional to world distance so the roll syncs with the
+        // terrain scrolling. Airborne → fall pose (frozen).
         const shrunk = world.shrinkUntil > performance.now();
         const baseSize = Math.max(h * 0.22, 72);
         const sSize = shrunk ? baseSize * 0.55 : baseSize;
         const cx = WEFTY_SCREEN_X * w;
         const feetY = world.weftyY * h;
-        const frameIdx = Math.floor(performance.now() / 80) % 2;
-        const sprite = !world.grounded ? weftyFall : (frameIdx === 0 ? weftyRunA : weftyRunB);
-        const bob = world.grounded ? Math.sin(performance.now() / 80) * 3 : 0;
+        const sprite = !world.grounded ? weftyFall : weftyRunA;
+        const circ = sSize * Math.PI;
+        const rollDeg = world.grounded ? (world.cameraX * w / circ) * 360 : 0;
         const iframes = world.invincibleUntil > performance.now();
         const blink = iframes ? (Math.floor(performance.now() / 50) % 2 === 0 ? 0.4 : 1) : 1;
         if (sprite.complete && sprite.naturalWidth > 0) {
             fgCtx.save();
             fgCtx.globalAlpha = blink;
-            fgCtx.drawImage(sprite, cx - sSize / 2, feetY - sSize + bob, sSize, sSize);
+            // Rotate around the sprite's center so she rolls in place.
+            fgCtx.translate(cx, feetY - sSize / 2);
+            fgCtx.rotate(rollDeg * Math.PI / 180);
+            fgCtx.drawImage(sprite, -sSize / 2, -sSize / 2, sSize, sSize);
             fgCtx.restore();
         } else {
             fgCtx.fillStyle = palette.main;
