@@ -1275,7 +1275,24 @@
         const drift = Math.hypot(x - sx, y - sy);
         if (drift > drawMaxDrift) drawMaxDrift = drift;
         const last = currentStroke[currentStroke.length - 1];
-        if (Math.hypot(x - last[0], y - last[1]) >= 3) currentStroke.push([x, y]);
+        if (Math.hypot(x - last[0], y - last[1]) < 3) return;
+        // Clamp the live preview too — in screen pixels, 1/3 of the
+        // canvas width. Once the pointer moves past the cap, stop
+        // extending the visible stroke so the player sees the limit.
+        const canvas = document.getElementById('fg');
+        const maxSpanPx = canvas.clientWidth / 3;
+        if (Math.abs(x - sx) > maxSpanPx) {
+            const lastX = last[0], lastY = last[1];
+            const dx = x - lastX;
+            if (dx === 0) return;
+            const allowed = maxSpanPx - Math.abs(lastX - sx);
+            if (allowed <= 0) return;
+            const step = allowed * Math.sign(dx);
+            const t = step / dx;
+            currentStroke.push([lastX + step, lastY + (y - lastY) * t]);
+            return;
+        }
+        currentStroke.push([x, y]);
     }
     function endDraw(e) {
         if (!drawing) return;
