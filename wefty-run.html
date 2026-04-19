@@ -164,7 +164,7 @@
         display: flex; align-items: flex-end; justify-content: center;
         padding: 0 0 18px;
         pointer-events: none;          /* only the card catches clicks */
-        z-index: 20;
+        z-index: 50;                   /* above the pause overlay (40) */
     }
     .tutorial .tutorial-card { pointer-events: auto; }
     .tutorial::before {
@@ -365,6 +365,7 @@
         bridges: [],    // {pts:[[x,y]], valid, ttl}
         hazards: [],    // {worldX, y, rot}
         lastHazardAtX: -10,
+        lastKnotAtX: -10,
         letters: [],    // collectible WEFTY letter tokens {worldX, y, letter, collected}
         collectedLetters: new Set(),  // chars of WEFTY already collected this shrink cycle
         springs: [],    // bouncy pads on platforms {worldX, y, consumed}
@@ -422,9 +423,11 @@
         { icon: 'double_jump.png', title: 'Power-up inventory',
           body: 'Blue kite, green orb, lilac clock, and navy shield go into your inventory. Tap the coloured buttons (or 1–4) to activate: 2× double-jump, Slow 5s slow-mo, Glide 10s slow-fall (hold Jump mid-air), Shield absorbs next hit.' },
         { icon: 'yarn_knot.png', title: 'Level 2 at 300 m',
-          body: 'Past 300m the world storms: crimson palette, more scissors, spiky yarn knots on the ground that shake and growl. Jump or lasso the knots — run speed climbs 20%.' },
+          body: 'Past 300m the world storms: crimson palette, angry scowling yarn knots on the ground, and run speed ramps from 1.0× to 1.3× over the next 100m. Jump or lasso the knots.' },
+        { icon: 'needle_icon.png', title: 'PC key bindings',
+          body: 'Jump: Space / ↑ / W   ·   Lasso: L or F   ·   Double-jump orb: 1   ·   Slow-mo: 2   ·   Glider: 3   ·   Shield: 4   ·   Pause: P   ·   Help: H or ?   ·   Glider slow-fall: hold Jump while airborne.' },
         { icon: 'wefty_celebrate.png', title: 'Chase your best',
-          body: 'Your best distance sticks across runs. At 750m a new game mode unlocks on the hub. Reopen this help anytime with the ? button.' },
+          body: 'Your best distance sticks across runs. At 750m a new game mode unlocks on the hub. Reopen this help anytime with the ? button — even while paused.' },
     ];
     let tutorialPage = 0;
     const tutorialEl = document.getElementById('tutorial');
@@ -451,19 +454,27 @@
     function closeTutorial() {
         tutorialEl.classList.add('hidden');
         localStorage.setItem('wefty_run_tutorial_v3', '1');
-        // Resume the real run: turn off demo safety, reset distance so
-        // the player starts fresh after watching the demo.
-        world.tutorialMode = false;
-        resetWorld();
+        if (world.tutorialMode) {
+            // Came from the demo mode — wipe and start a fresh run.
+            world.tutorialMode = false;
+            resetWorld();
+        }
+        // If the tutorial was opened while paused (help mid-run), leave
+        // the world alone. Player can unpause to resume where they were.
     }
-    function openTutorial() {
+    function openTutorial(demo) {
         tutorialPage = 0;
         renderTutorial();
         tutorialEl.classList.remove('hidden');
-        // Start a demo run behind the panels.
-        world.tutorialMode = true;
-        resetWorld();
-        world.tutorialMode = true;  // resetWorld clears it — re-enable.
+        if (demo) {
+            // Fresh first-time or cold restart — run the scripted demo
+            // behind the panels.
+            world.tutorialMode = true;
+            resetWorld();
+            world.tutorialMode = true;
+        }
+        // Otherwise (help mid-run / help while paused) we don't touch
+        // the world so progress + pause state survive.
     }
     tutBack.addEventListener('click', () => { if (tutorialPage > 0) { tutorialPage--; renderTutorial(); } });
     tutNext.addEventListener('click', () => {
@@ -471,10 +482,11 @@
         else closeTutorial();
     });
     document.getElementById('tut-skip').addEventListener('click', closeTutorial);
-    document.getElementById('btn-help').addEventListener('click', openTutorial);
-    // Auto-show the first time.
+    // Help button: when paused or mid-run, just show the panels (no
+    // demo, no world reset). First-time load auto-starts the demo.
+    document.getElementById('btn-help').addEventListener('click', () => openTutorial(false));
     if (!localStorage.getItem('wefty_run_tutorial_v3')) {
-        openTutorial();
+        openTutorial(true);
     } else {
         closeTutorial();
     }
@@ -493,6 +505,7 @@
         world.bridges.length = 0;
         world.hazards.length = 0;
         world.lastHazardAtX = -10;
+        world.lastKnotAtX = -10;
         world.letters.length = 0;
         world.collectedLetters.clear();
         world.springs.length = 0;
@@ -538,8 +551,12 @@
     function addNextPlatform() {
         const last = world.platforms[world.platforms.length - 1];
         const difficulty = Math.min(world.distance / 8, 1.5);
-        const gapMin = 0.12 + 0.06 * difficulty;
-        const gapMax = 0.30 + 0.20 * difficulty;
+        // Raised floor so gaps start in "needs a bridge OR a jump"
+        // territory, and the widest (~0.50) force a bridge + jump
+        // combo. Storm biome nudges the floor further.
+        const stormFloor = world.distance >= 30 ? 0.05 : 0;
+        const gapMin = 0.22 + 0.08 * difficulty + stormFloor;
+        const gapMax = Math.max(0.30 + 0.20 * difficulty, gapMin + 0.02);
         const gap = Math.random() * (gapMax - gapMin) + gapMin;
         const x = last.xEnd + gap;
         const len = Math.random() * 0.75 + 0.35;
@@ -576,15 +593,20 @@
 
         // Floor knots — Level 2 only. Spiky tangles on the platform
         // surface; jump or lasso them.
-        if (biome === 'STORM' && len > 0.55 && Math.random() < 0.35) {
-            const kx = x + len * (0.20 + Math.random() * 0.60);
-            const ky = (crown > 0
-                ? top - crown * Math.sin(Math.PI * (kx - x) / len)
-                : top) - 0.02;
-            const clash = world.hazards.some(hz =>
-                Math.abs(hz.worldX - kx) < 0.10
-            );
-            if (!clash) world.knots.push({ worldX: kx, y: ky });
+        if (biome === 'STORM' && len > 0.40) {
+            const sinceKnot = x - (world.lastKnotAtX ?? -10);
+            const forced = sinceKnot > 1.8;
+            if (forced || Math.random() < 0.70) {
+                const kx = x + len * (0.20 + Math.random() * 0.60);
+                const ky = surfaceYAt(x, len, top, crown, kx) - 0.02;
+                const clash = world.hazards.some(hz =>
+                    Math.abs(hz.worldX - kx) < 0.10
+                );
+                if (!clash) {
+                    world.knots.push({ worldX: kx, y: ky });
+                    world.lastKnotAtX = kx;
+                }
+            }
         }
 
         // Staggered pickup spawner — at most one pickup per platform.
@@ -616,7 +638,10 @@
             const fxStart = x + len * 0.20 + Math.random() * (len * 0.6 + 0.18);
             const ftop = PLATFORM_Y - (0.30 + Math.random() * 0.18);
             world.floatingPlatforms.push({ xStart: fxStart, xEnd: fxStart + flen, top: ftop });
-            const pool = ['heart', 'heart', 'letter', 'djump', 'slowmo', 'glider', 'shield'];
+            // Hearts only roll into the reward pool while Wefty actually
+            // needs them (needles <= 3). Full at 5 → no banked freebies.
+            const poolBase = ['letter', 'djump', 'slowmo', 'glider', 'shield'];
+            const pool = world.needles <= 3 ? ['heart', 'heart', ...poolBase] : poolBase;
             const rewardKind = pool[Math.floor(Math.random() * pool.length)];
             const rx = fxStart + flen * 0.5;
             const ry = ftop - 0.05;
@@ -807,12 +832,36 @@
         return Math.max.apply(null, candidates);
     }
 
+    const MAX_STROKE_SPAN = 1 / 3;
+    function capStrokeSpan(pts) {
+        const startX = pts[0][0];
+        const out = [pts[0]];
+        for (let i = 1; i < pts.length; i++) {
+            const [px, py] = pts[i];
+            if (Math.abs(px - startX) > MAX_STROKE_SPAN) {
+                const [lx, ly] = out[out.length - 1];
+                const dx = px - lx;
+                if (dx === 0) break;
+                const allowed = MAX_STROKE_SPAN - Math.abs(lx - startX);
+                if (allowed <= 0) break;
+                const step = allowed * Math.sign(dx);
+                const t = step / dx;
+                out.push([lx + step, ly + (py - ly) * t]);
+                break;
+            }
+            out.push([px, py]);
+        }
+        return out;
+    }
+
     function addStroke(worldPts) {
         if (world.gameOver || worldPts.length < 2) return;
-        // Any stroke is a permanent walkable bridge. No endpoint-near-edge
-        // check — Wefty falls only if she walks off a platform with no
-        // bridge under her.
-        world.bridges.push({ pts: worldPts, valid: true, ttl: Infinity });
+        // Any stroke is a permanent walkable bridge, capped at 1/3 of
+        // the viewport so the widest (~0.50) gaps demand a bridge +
+        // jump combo.
+        const capped = capStrokeSpan(worldPts);
+        if (capped.length < 2) return;
+        world.bridges.push({ pts: capped, valid: true, ttl: Infinity });
         world.events.push('bridge-valid');
     }
 
@@ -826,9 +875,16 @@
         const slowMult = world.slowMoUntil > nowTick ? 0.50 : 1;
         const effDt = dt * drawMult * slowMult;
         const biome = currentBiome();
-        const speedMult = biome === 'STORM' ? 1.20 : 1;
+        // Storm speed ramp — see WeftyRunWorld.kt for the shape.
+        const stormDist = Math.max(0, world.distance - 30);
+        let speedMult;
+        if (world.distance < 30)      speedMult = 1;
+        else if (stormDist < 5)       speedMult = 1 + 0.20 * (stormDist / 5);
+        else                          speedMult = Math.min(1.30, 1.20 + 0.10 * ((stormDist - 5) / 5));
         world.cameraX += RUN_SPEED * speedMult * effDt;
-        world.distance = world.cameraX;
+        // Tutorial mode previews the game but shouldn't count distance
+        // toward the best-score or trigger milestone/biome unlocks.
+        if (!world.tutorialMode) world.distance = world.cameraX;
 
         // Decay bridges
         for (let i = world.bridges.length - 1; i >= 0; i--) {
@@ -985,7 +1041,14 @@
         // Physics
         const weftyWorldX = world.cameraX + WEFTY_SCREEN_X;
         const support = supportYAt(weftyWorldX, world.weftyY);
-        if (support !== null && world.weftyY >= support - 0.001 && world.weftyVy >= 0) {
+        // "Following the ground" covers both walking a hill's slope
+        // (already grounded → snap feet to new support even when it
+        // drops below the previous frame) and landing from a jump
+        // (feet have reached support). Either way vy must be >= 0
+        // so an active jump still reads as airborne.
+        const followingGround = support !== null && world.weftyVy >= 0 &&
+            (world.grounded || world.weftyY >= support - 0.001);
+        if (followingGround) {
             world.weftyY = support;
             world.weftyVy = 0;
             world.grounded = true;
@@ -1288,6 +1351,12 @@
         } else if (e.code === 'KeyL' || e.code === 'KeyF') {
             e.preventDefault();
             fireLasso();
+        } else if (e.code === 'KeyP') {
+            e.preventDefault();
+            setPaused(!world.isPaused);
+        } else if (e.code === 'KeyH' || e.code === 'Slash') {
+            e.preventDefault();
+            openTutorial(false);
         }
     });
     document.addEventListener('keyup', (e) => {
@@ -1614,14 +1683,19 @@
             fgCtx.restore();
         }
 
-        // Needle icons (3) — crossed knitting needles + yarn-ball lives.
-        // Dim when broken, pulse during i-frames so hits are visible.
+        // Needle icons — crossed knitting needles + yarn-ball lives.
+        // Centered at the top so they don't overlap the WEFTY letters
+        // tucked into the left corner. Supports up to MAX_NEEDLES = 5.
         if (needleImg.complete && needleImg.naturalWidth > 0) {
             const size = 40;
+            const gap = 2;
+            const slots = Math.min(5, Math.max(3, world.needles));
+            const rowW = slots * size + (slots - 1) * gap;
+            const startX = (w - rowW) / 2;
+            const ny = 12;
             const now = performance.now();
-            for (let i = 0; i < 3; i++) {
-                const nx = 14 + i * (size + 2);
-                const ny = 48;
+            for (let i = 0; i < slots; i++) {
+                const nx = startX + i * (size + gap);
                 const alive = i < world.needles;
                 const invi = world.invincibleUntil > now;
                 let alpha;
