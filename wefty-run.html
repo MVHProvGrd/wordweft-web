@@ -52,6 +52,98 @@
         touch-action: manipulation;
     }
     .jump-btn:active { transform: scale(0.95); }
+    .lasso-btn {
+        position: absolute;
+        right: 108px; bottom: 24px;
+        width: 64px; height: 64px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(245, 158, 11, 0.88);
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        z-index: 6;
+        touch-action: manipulation;
+        transition: opacity 0.15s ease;
+    }
+    .lasso-btn.cooldown { opacity: 0.35; }
+    .lasso-btn:active { transform: scale(0.95); }
+    .inv-btn {
+        position: absolute;
+        bottom: 34px;
+        width: 54px; height: 54px;
+        border: none;
+        border-radius: 14px;
+        color: #fff;
+        font-weight: 700;
+        font-size: 11px;
+        cursor: pointer;
+        z-index: 6;
+        touch-action: manipulation;
+        opacity: 0.25;
+        transition: opacity 0.15s ease, transform 0.1s ease;
+    }
+    .inv-btn.has { opacity: 0.9; }
+    .inv-btn.active { opacity: 1; box-shadow: 0 0 0 3px #fff inset; }
+    .inv-btn:active { transform: scale(0.95); }
+    .inv-btn .count {
+        position: absolute;
+        top: 3px; right: 3px;
+        background: rgba(0,0,0,0.72);
+        color: #fff;
+        font-size: 10px;
+        padding: 1px 5px;
+        border-radius: 8px;
+        min-width: 14px;
+        text-align: center;
+    }
+    .inv-2x    { background: #22C55E; left: 20px; }
+    .inv-slow  { background: #8B5CF6; left: 80px; }
+    .inv-glide { background: #0EA5E9; left: 140px; }
+    .inv-shield{ background: #FBBF24; left: 200px; }
+    .active-chips {
+        position: absolute;
+        top: 72px; left: 16px;
+        display: flex; gap: 6px;
+        z-index: 6;
+    }
+    .active-chips .chip {
+        background: rgba(0,0,0,0.55);
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .storm-banner {
+        position: absolute;
+        top: 38%; left: 50%;
+        transform: translateX(-50%);
+        background: rgba(74, 16, 16, 0.82);
+        color: #fff;
+        padding: 16px 28px;
+        border-radius: 22px;
+        text-align: center;
+        z-index: 12;
+        pointer-events: none;
+    }
+    .storm-banner.hidden { display: none; }
+    .storm-banner .title { color: #FBBF24; font-size: 20px; font-weight: 700; }
+    .storm-banner .sub { font-size: 13px; margin-top: 4px; }
+    .unlock-toast {
+        position: absolute;
+        top: 52px; left: 50%;
+        transform: translateX(-50%);
+        background: rgba(245, 158, 11, 0.96);
+        color: #1a1a2e;
+        padding: 10px 18px;
+        border-radius: 14px;
+        font-weight: 700;
+        font-size: 14px;
+        z-index: 12;
+    }
+    .unlock-toast.hidden { display: none; }
     .help-btn {
         position: absolute;
         right: 12px; top: 40px;
@@ -67,20 +159,37 @@
     }
 
     .tutorial {
-        position: absolute; inset: 0;
-        background: rgba(15, 15, 35, 0.94);
-        display: flex; align-items: center; justify-content: center;
+        position: absolute; left: 0; right: 0; bottom: 0;
+        background: transparent;
+        display: flex; align-items: flex-end; justify-content: center;
+        padding: 0 0 18px;
+        pointer-events: none;          /* only the card catches clicks */
         z-index: 20;
+    }
+    .tutorial .tutorial-card { pointer-events: auto; }
+    .tutorial::before {
+        /* A subtle gradient wash behind the card so text stays readable
+           even with the game visibly running. */
+        content: '';
+        position: absolute; left: 0; right: 0; bottom: 0;
+        height: 52%;
+        background: linear-gradient(0deg, rgba(15,15,35,0.85) 20%, rgba(15,15,35,0) 100%);
+        pointer-events: none;
+        z-index: -1;
     }
     .tutorial.hidden { display: none; }
     .tutorial-card {
         text-align: center;
-        max-width: 560px;
-        padding: 20px 28px;
+        max-width: 620px;
+        padding: 16px 28px 18px;
+        background: rgba(15, 15, 35, 0.82);
+        border-radius: 18px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
     }
-    .tutorial-card img { width: 110px; height: 110px; object-fit: contain; }
-    .tutorial-card h2 { margin: 10px 0 8px; font-size: 22px; }
-    .tutorial-card p { color: #c0c0d0; font-size: 14px; line-height: 1.4; margin: 0 0 16px; }
+    .tutorial-card img { width: 72px; height: 72px; object-fit: contain; }
+    .tutorial-card h2 { margin: 6px 0 4px; font-size: 19px; }
+    .tutorial-card p { color: #d0d0e0; font-size: 13px; line-height: 1.4; margin: 0 0 10px; }
     .tutorial-dots { display: flex; justify-content: center; gap: 6px; margin: 8px 0 18px; }
     .tutorial-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.35); }
     .tutorial-dot.active { width: 9px; height: 9px; background: #fff; }
@@ -108,6 +217,41 @@
         z-index: 10;
     }
     .game-over.hidden { display: none; }
+
+    /* Portrait-mode gate — mobile browsers don't let us force
+       landscape, so pause gameplay and ask the player to rotate. */
+    .rotate-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 15, 35, 0.98);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 40;
+        text-align: center;
+    }
+    .rotate-overlay.hidden { display: none; }
+    .rotate-overlay .icon {
+        font-size: 72px;
+        display: inline-block;
+        animation: rotate-tilt 2.2s ease-in-out infinite;
+    }
+    @keyframes rotate-tilt {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(-90deg); }
+    }
+    .rotate-overlay h2 { margin: 14px 0 6px; font-size: 22px; }
+    .rotate-overlay p { color: #c0c0d0; font-size: 14px; margin: 0 0 20px; }
+    .rotate-overlay button {
+        background: rgba(16, 185, 129, 0.88);
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        padding: 10px 22px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
     .go-panel {
         background: rgba(30, 30, 54, 0.96);
         border-radius: 20px;
@@ -140,7 +284,34 @@
     <canvas id="bg"></canvas>
     <canvas id="fg"></canvas>
 </div>
+<button id="btn-pause" class="help-btn" style="right:56px;top:40px;">‖</button>
+<button id="inv-double-jump" class="inv-btn inv-2x">2×<span class="count">0</span></button>
+<button id="inv-slow-mo"     class="inv-btn inv-slow">Slow<span class="count">0</span></button>
+<button id="inv-glider"      class="inv-btn inv-glide">Glide<span class="count">0</span></button>
+<button id="inv-shield"      class="inv-btn inv-shield">Shield<span class="count">0</span></button>
+<button id="btn-lasso" class="lasso-btn">Lasso</button>
 <button id="btn-jump" class="jump-btn">Jump</button>
+<div id="active-chips" class="active-chips"></div>
+<div id="storm-banner" class="storm-banner hidden">
+    <div class="title">⚡ SCISSORS STORM</div>
+    <div class="sub">300 m — watch for knots on the ground.</div>
+</div>
+<div id="unlock-toast" class="unlock-toast hidden">✨ Level unlocked!</div>
+<div id="pause-overlay" class="rotate-overlay hidden">
+    <div>
+        <div class="icon" style="animation:none;">‖</div>
+        <h2>Paused</h2>
+        <p>Tap anywhere to resume.</p>
+    </div>
+</div>
+<div id="rotate-overlay" class="rotate-overlay hidden">
+    <div>
+        <div class="icon">📱</div>
+        <h2>Rotate your phone</h2>
+        <p>Wefty Run plays in landscape.<br>Turn your phone sideways to keep rolling.</p>
+        <button id="btn-fullscreen">Lock landscape</button>
+    </div>
+</div>
 <button id="btn-help" class="help-btn">?</button>
 <div id="tutorial" class="tutorial">
     <div class="tutorial-card">
@@ -174,8 +345,6 @@
     const PLATFORM_Y = 0.72;
     const DEATH_Y = 1.10;
     const GRAVITY = 2.4;
-    const EDGE_TOL = 0.12;
-    const INVALID_TTL = 0.35;
     const RUN_SPEED = 0.20;
     const WEFTY_SCREEN_X = 0.25;
     const JUMP_VELOCITY = 1.35;
@@ -198,11 +367,40 @@
         lastHazardAtX: -10,
         letters: [],    // collectible WEFTY letter tokens {worldX, y, letter, collected}
         collectedLetters: new Set(),  // chars of WEFTY already collected this shrink cycle
+        springs: [],    // bouncy pads on platforms {worldX, y, consumed}
+        gliders: [],    // airborne kite pickups {worldX, y, collected}
+        doubleJumps: [],// green orb pickups {worldX, y, collected}
+        slowMos: [],    // clock-yarn pickups {worldX, y, collected}
+        shields: [],    // yarn-shield pickups {worldX, y, collected}
+        hearts: [],     // +1 needle pickups {worldX, y, collected}
+        knots: [],      // floor hazards (Level 2) {worldX, y}
+        floatingPlatforms: [], // small elevated ledges {xStart, xEnd, top}
+        gliderUntil: 0, // performance.now() while glider mode active
+        doubleJumpUntil: 0, // performance.now() while double-jump available window active
+        doubleJumpAvailable: false, // one free in-air re-jump per airborne period
+        slowMoUntil: 0,  // performance.now() while slow-mo active
+        shieldCharges: 0,
+        // Inventory — pickups accumulate here; player taps a button to
+        // activate each effect when beneficial.
+        invDoubleJump: 0,
+        invSlowMo: 0,
+        invGlider: 0,
+        invShield: 0,
+        jumpHeld: false, // true while jump input is held (for glider slow-fall)
+        tutorialMode: false, // true while tutorial overlay is open
         shrinkUntil: 0, // performance.now() timestamp — Wefty is small until then
         needles: 3,    // lives, themed as knitting needles
         invincibleUntil: 0, // performance.now() while i-frames active
-        events: [],     // 'bridge-valid' | 'bridge-invalid' | 'milestone' | 'game-over' | 'jump' | 'hazard-hit'
+        isPaused: false,
+        lassoReadyAtTick: 0,
+        lassoLastHitX: 0,
+        lassoLastHitY: 0,
+        lassoFlashUntilTick: 0,
+        frameTick: 0,
+        events: [],     // 'bridge-valid' | 'milestone' | 'game-over' | 'jump' | 'hazard-hit' | 'spring' | 'glider' | 'double-jump' | 'slow-mo' | 'shield' | 'shield-broken'
     };
+    // Biome: NORMAL default, STORM at/past 50m.
+    function currentBiome() { return world.distance >= 30 ? 'STORM' : 'NORMAL'; }
 
     // Local best distance
     let bestDistance = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
@@ -212,13 +410,21 @@
         { icon: 'wefty_wave.png', title: 'Meet Wefty',
           body: 'Wefty runs forever — your job is to keep her going. The further, the higher your score.' },
         { icon: 'wefty.png', title: 'Bridge the gaps',
-          body: 'When you see two bright dots with a dashed line between them, draw a thread from one dot to the other. Your thread becomes a bridge Wefty walks across.' },
+          body: 'Draw a thread across any gap and Wefty walks across. Any stroke works — the longer the gap, the longer the bridge.' },
         { icon: 'wefty_celebrate.png', title: 'Tap to jump',
           body: 'A short tap jumps. Hit the green Jump button, or press Space / ↑ on web.' },
         { icon: 'scissors_hazard.png', title: 'Dodge the scissors',
-          body: 'Spinning scissors float above platforms. Time your jump to pass under — they are always within jump reach.' },
+          body: 'Spinning scissors float above platforms. Jump under them or tap the orange Lasso to snag the nearest one (1.5s cooldown).' },
+        { icon: 'wefty.png', title: 'Spell WEFTY',
+          body: 'Grab the floating W · E · F · T · Y letters. Collect all five and Wefty shrinks for 18 seconds — scissors fly right over her.' },
+        { icon: 'spring_pad.png', title: 'Spring pads',
+          body: 'Red spring pads on the ground super-jump Wefty skyward. They trigger automatically — just roll over one.' },
+        { icon: 'double_jump.png', title: 'Power-up inventory',
+          body: 'Blue kite, green orb, lilac clock, and navy shield go into your inventory. Tap the coloured buttons (or 1–4) to activate: 2× double-jump, Slow 5s slow-mo, Glide 10s slow-fall (hold Jump mid-air), Shield absorbs next hit.' },
+        { icon: 'yarn_knot.png', title: 'Level 2 at 300 m',
+          body: 'Past 300m the world storms: crimson palette, more scissors, spiky yarn knots on the ground that shake and growl. Jump or lasso the knots — run speed climbs 20%.' },
         { icon: 'wefty_celebrate.png', title: 'Chase your best',
-          body: 'Your best distance sticks across runs. Hills get higher and gaps wider the further you go, so pace yourself. Reopen this anytime with the ? button.' },
+          body: 'Your best distance sticks across runs. At 750m a new game mode unlocks on the hub. Reopen this help anytime with the ? button.' },
     ];
     let tutorialPage = 0;
     const tutorialEl = document.getElementById('tutorial');
@@ -244,12 +450,20 @@
     }
     function closeTutorial() {
         tutorialEl.classList.add('hidden');
-        localStorage.setItem('wefty_run_tutorial_shown', '1');
+        localStorage.setItem('wefty_run_tutorial_v3', '1');
+        // Resume the real run: turn off demo safety, reset distance so
+        // the player starts fresh after watching the demo.
+        world.tutorialMode = false;
+        resetWorld();
     }
     function openTutorial() {
         tutorialPage = 0;
         renderTutorial();
         tutorialEl.classList.remove('hidden');
+        // Start a demo run behind the panels.
+        world.tutorialMode = true;
+        resetWorld();
+        world.tutorialMode = true;  // resetWorld clears it — re-enable.
     }
     tutBack.addEventListener('click', () => { if (tutorialPage > 0) { tutorialPage--; renderTutorial(); } });
     tutNext.addEventListener('click', () => {
@@ -259,7 +473,7 @@
     document.getElementById('tut-skip').addEventListener('click', closeTutorial);
     document.getElementById('btn-help').addEventListener('click', openTutorial);
     // Auto-show the first time.
-    if (!localStorage.getItem('wefty_run_tutorial_shown')) {
+    if (!localStorage.getItem('wefty_run_tutorial_v3')) {
         openTutorial();
     } else {
         closeTutorial();
@@ -281,6 +495,25 @@
         world.lastHazardAtX = -10;
         world.letters.length = 0;
         world.collectedLetters.clear();
+        world.springs.length = 0;
+        world.gliders.length = 0;
+        world.doubleJumps.length = 0;
+        world.slowMos.length = 0;
+        world.shields.length = 0;
+        world.hearts.length = 0;
+        world.knots.length = 0;
+        world.floatingPlatforms.length = 0;
+        world.gliderUntil = 0;
+        world.doubleJumpUntil = 0;
+        world.doubleJumpAvailable = false;
+        world.slowMoUntil = 0;
+        world.shieldCharges = 0;
+        world.invDoubleJump = 0;
+        world.invSlowMo = 0;
+        world.invGlider = 0;
+        world.invShield = 0;
+        world.jumpHeld = false;
+        world.tutorialMode = false;
         world.shrinkUntil = 0;
         world.needles = 3;
         world.invincibleUntil = 0;
@@ -313,57 +546,218 @@
 
         // Wider height swing so the terrain actually reads as rolling
         // hills rather than near-flat with a nudge.
-        const sampled = PLATFORM_Y + (Math.random() * 0.40 - 0.22);
-        const blended = last.top + (sampled - last.top) * 0.80;
-        const top = Math.max(PLATFORM_Y - 0.26, Math.min(PLATFORM_Y + 0.18, blended));
+        const sampled = PLATFORM_Y + (Math.random() * 0.54 - 0.32);
+        const blended = last.top + (sampled - last.top) * 0.70;
+        const top = Math.max(PLATFORM_Y - 0.36, Math.min(PLATFORM_Y + 0.24, blended));
 
-        // Hill crown — middle of the platform bulges significantly so
-        // each platform has a visible hump.
-        const crownMax = 0.14 * Math.min(1, len / 1.10);
-        const crown = 0.03 + Math.random() * crownMax;
+        // Taller crown — up to 0.22 units so hills read as hills.
+        const crownMax = 0.22 * Math.min(1, len / 1.10);
+        const crown = 0.05 + Math.random() * crownMax;
 
         world.platforms.push({ xStart: x, xEnd: x + len, top, crown });
 
-        // Scissors — start at ~15m, force one every 2.5 world-units if
-        // the RNG keeps missing, so the player always sees hazards.
+        // Scissors — storm biome bumps base rate + cap.
+        const biome = currentBiome();
         const since = x - world.lastHazardAtX;
-        const chance = Math.min(0.70, 0.30 + 0.30 * difficulty);
+        const stormBoost = biome === 'STORM' ? 0.25 : 0;
+        const stormCap = biome === 'STORM' ? 0.85 : 0.70;
+        const chance = Math.min(stormCap, 0.30 + 0.30 * difficulty + stormBoost);
         const qualifies = world.distance > 1.5 && len > 0.45;
         const forced = since > 2.5 && qualifies;
         if (qualifies && (forced || Math.random() < chance)) {
             const hazardX = x + len * (0.30 + Math.random() * 0.40);
-            // Head-height — running Wefty can actually collide without
-            // jumping. Jump clears them easily.
             const heightAbove = 0.06 + Math.random() * 0.04;
-            world.hazards.push({ worldX: hazardX, y: top - heightAbove, rot: Math.random() * 6.28 });
+            // Offset from the actual hill surface at hazardX so it
+            // sits above the crown, not buried inside it.
+            const surfaceY = surfaceYAt(x, len, top, crown, hazardX);
+            world.hazards.push({ worldX: hazardX, y: surfaceY - heightAbove, rot: Math.random() * 6.28 });
             world.lastHazardAtX = hazardX;
         }
 
-        // Word-power tokens. Try up to 6 positions and keep the first
-        // that doesn't overlap a scissors hazard.
-        if (world.distance > 1 && Math.random() < 0.55 && len > 0.40) {
-            const WEFTY = 'WEFTY';
-            const letter = WEFTY[Math.floor(Math.random() * WEFTY.length)];
-            for (let i = 0; i < 6; i++) {
-                const lx = x + len * (0.15 + Math.random() * 0.70);
-                const ly = top - (0.12 + Math.random() * 0.14);
-                const clash = world.hazards.some(hz => {
-                    const dx = hz.worldX - lx, dy = hz.y - ly;
-                    return Math.sqrt(dx * dx + dy * dy) < 0.12;
-                });
-                if (!clash) {
-                    world.letters.push({ worldX: lx, y: ly, letter, collected: false });
-                    break;
+        // Floor knots — Level 2 only. Spiky tangles on the platform
+        // surface; jump or lasso them.
+        if (biome === 'STORM' && len > 0.55 && Math.random() < 0.35) {
+            const kx = x + len * (0.20 + Math.random() * 0.60);
+            const ky = (crown > 0
+                ? top - crown * Math.sin(Math.PI * (kx - x) / len)
+                : top) - 0.02;
+            const clash = world.hazards.some(hz =>
+                Math.abs(hz.worldX - kx) < 0.10
+            );
+            if (!clash) world.knots.push({ worldX: kx, y: ky });
+        }
+
+        // Staggered pickup spawner — at most one pickup per platform.
+        // Distance gates introduce types gradually.
+        if (len > 0.40) {
+            const candidates = [];
+            if (world.distance > 1)  candidates.push(['letter', 0.65]);
+            if (world.distance > 5)  candidates.push(['spring', 0.18]);
+            if (world.distance > 12) candidates.push(['djump',  0.10]);
+            if (world.distance > 20) candidates.push(['slowmo', 0.09]);
+            if (world.distance > 30) candidates.push(['glider', 0.10]);
+            if (world.distance > 40) candidates.push(['shield', 0.09]);
+            const total = candidates.reduce((s, c) => s + c[1], 0);
+            if (candidates.length && Math.random() < total) {
+                let roll = Math.random() * total;
+                let picked = candidates[0][0];
+                for (const [id, w] of candidates) {
+                    if (roll <= w) { picked = id; break; }
+                    roll -= w;
                 }
+                spawnPickup(picked, x, top, len, crown);
+            }
+        }
+
+        // Floating reward platforms — small high-up ledges sprinkled
+        // over gaps or near the main chain, each carrying a bonus.
+        if (world.distance > 8 && Math.random() < 0.30) {
+            const flen = 0.22 + Math.random() * 0.20;
+            const fxStart = x + len * 0.20 + Math.random() * (len * 0.6 + 0.18);
+            const ftop = PLATFORM_Y - (0.30 + Math.random() * 0.18);
+            world.floatingPlatforms.push({ xStart: fxStart, xEnd: fxStart + flen, top: ftop });
+            const pool = ['heart', 'heart', 'letter', 'djump', 'slowmo', 'glider', 'shield'];
+            const rewardKind = pool[Math.floor(Math.random() * pool.length)];
+            const rx = fxStart + flen * 0.5;
+            const ry = ftop - 0.05;
+            if (rewardKind === 'heart') {
+                world.hearts.push({ worldX: rx, y: ry, collected: false });
+            } else if (rewardKind === 'letter') {
+                const missing = 'WEFTY'.split('').filter(c => !world.collectedLetters.has(c));
+                const pool2 = missing.length ? missing : ['W', 'E', 'F', 'T', 'Y'];
+                world.letters.push({ worldX: rx, y: ry, letter: pool2[Math.floor(Math.random() * pool2.length)], collected: false });
+            } else if (rewardKind === 'djump') {
+                world.doubleJumps.push({ worldX: rx, y: ry, collected: false });
+            } else if (rewardKind === 'slowmo') {
+                world.slowMos.push({ worldX: rx, y: ry, collected: false });
+            } else if (rewardKind === 'glider') {
+                world.gliders.push({ worldX: rx, y: ry, collected: false });
+            } else if (rewardKind === 'shield') {
+                world.shields.push({ worldX: rx, y: ry, collected: false });
             }
         }
     }
 
+    function spawnPickup(kind, x, top, len, crown) {
+        const airborne = (minH, rangeH) => {
+            for (let i = 0; i < 6; i++) {
+                const px = x + len * (0.15 + Math.random() * 0.70);
+                // Use the hill-curve surface so pickups float above tall
+                // crowns instead of getting buried inside them.
+                const surf = surfaceYAt(x, len, top, crown, px);
+                const py = surf - (minH + Math.random() * rangeH);
+                const clash = world.hazards.some(hz => {
+                    const dx = hz.worldX - px, dy = hz.y - py;
+                    return Math.sqrt(dx * dx + dy * dy) < 0.12;
+                });
+                if (!clash) return { px, py };
+            }
+            return null;
+        };
+        if (kind === 'letter') {
+            const missing = 'WEFTY'.split('').filter(c => !world.collectedLetters.has(c));
+            const pool = missing.length ? missing : ['W', 'E', 'F', 'T', 'Y'];
+            const letter = pool[Math.floor(Math.random() * pool.length)];
+            const p = airborne(0.12, 0.14); if (!p) return;
+            world.letters.push({ worldX: p.px, y: p.py, letter, collected: false });
+        } else if (kind === 'spring') {
+            const sx = x + len * (0.25 + Math.random() * 0.50);
+            const sy = surfaceYAt(x, len, top, crown, sx);
+            if (world.hazards.some(hz => Math.abs(hz.worldX - sx) < 0.10)) return;
+            world.springs.push({ worldX: sx, y: sy, consumed: false });
+        } else if (kind === 'djump') {
+            const p = airborne(0.18, 0.10); if (!p) return;
+            world.doubleJumps.push({ worldX: p.px, y: p.py, collected: false });
+        } else if (kind === 'slowmo') {
+            const p = airborne(0.22, 0.10); if (!p) return;
+            world.slowMos.push({ worldX: p.px, y: p.py, collected: false });
+        } else if (kind === 'glider') {
+            const p = airborne(0.32, 0.10); if (!p) return;
+            world.gliders.push({ worldX: p.px, y: p.py, collected: false });
+        } else if (kind === 'shield') {
+            const p = airborne(0.24, 0.10); if (!p) return;
+            world.shields.push({ worldX: p.px, y: p.py, collected: false });
+        }
+    }
+
     function jump() {
-        if (world.gameOver || !world.grounded) return;
-        world.weftyVy = -JUMP_VELOCITY;
-        world.grounded = false;
-        world.events.push('jump');
+        if (world.gameOver) return;
+        if (world.grounded) {
+            world.weftyVy = -JUMP_VELOCITY;
+            world.grounded = false;
+            world.events.push('jump');
+        } else if (world.doubleJumpUntil > performance.now() && world.doubleJumpAvailable) {
+            world.weftyVy = -JUMP_VELOCITY;
+            world.doubleJumpAvailable = false;
+            world.events.push('jump');
+        }
+    }
+
+    // Power-up activation — decrement inventory and kick off the timed
+    // effect. Silently no-ops if already active, to avoid burning an
+    // inventory item on a double-tap.
+    function activateDoubleJump() {
+        if (world.gameOver || world.invDoubleJump <= 0) return;
+        if (world.doubleJumpUntil > performance.now()) return;
+        world.invDoubleJump--;
+        world.doubleJumpUntil = performance.now() + 12000;
+        world.doubleJumpAvailable = true;
+        world.events.push('double-jump');
+    }
+    function activateSlowMo() {
+        if (world.gameOver || world.invSlowMo <= 0) return;
+        if (world.slowMoUntil > performance.now()) return;
+        world.invSlowMo--;
+        world.slowMoUntil = performance.now() + 5000;
+        world.events.push('slow-mo');
+    }
+    function activateGlider() {
+        if (world.gameOver || world.invGlider <= 0) return;
+        if (world.gliderUntil > performance.now()) return;
+        world.invGlider--;
+        world.gliderUntil = performance.now() + 10000;
+        world.events.push('glider');
+    }
+    function activateShield() {
+        if (world.gameOver || world.invShield <= 0) return;
+        if (world.shieldCharges > 0) return;
+        world.invShield--;
+        world.shieldCharges = 1;
+        world.events.push('shield');
+    }
+
+    const LASSO_RANGE = 0.35;
+    const LASSO_COOLDOWN_TICKS = 90;
+    const LASSO_FLASH_TICKS = 22;
+    function fireLasso() {
+        if (world.gameOver || world.isPaused) return false;
+        if ((world.frameTick || 0) < world.lassoReadyAtTick) return false;
+        const wx = world.cameraX + WEFTY_SCREEN_X;
+        const wy = world.weftyY - 0.05;
+        let best = null, bestD = Infinity;
+        for (const hz of world.hazards) {
+            if (hz.worldX < wx - 0.05) continue;
+            const dx = hz.worldX - wx, dy = hz.y - wy;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < LASSO_RANGE && d < bestD) { best = hz; bestD = d; }
+        }
+        world.lassoReadyAtTick = (world.frameTick || 0) + LASSO_COOLDOWN_TICKS;
+        world.lassoFlashUntilTick = (world.frameTick || 0) + LASSO_FLASH_TICKS;
+        if (best) {
+            world.lassoLastHitX = best.worldX;
+            world.lassoLastHitY = best.y;
+            world.lassoHit = true;
+            const idx = world.hazards.indexOf(best);
+            if (idx >= 0) world.hazards.splice(idx, 1);
+            world.events.push('lasso');
+            return true;
+        }
+        // Miss: still show the rope flying forward so the player sees
+        // the attack animation.
+        world.lassoLastHitX = wx + LASSO_RANGE * 0.9;
+        world.lassoLastHitY = wy - 0.05;
+        world.lassoHit = false;
+        return false;
     }
 
     // Y at which a platform's surface sits at a given world X. Edges
@@ -373,10 +767,19 @@
         const t = Math.max(0, Math.min(1, (worldX - p.xStart) / (p.xEnd - p.xStart)));
         return p.top - p.crown * Math.sin(Math.PI * t);
     }
+    function surfaceYAt(x, len, top, crown, worldX) {
+        if (!crown) return top;
+        const t = Math.max(0, Math.min(1, (worldX - x) / len));
+        return top - crown * Math.sin(Math.PI * t);
+    }
 
-    function supportYAt(worldX) {
+    function supportYAt(worldX, feetY) {
+        const candidates = [];
         for (const p of world.platforms) {
-            if (worldX >= p.xStart && worldX <= p.xEnd) return platformSurfaceY(p, worldX);
+            if (worldX >= p.xStart && worldX <= p.xEnd) candidates.push(platformSurfaceY(p, worldX));
+        }
+        for (const f of world.floatingPlatforms || []) {
+            if (worldX >= f.xStart && worldX <= f.xEnd) candidates.push(f.top);
         }
         for (const b of world.bridges) {
             if (!b.valid) continue;
@@ -386,50 +789,45 @@
                 const lo = Math.min(x1, x2), hi = Math.max(x1, x2);
                 if (worldX >= lo && worldX <= hi) {
                     const t = hi === lo ? 0 : (worldX - x1) / (x2 - x1);
-                    return y1 + (y2 - y1) * t;
+                    candidates.push(y1 + (y2 - y1) * t);
                 }
             }
         }
-        return null;
-    }
-
-    function isBridgeValid(pts) {
-        const startX = pts[0][0];
-        const endX = pts[pts.length - 1][0];
-        const leftX = Math.min(startX, endX);
-        const rightX = Math.max(startX, endX);
-        if (rightX - leftX < 0.10) return false;
-        let leftPlat = null, rightPlat = null;
-        for (const p of world.platforms) {
-            if (Math.abs(p.xEnd - leftX) < EDGE_TOL) leftPlat = p;
-            if (Math.abs(p.xStart - rightX) < EDGE_TOL) rightPlat = p;
+        if (candidates.length === 0) return null;
+        // Pick the highest surface (smallest Y) that Wefty's feet have
+        // reached so she doesn't magnetize up to a floating platform
+        // above her.
+        let best = null;
+        for (const c of candidates) {
+            if (feetY === undefined || c >= feetY - 0.02) {
+                if (best === null || c < best) best = c;
+            }
         }
-        if (!leftPlat || !rightPlat || leftPlat === rightPlat) return false;
-        for (const p of world.platforms) {
-            if (p === leftPlat || p === rightPlat) continue;
-            if (p.xStart > leftPlat.xEnd && p.xEnd < rightPlat.xStart) return false;
-        }
-        return true;
+        if (best !== null) return best;
+        return Math.max.apply(null, candidates);
     }
 
     function addStroke(worldPts) {
         if (world.gameOver || worldPts.length < 2) return;
-        const valid = isBridgeValid(worldPts);
-        world.bridges.push({
-            pts: worldPts,
-            valid,
-            ttl: valid ? Infinity : INVALID_TTL,
-        });
-        world.events.push(valid ? 'bridge-valid' : 'bridge-invalid');
+        // Any stroke is a permanent walkable bridge. No endpoint-near-edge
+        // check — Wefty falls only if she walks off a platform with no
+        // bridge under her.
+        world.bridges.push({ pts: worldPts, valid: true, ttl: Infinity });
+        world.events.push('bridge-valid');
     }
 
     function step(dt) {
-        if (world.gameOver) return;
-        // 0.2x slow-mo while drawing instead of a full freeze — still
-        // gives the player time to place a bridge without snapping her
-        // to a halt.
-        const effDt = world.isDrawing ? dt * 0.20 : dt;
-        world.cameraX += RUN_SPEED * effDt;
+        if (world.gameOver || world.isPaused) return;
+        world.frameTick = (world.frameTick || 0) + 1;
+        // Stacked slow-mo: 0.2x while drawing bridges, 0.5x during the
+        // slow-mo power-up window. Storm biome adds a +20% speed boost.
+        const nowTick = performance.now();
+        const drawMult = world.isDrawing ? 0.20 : 1;
+        const slowMult = world.slowMoUntil > nowTick ? 0.50 : 1;
+        const effDt = dt * drawMult * slowMult;
+        const biome = currentBiome();
+        const speedMult = biome === 'STORM' ? 1.20 : 1;
+        world.cameraX += RUN_SPEED * speedMult * effDt;
         world.distance = world.cameraX;
 
         // Decay bridges
@@ -462,10 +860,27 @@
         const now = performance.now();
         const bodyR = (world.shrinkUntil > now) ? 0.018 : 0.035;
         if (now > world.invincibleUntil) {
+            let hit = false;
             for (const hz of world.hazards) {
-                const dx = hz.worldX - wcx;
-                const dy = hz.y - wcy;
-                if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + bodyR) {
+                const dx = hz.worldX - wcx, dy = hz.y - wcy;
+                if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + bodyR) { hit = true; break; }
+            }
+            // Floor knots — grounded collision only.
+            if (!hit && world.grounded) {
+                for (const k of world.knots) {
+                    if (Math.abs(k.worldX - wcx) < 0.06 &&
+                        Math.abs(k.y - world.weftyY) < 0.06) { hit = true; break; }
+                }
+            }
+            if (hit) {
+                if (world.tutorialMode) {
+                    // Demo mode — cosmetic i-frames only, no damage.
+                    world.invincibleUntil = now + 1400;
+                } else if (world.shieldCharges > 0) {
+                    world.shieldCharges--;
+                    world.events.push('shield-broken');
+                    world.invincibleUntil = now + 1400;
+                } else {
                     world.needles--;
                     world.events.push('hazard-hit');
                     if (world.needles <= 0) {
@@ -474,7 +889,6 @@
                     } else {
                         world.invincibleUntil = now + 1400;
                     }
-                    break;
                 }
             }
         }
@@ -491,29 +905,125 @@
                 world.collectedLetters.add(lt.letter);
                 world.events.push('letter');
                 if (world.collectedLetters.size === 5) {
-                    // Full WEFTY word — grant shrink mode for 8s.
-                    world.shrinkUntil = performance.now() + 8000;
+                    // Full WEFTY word — grant shrink mode for 18s.
+                    world.shrinkUntil = performance.now() + 18000;
                     world.collectedLetters.clear();
                     world.events.push('power-up');
                 }
             }
         }
 
+        // Glider pickup — adds to inventory.
+        for (let i = world.gliders.length - 1; i >= 0; i--) {
+            const g = world.gliders[i];
+            if (g.worldX < world.cameraX - 0.5) { world.gliders.splice(i, 1); continue; }
+            if (g.collected) continue;
+            const dx = g.worldX - wcx;
+            const dy = g.y - wcy;
+            if (Math.sqrt(dx * dx + dy * dy) < 0.065) {
+                g.collected = true;
+                world.invGlider++;
+                world.events.push('pickup');
+            }
+        }
+
+        // Double-jump pickup — adds to inventory.
+        for (let i = world.doubleJumps.length - 1; i >= 0; i--) {
+            const dj = world.doubleJumps[i];
+            if (dj.worldX < world.cameraX - 0.5) { world.doubleJumps.splice(i, 1); continue; }
+            if (dj.collected) continue;
+            const dx = dj.worldX - wcx, dy = dj.y - wcy;
+            if (Math.sqrt(dx * dx + dy * dy) < 0.065) {
+                dj.collected = true;
+                world.invDoubleJump++;
+                world.events.push('pickup');
+            }
+        }
+
+        // Slow-mo pickup — adds to inventory.
+        for (let i = world.slowMos.length - 1; i >= 0; i--) {
+            const s = world.slowMos[i];
+            if (s.worldX < world.cameraX - 0.5) { world.slowMos.splice(i, 1); continue; }
+            if (s.collected) continue;
+            const dx = s.worldX - wcx, dy = s.y - wcy;
+            if (Math.sqrt(dx * dx + dy * dy) < 0.065) {
+                s.collected = true;
+                world.invSlowMo++;
+                world.events.push('pickup');
+            }
+        }
+
+        // Shield pickup — adds to inventory.
+        for (let i = world.shields.length - 1; i >= 0; i--) {
+            const s = world.shields[i];
+            if (s.worldX < world.cameraX - 0.5) { world.shields.splice(i, 1); continue; }
+            if (s.collected) continue;
+            const dx = s.worldX - wcx, dy = s.y - wcy;
+            if (Math.sqrt(dx * dx + dy * dy) < 0.065) {
+                s.collected = true;
+                world.invShield++;
+                world.events.push('pickup');
+            }
+        }
+
+        // Heart pickup — immediate +1 needle, capped at MAX_NEEDLES.
+        for (let i = world.hearts.length - 1; i >= 0; i--) {
+            const hrt = world.hearts[i];
+            if (hrt.worldX < world.cameraX - 0.5) { world.hearts.splice(i, 1); continue; }
+            if (hrt.collected) continue;
+            const dx = hrt.worldX - wcx, dy = hrt.y - wcy;
+            if (Math.sqrt(dx * dx + dy * dy) < 0.07) {
+                hrt.collected = true;
+                if (world.needles < 5) world.needles++;
+                world.events.push('heart');
+            }
+        }
+
+        // Drop floating platforms that have scrolled off-screen.
+        world.floatingPlatforms = world.floatingPlatforms.filter(f => f.xEnd >= world.cameraX - 0.5);
+
         // Physics
         const weftyWorldX = world.cameraX + WEFTY_SCREEN_X;
-        const support = supportYAt(weftyWorldX);
+        const support = supportYAt(weftyWorldX, world.weftyY);
         if (support !== null && world.weftyY >= support - 0.001 && world.weftyVy >= 0) {
             world.weftyY = support;
             world.weftyVy = 0;
             world.grounded = true;
+            if (world.doubleJumpUntil > performance.now()) world.doubleJumpAvailable = true;
         } else {
             world.grounded = false;
-            world.weftyVy += GRAVITY * dt;
-            world.weftyY += world.weftyVy * dt;
+            // Use slo-mo'd delta so gravity slows too — otherwise mid-
+            // jump drawing plummets Wefty into whatever she was about
+            // to clear. Glider mode: while active and falling with the
+            // jump input held, cut gravity to 25% and cap descent speed.
+            const gliderActive = world.gliderUntil > performance.now() &&
+                                 world.jumpHeld && world.weftyVy >= 0;
+            const g = gliderActive ? GRAVITY * 0.25 : GRAVITY;
+            world.weftyVy += g * effDt;
+            if (gliderActive) world.weftyVy = Math.min(world.weftyVy, 0.35);
+            world.weftyY += world.weftyVy * effDt;
             if (support !== null && world.weftyY >= support) {
                 world.weftyY = support;
                 world.weftyVy = 0;
                 world.grounded = true;
+                if (world.doubleJumpUntil > performance.now()) world.doubleJumpAvailable = true;
+            }
+        }
+
+        // Spring pad contact — only fires when Wefty is on the ground
+        // near the pad's X. Consume and launch.
+        if (world.grounded) {
+            for (let i = world.springs.length - 1; i >= 0; i--) {
+                const s = world.springs[i];
+                if (s.worldX < world.cameraX - 0.5) { world.springs.splice(i, 1); continue; }
+                if (s.consumed) continue;
+                if (Math.abs(s.worldX - weftyWorldX) < 0.055 &&
+                    Math.abs(s.y - world.weftyY) < 0.06) {
+                    s.consumed = true;
+                    world.weftyVy = -JUMP_VELOCITY * 1.55;
+                    world.grounded = false;
+                    world.events.push('spring');
+                }
             }
         }
         // Milestones — one per world-distance unit
@@ -522,11 +1032,30 @@
             world.lastMilestone = m;
             world.biomeIndex++;
             world.events.push('milestone');
+            // Biome transition banner fires once when crossing 300m.
+            if (m === 30) world.events.push('biome-storm');
+            // 300m unlock (30 world-units) — fire once.
+            if (m >= 30 && !localStorage.getItem('wefty_run_level2_unlocked')) {
+                world.events.push('milestone-500');
+            }
+            // 750m unlock (75 world-units) — level 3 (Wefty Climb) stub.
+            if (m >= 75 && !localStorage.getItem('wefty_run_level3_unlocked')) {
+                world.events.push('milestone-1500');
+            }
         }
 
         if (world.weftyY > DEATH_Y && !world.gameOver) {
-            world.gameOver = true;
-            world.events.push('game-over');
+            if (world.tutorialMode) {
+                // Teleport her back to a safe platform so the demo keeps
+                // looping instead of ending.
+                const lastPlat = world.platforms[world.platforms.length - 1];
+                world.weftyY = (lastPlat ? lastPlat.top : PLATFORM_Y) - 0.02;
+                world.weftyVy = 0;
+                world.grounded = true;
+            } else {
+                world.gameOver = true;
+                world.events.push('game-over');
+            }
         }
     }
 
@@ -535,11 +1064,42 @@
             const e = world.events.shift();
             const hasSound = (typeof Sound !== 'undefined');
             if (e === 'bridge-valid')   hasSound && Sound.playWordSubmit();
-            else if (e === 'bridge-invalid') hasSound && Sound.playTimerWarning();
             else if (e === 'milestone') hasSound && Sound.playTurnChange();
             else if (e === 'jump')      hasSound && Sound.playClick();
             else if (e === 'hazard-hit') hasSound && Sound.playTimerWarning();
             else if (e === 'letter')    hasSound && Sound.playClick();
+            else if (e === 'lasso')     hasSound && Sound.playWordSubmit();
+            else if (e === 'spring')    hasSound && Sound.playTurnChange();
+            else if (e === 'glider')    { hasSound && Sound.playGameStart(); musicPower.currentTime = 0; musicPower.play().catch(() => {}); }
+            else if (e === 'double-jump') { hasSound && Sound.playGameStart(); musicPower.currentTime = 0; musicPower.play().catch(() => {}); }
+            else if (e === 'slow-mo')     { hasSound && Sound.playGameStart(); musicPower.currentTime = 0; musicPower.play().catch(() => {}); }
+            else if (e === 'shield')      { hasSound && Sound.playGameStart(); musicPower.currentTime = 0; musicPower.play().catch(() => {}); }
+            else if (e === 'shield-broken') hasSound && Sound.playTimerWarning();
+            else if (e === 'pickup') hasSound && Sound.playClick();
+            else if (e === 'heart')  hasSound && Sound.playGameStart();
+            else if (e === 'biome-storm') {
+                hasSound && Sound.playGameStart();
+                const banner = document.getElementById('storm-banner');
+                banner.classList.remove('hidden');
+                setTimeout(() => banner.classList.add('hidden'), 2500);
+            }
+            else if (e === 'milestone-1500') {
+                hasSound && Sound.playGameStart();
+                localStorage.setItem('wefty_run_level3_unlocked', '1');
+                const t = document.getElementById('unlock-toast');
+                if (t) {
+                    t.textContent = '🎉 Level 3 unlocked — Wefty Climb coming soon!';
+                    t.classList.remove('hidden');
+                    setTimeout(() => t.classList.add('hidden'), 3000);
+                }
+            }
+            else if (e === 'milestone-500') {
+                hasSound && Sound.playGameStart();
+                localStorage.setItem('wefty_run_level2_unlocked', '1');
+                const t = document.getElementById('unlock-toast');
+                t.classList.remove('hidden');
+                setTimeout(() => t.classList.add('hidden'), 3000);
+            }
             else if (e === 'power-up')  { hasSound && Sound.playGameStart(); musicPower.currentTime = 0; musicPower.play().catch(() => {}); }
             else if (e === 'game-over') {
                 hasSound && Sound.playGameEnd();
@@ -588,7 +1148,15 @@
     const weftyFall = loadImg('wefty_fall.png');
     const parallaxImg = loadImg('parallax_bg.png');
     const scissorsImg = loadImg('scissors_hazard.png');
+    const scissorsOpenImg = loadImg('scissors_open.png');
+    const scissorsClosedImg = loadImg('scissors_closed.png');
     const needleImg = loadImg('needle_icon.png');
+    const springImg = loadImg('spring_pad.png');
+    const gliderImg = loadImg('glider_kite.png');
+    const djImg = loadImg('double_jump.png');
+    const slowMoImg = loadImg('slowmo_yarn.png');
+    const shieldImg = loadImg('yarn_shield.png');
+    const knotImg = loadImg('yarn_knot.png');
 
     // ── Music ──────────────────────────────────────────────────────────
     const musicLoop = new Audio('wefty_run_loop.mp3');
@@ -609,8 +1177,6 @@
     document.addEventListener('pointerdown', startMusic, { once: true });
     document.addEventListener('keydown', startMusic, { once: true });
 
-    const badPalette = { main: '#EF4444', light: '#FCA5A5', dark: '#7F1D1D' };
-
     // ── Input ──────────────────────────────────────────────────────────
     const stage = document.getElementById('stage');
     let drawing = false;
@@ -630,7 +1196,7 @@
         return !tutorialEl.classList.contains('hidden');
     }
     function startDraw(e) {
-        if (world.gameOver || tutorialOpen()) return;
+        if (world.gameOver || world.isPaused || tutorialOpen()) return;
         e.preventDefault();
         drawing = true;
         world.isDrawing = true;
@@ -671,10 +1237,34 @@
     stage.addEventListener('touchend', endDraw, { passive: false });
     stage.addEventListener('touchcancel', endDraw, { passive: false });
 
-    // Jump button + keyboard.
-    document.getElementById('btn-jump').addEventListener('click', (e) => {
-        e.stopPropagation();
-        jump();
+    // Jump button + keyboard. Pointer-down sets jumpHeld=true for glider
+    // slow-fall; up/leave releases it. Same for keyboard.
+    const jumpBtn = document.getElementById('btn-jump');
+    const pressJump = (e) => { e.preventDefault(); e.stopPropagation(); world.jumpHeld = true; jump(); };
+    const releaseJump = () => { world.jumpHeld = false; };
+    jumpBtn.addEventListener('pointerdown', pressJump);
+    jumpBtn.addEventListener('pointerup', releaseJump);
+    jumpBtn.addEventListener('pointercancel', releaseJump);
+    jumpBtn.addEventListener('pointerleave', releaseJump);
+    const lassoBtn = document.getElementById('btn-lasso');
+    lassoBtn.addEventListener('click', (e) => { e.stopPropagation(); fireLasso(); });
+
+    // Inventory buttons.
+    const invDJ = document.getElementById('inv-double-jump');
+    const invSL = document.getElementById('inv-slow-mo');
+    const invGL = document.getElementById('inv-glider');
+    const invSH = document.getElementById('inv-shield');
+    invDJ.addEventListener('click', (e) => { e.stopPropagation(); activateDoubleJump(); });
+    invSL.addEventListener('click', (e) => { e.stopPropagation(); activateSlowMo(); });
+    invGL.addEventListener('click', (e) => { e.stopPropagation(); activateGlider(); });
+    invSH.addEventListener('click', (e) => { e.stopPropagation(); activateShield(); });
+    // Keyboard shortcuts: 1-4 map to the four inventory buttons.
+    document.addEventListener('keydown', (e) => {
+        if (tutorialOpen()) return;
+        if (e.code === 'Digit1') { e.preventDefault(); activateDoubleJump(); }
+        else if (e.code === 'Digit2') { e.preventDefault(); activateSlowMo(); }
+        else if (e.code === 'Digit3') { e.preventDefault(); activateGlider(); }
+        else if (e.code === 'Digit4') { e.preventDefault(); activateShield(); }
     });
     document.addEventListener('keydown', (e) => {
         if (tutorialOpen()) {
@@ -693,7 +1283,16 @@
         }
         if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
             e.preventDefault();
-            jump();
+            if (!world.jumpHeld) jump();
+            world.jumpHeld = true;
+        } else if (e.code === 'KeyL' || e.code === 'KeyF') {
+            e.preventDefault();
+            fireLasso();
+        }
+    });
+    document.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            world.jumpHeld = false;
         }
     });
 
@@ -710,18 +1309,57 @@
     function renderFrame() {
         const w = window.innerWidth;
         const h = window.innerHeight;
-        const palette = WeftyThread.PALETTES[world.biomeIndex % WeftyThread.PALETTES.length];
+        const palette = currentBiome() === 'STORM'
+            ? WeftyThread.PALETTES[3]
+            : WeftyThread.PALETTES[world.biomeIndex % WeftyThread.PALETTES.length];
         bgCtx.clearRect(0, 0, w, h);
 
+        // Sky gradient — swings to crimson once the scissors storm is
+        // active so the biome transition reads at a glance.
+        const skyGrad = bgCtx.createLinearGradient(0, 0, 0, h);
+        if (world.distance >= 30) {
+            skyGrad.addColorStop(0, '#4A1010');
+            skyGrad.addColorStop(1, '#1A0005');
+        } else {
+            skyGrad.addColorStop(0, '#0F0F23');
+            skyGrad.addColorStop(1, '#1A1A2E');
+        }
+        bgCtx.fillStyle = skyGrad;
+        bgCtx.fillRect(0, 0, w, h);
+
+        const isStorm = world.distance >= 30;
         // Parallax background — tiles horizontally, scrolls 0.3x camera.
+        // During the STORM biome we drop the alpha hard so the pink
+        // backdrop doesn't wash out the crimson sky.
         if (parallaxImg.complete && parallaxImg.naturalWidth > 0) {
             const bgW = h * (parallaxImg.naturalWidth / parallaxImg.naturalHeight);
             const bgOffset = -((world.cameraX * 0.3 * w) % bgW);
-            bgCtx.globalAlpha = 0.85;
+            bgCtx.globalAlpha = isStorm ? 0.22 : 0.85;
             for (let x = bgOffset; x < w; x += bgW) {
                 bgCtx.drawImage(parallaxImg, x, 0, bgW, h);
             }
             bgCtx.globalAlpha = 1;
+        }
+        // STORM overlay — crimson wash + diagonal rain streaks so the
+        // biome shift reads at a glance.
+        if (isStorm) {
+            const grad = bgCtx.createLinearGradient(0, 0, 0, h * 0.85);
+            grad.addColorStop(0, 'rgba(42, 0, 0, 0.55)');
+            grad.addColorStop(1, 'rgba(92, 6, 6, 0.30)');
+            bgCtx.fillStyle = grad;
+            bgCtx.fillRect(0, 0, w, h * 0.85);
+            const tick = world.frameTick || 0;
+            const phase = (tick * 12) % h;
+            bgCtx.strokeStyle = 'rgba(252, 165, 165, 0.25)';
+            bgCtx.lineWidth = 2;
+            bgCtx.beginPath();
+            for (let i = 0; i < 28; i++) {
+                const rx = (i * 73) % w;
+                const ry = (i * 41 + phase) % h;
+                bgCtx.moveTo(rx, ry);
+                bgCtx.lineTo(rx - 18, ry + 42);
+            }
+            bgCtx.stroke();
         }
 
         // Floor shadow band
@@ -758,21 +1396,78 @@
             bgCtx.lineTo(p.xEnd * w, h);
             bgCtx.lineTo(p.xStart * w, h);
             bgCtx.closePath();
+            // Yarn texture base
             bgCtx.fillStyle = '#2a2140';
             bgCtx.fill();
             if (yarnPattern) {
                 bgCtx.save();
                 bgCtx.globalCompositeOperation = 'multiply';
-                bgCtx.globalAlpha = 0.85;
+                bgCtx.globalAlpha = 0.70;
                 bgCtx.fillStyle = yarnPattern;
                 bgCtx.fill();
                 bgCtx.restore();
             }
+            // Biome tint — mossy green normally, crimson during the
+            // scissors storm. Turns the off-white yarn into a landscape.
+            const isStorm = world.distance >= 30;
+            bgCtx.save();
+            bgCtx.globalAlpha = 0.55;
+            bgCtx.fillStyle = isStorm ? '#5C1A1A' : '#2F6B3A';
+            bgCtx.fill();
+            bgCtx.restore();
+            // Depth gradient — darker toward the bottom
+            bgCtx.save();
+            const grad = bgCtx.createLinearGradient(0, p.top * h, 0, h);
+            grad.addColorStop(0, 'rgba(17,17,17,0)');
+            grad.addColorStop(1, 'rgba(17,17,17,0.35)');
+            bgCtx.fillStyle = grad;
+            bgCtx.fill();
+            bgCtx.restore();
+            // Grass / stitch line along the top edge
             tracePath(bgCtx);
-            bgCtx.strokeStyle = 'rgba(0,0,0,0.45)';
-            bgCtx.lineWidth = 3;
+            bgCtx.strokeStyle = isStorm ? '#FCA5A5' : '#86EFAC';
+            bgCtx.lineWidth = 4;
             bgCtx.lineCap = 'round';
             bgCtx.lineJoin = 'round';
+            bgCtx.stroke();
+        }
+
+        // Floating reward platforms — small elevated cushions with a
+        // soft golden halo. Drawn inside the translate so yarn pattern
+        // stays world-pinned.
+        for (const f of world.floatingPlatforms) {
+            if (f.xEnd < world.cameraX || f.xStart > world.cameraX + 1) continue;
+            const fpw = (f.xEnd - f.xStart) * w;
+            const fpx = f.xStart * w;
+            const fpy = f.top * h;
+            const fph = h * 0.035;
+            // Halo
+            bgCtx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+            bgCtx.beginPath();
+            if (bgCtx.roundRect) bgCtx.roundRect(fpx - 6, fpy - 8, fpw + 12, fph + 16, fph);
+            else bgCtx.rect(fpx - 6, fpy - 8, fpw + 12, fph + 16);
+            bgCtx.fill();
+            // Cushion
+            if (yarnPattern) {
+                bgCtx.save();
+                bgCtx.globalAlpha = 0.75;
+                bgCtx.fillStyle = yarnPattern;
+                bgCtx.beginPath();
+                if (bgCtx.roundRect) bgCtx.roundRect(fpx, fpy, fpw, fph, fph / 2);
+                else bgCtx.rect(fpx, fpy, fpw, fph);
+                bgCtx.fill();
+                bgCtx.restore();
+            }
+            bgCtx.fillStyle = isStorm ? 'rgba(127, 29, 29, 0.55)' : 'rgba(47, 107, 58, 0.55)';
+            bgCtx.beginPath();
+            if (bgCtx.roundRect) bgCtx.roundRect(fpx, fpy, fpw, fph, fph / 2);
+            else bgCtx.rect(fpx, fpy, fpw, fph);
+            bgCtx.fill();
+            bgCtx.strokeStyle = isStorm ? '#FCA5A5' : '#86EFAC';
+            bgCtx.lineWidth = 3;
+            bgCtx.beginPath();
+            bgCtx.moveTo(fpx, fpy);
+            bgCtx.lineTo(fpx + fpw, fpy);
             bgCtx.stroke();
         }
         bgCtx.restore();
@@ -781,23 +1476,21 @@
         fgCtx.clearRect(0, 0, w, h);
         const bridgeWidth = h * 0.024;
 
-        // Gap guides — show players exactly where to land endpoints.
-        const markerRadius = h * 0.018;
+        // Gap guides — dashed hint line across each visible gap that isn't
+        // already bridged. No "hard point" markers — any stroke across
+        // the gap is valid.
         for (let i = 0; i < world.platforms.length - 1; i++) {
             const p1 = world.platforms[i];
             const p2 = world.platforms[i + 1];
             if (p2.xStart < world.cameraX || p1.xEnd > world.cameraX + 1) continue;
-            const bridged = world.bridges.some((b) => {
-                if (!b.valid) return false;
-                const f = b.pts[0][0], l = b.pts[b.pts.length - 1][0];
-                return (Math.abs(f - p1.xEnd) < EDGE_TOL && Math.abs(l - p2.xStart) < EDGE_TOL) ||
-                       (Math.abs(f - p2.xStart) < EDGE_TOL && Math.abs(l - p1.xEnd) < EDGE_TOL);
-            });
+            const gapLeft = p1.xEnd, gapRight = p2.xStart;
+            const bridged = world.bridges.some((b) =>
+                b.pts.some(([wx, _]) => wx >= gapLeft && wx <= gapRight)
+            );
             if (bridged) continue;
-            const x1 = (p1.xEnd - world.cameraX) * w;
-            const x2 = (p2.xStart - world.cameraX) * w;
+            const x1 = (gapLeft - world.cameraX) * w;
+            const x2 = (gapRight - world.cameraX) * w;
             const gy = p1.top * h;
-            // Dashed hint line
             fgCtx.save();
             fgCtx.strokeStyle = 'rgba(255,255,255,0.35)';
             fgCtx.lineWidth = 2;
@@ -807,28 +1500,97 @@
             fgCtx.lineTo(x2, gy);
             fgCtx.stroke();
             fgCtx.restore();
-            // Edge markers
-            for (const ex of [x1, x2]) {
-                fgCtx.fillStyle = palette.main;
-                fgCtx.beginPath(); fgCtx.arc(ex, gy, markerRadius, 0, Math.PI * 2); fgCtx.fill();
-                fgCtx.fillStyle = palette.light;
-                fgCtx.beginPath(); fgCtx.arc(ex, gy, markerRadius * 0.5, 0, Math.PI * 2); fgCtx.fill();
-            }
         }
 
         for (const b of world.bridges) {
             const pts = b.pts.map(([wx, wy]) => [(wx - world.cameraX) * w, wy * h]);
-            if (b.valid) {
-                WeftyThread.drawThread(fgCtx, pts, palette, bridgeWidth, yarnPattern);
-            } else {
-                const alpha = Math.max(0, b.ttl / INVALID_TTL);
-                fgCtx.globalAlpha = alpha;
-                WeftyThread.drawThread(fgCtx, pts, badPalette, bridgeWidth * 0.85);
-                fgCtx.globalAlpha = 1;
-            }
+            WeftyThread.drawThread(fgCtx, pts, palette, bridgeWidth, yarnPattern);
         }
         if (currentStroke && currentStroke.length >= 2) {
             WeftyThread.drawThread(fgCtx, currentStroke, palette, bridgeWidth * 0.9, yarnPattern);
+        }
+
+        // Power-up sprites — each pickup type draws its own PNG.
+        function drawPickup(img, worldX, yWorld, sizePx, bobAmp) {
+            if (!img.complete || !img.naturalWidth) return;
+            if (worldX < world.cameraX - 0.1 || worldX > world.cameraX + 1.1) return;
+            const sx = (worldX - world.cameraX) * w;
+            const sy = yWorld * h + Math.sin(performance.now() / 450 + worldX * 8) * bobAmp;
+            fgCtx.drawImage(img, sx - sizePx / 2, sy - sizePx / 2, sizePx, sizePx);
+        }
+
+        // Spring pads (platform-anchored, no bob)
+        const padSize = h * 0.12;
+        for (const s of world.springs) {
+            if (s.consumed) continue;
+            if (s.worldX < world.cameraX - 0.1 || s.worldX > world.cameraX + 1.1) continue;
+            const sx = (s.worldX - world.cameraX) * w;
+            const sy = s.y * h;
+            if (springImg.complete && springImg.naturalWidth) {
+                fgCtx.drawImage(springImg, sx - padSize / 2, sy - padSize * 0.9, padSize, padSize);
+            }
+        }
+
+        // Airborne pickups with a gentle bob
+        const pickupSize = h * 0.13;
+        for (const g of world.gliders)      if (!g.collected)  drawPickup(gliderImg, g.worldX, g.y, pickupSize, 4);
+        for (const dj of world.doubleJumps) if (!dj.collected) drawPickup(djImg, dj.worldX, dj.y, pickupSize, 4);
+        for (const sm of world.slowMos)     if (!sm.collected) drawPickup(slowMoImg, sm.worldX, sm.y, pickupSize, 4);
+        for (const sh of world.shields)     if (!sh.collected) drawPickup(shieldImg, sh.worldX, sh.y, pickupSize, 4);
+
+        // Floor knots (Level 2) — angry shake: small jitter + rotation
+        // + red halo pulse so they read as hostile instead of scenery.
+        const knotSize = h * 0.11;
+        const tickNow = world.frameTick || 0;
+        for (const k of world.knots) {
+            if (k.worldX < world.cameraX - 0.1 || k.worldX > world.cameraX + 1.1) continue;
+            const sx = (k.worldX - world.cameraX) * w;
+            const sy = k.y * h;
+            const phase = tickNow * 0.6 + k.worldX * 30;
+            const jitterX = Math.sin(phase) * (w * 0.004);
+            const jitterY = Math.cos(phase * 1.3) * (h * 0.004);
+            const rotDeg = Math.sin(phase * 0.7) * 8 * Math.PI / 180;
+            const halo = 0.5 + 0.5 * Math.abs(Math.sin(phase * 0.4));
+            // Red angry halo
+            fgCtx.save();
+            fgCtx.fillStyle = `rgba(220, 38, 38, ${0.25 * halo})`;
+            fgCtx.beginPath();
+            fgCtx.arc(sx + jitterX, sy - knotSize * 0.35 + jitterY, knotSize * 0.65, 0, Math.PI * 2);
+            fgCtx.fill();
+            fgCtx.restore();
+            if (knotImg.complete && knotImg.naturalWidth) {
+                fgCtx.save();
+                fgCtx.translate(sx + jitterX, sy + jitterY);
+                fgCtx.rotate(rotDeg);
+                fgCtx.drawImage(knotImg, -knotSize / 2, -knotSize * 0.85, knotSize, knotSize);
+                fgCtx.restore();
+            }
+        }
+
+        // Heart pickups — procedural heart silhouette (+1 needle).
+        for (const hrt of world.hearts) {
+            if (hrt.collected) continue;
+            if (hrt.worldX < world.cameraX - 0.1 || hrt.worldX > world.cameraX + 1.1) continue;
+            const sx = (hrt.worldX - world.cameraX) * w;
+            const sy = hrt.y * h + Math.sin(performance.now() / 400 + hrt.worldX * 8) * 4;
+            const r = h * 0.032;
+            fgCtx.save();
+            fgCtx.fillStyle = 'rgba(17,17,17,0.45)';
+            fgCtx.beginPath();
+            fgCtx.arc(sx, sy + 2, r + 4, 0, Math.PI * 2);
+            fgCtx.fill();
+            fgCtx.fillStyle = '#EF4444';
+            fgCtx.beginPath(); fgCtx.arc(sx - r * 0.40, sy - r * 0.10, r * 0.58, 0, Math.PI * 2); fgCtx.fill();
+            fgCtx.beginPath(); fgCtx.arc(sx + r * 0.40, sy - r * 0.10, r * 0.58, 0, Math.PI * 2); fgCtx.fill();
+            fgCtx.beginPath();
+            fgCtx.moveTo(sx - r * 0.95, sy + r * 0.05);
+            fgCtx.lineTo(sx + r * 0.95, sy + r * 0.05);
+            fgCtx.lineTo(sx, sy + r * 0.95);
+            fgCtx.closePath();
+            fgCtx.fill();
+            fgCtx.fillStyle = 'rgba(255,255,255,0.55)';
+            fgCtx.beginPath(); fgCtx.arc(sx - r * 0.45, sy - r * 0.30, r * 0.18, 0, Math.PI * 2); fgCtx.fill();
+            fgCtx.restore();
         }
 
         // Word-letter collectibles
@@ -890,17 +1652,27 @@
             fgCtx.restore();
         }
 
-        // Hazards — rotating scissors
-        if (scissorsImg.complete && scissorsImg.naturalWidth > 0) {
+        // Hazards — 2-frame chomp animation (open ↔ closed) with per-
+        // scissor phase offset so the swarm chomps out of unison.
+        {
             const hSize = h * 0.10;
+            const tick = world.frameTick || 0;
+            const openReady = scissorsOpenImg.complete && scissorsOpenImg.naturalWidth > 0;
+            const closedReady = scissorsClosedImg.complete && scissorsClosedImg.naturalWidth > 0;
+            const fallback = (scissorsImg.complete && scissorsImg.naturalWidth > 0) ? scissorsImg : null;
             for (const hz of world.hazards) {
                 if (hz.worldX < world.cameraX - 0.1 || hz.worldX > world.cameraX + 1.1) continue;
                 const sx = (hz.worldX - world.cameraX) * w;
                 const sy = hz.y * h;
+                const phase = tick * 0.22 + hz.worldX * 9;
+                const frame = Math.sin(phase) > 0
+                    ? (openReady ? scissorsOpenImg : fallback)
+                    : (closedReady ? scissorsClosedImg : fallback);
+                if (!frame) continue;
                 fgCtx.save();
                 fgCtx.translate(sx, sy);
                 fgCtx.rotate(hz.rot);
-                fgCtx.drawImage(scissorsImg, -hSize / 2, -hSize / 2, hSize, hSize);
+                fgCtx.drawImage(frame, -hSize / 2, -hSize / 2, hSize, hSize);
                 fgCtx.restore();
             }
         }
@@ -909,7 +1681,7 @@
         // proportional to world distance so the roll syncs with the
         // terrain scrolling. Airborne → fall pose (frozen).
         const shrunk = world.shrinkUntil > performance.now();
-        const baseSize = Math.max(h * 0.22, 72);
+        const baseSize = Math.max(h * 0.165, 54);   // 0.75× — more world visible
         const sSize = shrunk ? baseSize * 0.55 : baseSize;
         const cx = WEFTY_SCREEN_X * w;
         const feetY = world.weftyY * h;
@@ -921,14 +1693,40 @@
         if (sprite.complete && sprite.naturalWidth > 0) {
             fgCtx.save();
             fgCtx.globalAlpha = blink;
-            // Rotate around the sprite's center so she rolls in place.
-            fgCtx.translate(cx, feetY - sSize / 2);
+            // Ball occupies 72% of the 256px sprite canvas (centered), so
+            // its bottom is at 0.86 of canvas height. Anchor rotation at
+            // the ball center — 0.36 * sSize above feetY — so the ball
+            // bottom actually touches the ground and the roll spin is
+            // around the ball's own axis.
+            fgCtx.translate(cx, feetY - sSize * 0.36);
             fgCtx.rotate(rollDeg * Math.PI / 180);
             fgCtx.drawImage(sprite, -sSize / 2, -sSize / 2, sSize, sSize);
             fgCtx.restore();
         } else {
             fgCtx.fillStyle = palette.main;
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
+        }
+
+        // Lasso flash — yarn thread from Wefty to the scissor she just
+        // snagged. Short-lived so it reads as an attack, not a tether.
+        if ((world.frameTick || 0) < world.lassoFlashUntilTick) {
+            const fromX = WEFTY_SCREEN_X * w;
+            const fromY = world.weftyY * h - h * 0.08;
+            const toX = (world.lassoLastHitX - world.cameraX) * w;
+            const toY = world.lassoLastHitY * h;
+            WeftyThread.drawThread(
+                fgCtx,
+                [[fromX, fromY], [toX, toY]],
+                WeftyThread.PALETTES[2], // amber, matches the lasso button
+                h * 0.018,
+                yarnPattern,
+            );
+        }
+        // Cooldown visual on the lasso button
+        if ((world.frameTick || 0) < world.lassoReadyAtTick) {
+            lassoBtn.classList.add('cooldown');
+        } else {
+            lassoBtn.classList.remove('cooldown');
         }
 
         // HUD
@@ -938,17 +1736,148 @@
             overlay.classList.remove('hidden');
             goScore.textContent = `Distance ${cur} m${cur >= bestDistance ? ' (new best!)' : ''}`;
         }
+
+        // Inventory badges — light up when there's stock, highlight when
+        // the effect is active.
+        const now = performance.now();
+        const updateInv = (btn, count, active) => {
+            btn.querySelector('.count').textContent = count;
+            btn.classList.toggle('has', count > 0);
+            btn.classList.toggle('active', active);
+        };
+        updateInv(invDJ, world.invDoubleJump, world.doubleJumpUntil > now);
+        updateInv(invSL, world.invSlowMo,     world.slowMoUntil     > now);
+        updateInv(invGL, world.invGlider,     world.gliderUntil     > now);
+        updateInv(invSH, world.invShield,     world.shieldCharges   > 0);
+
+        // Active chips
+        const chips = [];
+        if (world.shrinkUntil > now)     chips.push(['Shrink',  Math.ceil((world.shrinkUntil     - now) / 1000)]);
+        if (world.doubleJumpUntil > now) chips.push(['2×',      Math.ceil((world.doubleJumpUntil - now) / 1000)]);
+        if (world.slowMoUntil > now)     chips.push(['Slow',    Math.ceil((world.slowMoUntil     - now) / 1000)]);
+        if (world.gliderUntil > now)     chips.push(['Glide',   Math.ceil((world.gliderUntil     - now) / 1000)]);
+        if (world.shieldCharges > 0)     chips.push(['Shield', -1]);
+        const chipsEl = document.getElementById('active-chips');
+        chipsEl.innerHTML = chips.map(([name, secs]) =>
+            `<div class="chip">${name}${secs < 0 ? '' : ' ' + secs + 's'}</div>`
+        ).join('');
     }
+
+    // ── Orientation gate ───────────────────────────────────────────────
+    // Mobile browsers don't expose a way for an unprivileged page to
+    // force landscape without fullscreen. So: pause whenever the viewport
+    // is portrait, show a "rotate" overlay, and offer a button that
+    // requests fullscreen + screen.orientation.lock('landscape') when
+    // that's supported.
+    const rotateOverlay = document.getElementById('rotate-overlay');
+    function isPortrait() { return window.innerHeight > window.innerWidth; }
+    function updateRotate() {
+        if (isPortrait()) {
+            rotateOverlay.classList.remove('hidden');
+            try { musicLoop.pause(); } catch (_) {}
+        } else {
+            rotateOverlay.classList.add('hidden');
+            if (musicStarted && !world.gameOver) {
+                musicLoop.play().catch(() => {});
+            }
+        }
+    }
+    window.addEventListener('resize', updateRotate);
+    window.addEventListener('orientationchange', updateRotate);
+    updateRotate();
+    // Pause button + overlay tap-to-resume.
+    const pauseOverlay = document.getElementById('pause-overlay');
+    const pauseBtn = document.getElementById('btn-pause');
+    function setPaused(p) {
+        world.isPaused = p;
+        pauseBtn.textContent = p ? '▶' : '‖';
+        if (p) {
+            pauseOverlay.classList.remove('hidden');
+            try { musicLoop.pause(); } catch (_) {}
+        } else {
+            pauseOverlay.classList.add('hidden');
+            if (musicStarted && !world.gameOver) musicLoop.play().catch(() => {});
+        }
+    }
+    pauseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setPaused(!world.isPaused);
+    });
+    pauseOverlay.addEventListener('click', () => setPaused(false));
+    document.getElementById('btn-fullscreen').addEventListener('click', async () => {
+        try {
+            await document.documentElement.requestFullscreen();
+            if (screen.orientation && screen.orientation.lock) {
+                await screen.orientation.lock('landscape');
+            }
+        } catch (_) {
+            // Some browsers (iOS Safari) don't support orientation lock.
+            // The overlay will just wait for the user to rotate physically.
+        }
+        updateRotate();
+    });
 
     // ── Loop ───────────────────────────────────────────────────────────
     let last = 0;
     function frame(ts) {
         const dt = last ? Math.min((ts - last) / 1000, 1 / 30) : 0;
         last = ts;
-        step(dt);
-        drainEvents();
+        // Freeze the simulation while the portrait overlay is up so the
+        // player doesn't discover they lost all 3 needles when they finally
+        // rotate their phone.
+        if (!isPortrait()) {
+            if (world.tutorialMode) tutorialAutoplay();
+            step(dt);
+            drainEvents();
+        }
         renderFrame();
         requestAnimationFrame(frame);
+    }
+
+    // Scripted autoplay driver — watches the world for upcoming hazards
+    // and gaps, and feeds jump + bridge inputs so Wefty survives the
+    // demo loop while the player reads the tutorial panels.
+    function tutorialAutoplay() {
+        if (world.gameOver) return;
+        const wx = world.cameraX + WEFTY_SCREEN_X;
+        // Jump if a hazard is close ahead and we're grounded.
+        if (world.grounded) {
+            for (const hz of world.hazards) {
+                const d = hz.worldX - wx;
+                if (d > 0.04 && d < 0.28 && hz.y > world.weftyY - 0.25) {
+                    jump();
+                    return;
+                }
+            }
+            for (const k of world.knots) {
+                const d = k.worldX - wx;
+                if (d > 0.04 && d < 0.22) { jump(); return; }
+            }
+        }
+        // Draw a bridge across the next gap as soon as it comes into
+        // view, but only if we haven't already covered it.
+        for (let i = 0; i < world.platforms.length - 1; i++) {
+            const p1 = world.platforms[i];
+            const p2 = world.platforms[i + 1];
+            if (p2.xStart < wx) continue;               // already passed
+            if (p1.xEnd > wx + 0.9) break;              // too far ahead
+            const covered = world.bridges.some(b =>
+                b.pts.some(([bx]) => bx >= p1.xEnd - 0.02 && bx <= p2.xStart + 0.02)
+            );
+            if (covered) continue;
+            // Synthesize a short stroke spanning the gap along the
+            // platform tops so supportYAt catches Wefty's feet.
+            const from = [p1.xEnd - 0.01, p1.top - 0.005];
+            const to   = [p2.xStart + 0.01, p2.top - 0.005];
+            addStroke([from, to]);
+            return;
+        }
+        // Activate any power-up the demo has in stock so the player
+        // sees every effect happen.
+        if (world.invDoubleJump > 0) activateDoubleJump();
+        else if (world.invSlowMo > 0) activateSlowMo();
+        else if (world.invGlider > 0) activateGlider();
+        else if (world.invShield > 0) activateShield();
     }
     requestAnimationFrame(frame);
 })();

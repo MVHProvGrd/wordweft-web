@@ -73,6 +73,9 @@
     }
     .dot.pink  { background: #EC4899; }
     .dot.green { background: #10B981; }
+    .dot.sky   { background: #38BDF8; }
+    .dot.slate { background: #475569; }
+    .tile.locked { opacity: 0.55; pointer-events: none; }
     .tile-sub {
         color: var(--muted);
         font-size: 13px;
@@ -95,10 +98,34 @@
         <div class="tile-title"><span class="dot pink"></span>Wefty Weave</div>
         <div class="tile-sub">Draw the missing threads in each letter.</div>
     </a>
-    <a class="tile" href="wefty-run.html">
+    <a class="tile" href="wefty-run.html" id="run-tile">
         <div class="tile-title"><span class="dot green"></span>Wefty Run</div>
         <div class="tile-sub">Auto-runner. Draw thread bridges to survive. Tap the ? in-game for a refresher.</div>
     </a>
+    <a class="tile locked" href="#" id="climb-tile">
+        <div class="tile-title"><span class="dot slate" id="climb-dot"></span>Wefty Climb 🔒</div>
+        <div class="tile-sub" id="climb-sub">Reach 1500 m in Wefty Run to unlock.</div>
+    </a>
 </div>
+<script>
+    // Reflect Level 2 / Level 3 progress in the tile copy.
+    if (localStorage.getItem('wefty_run_level2_unlocked')) {
+        const t = document.getElementById('run-tile');
+        if (t) {
+            t.querySelector('.tile-title').innerHTML =
+                '<span class="dot green"></span>Wefty Run ✨';
+            t.querySelector('.tile-sub').textContent =
+                'Auto-runner — Level 2 storm biome unlocked past 500 m.';
+        }
+    }
+    if (localStorage.getItem('wefty_run_level3_unlocked')) {
+        const t = document.getElementById('climb-tile');
+        if (t) {
+            document.getElementById('climb-dot').className = 'dot sky';
+            document.getElementById('climb-sub').textContent =
+                'Vertical climb mode — coming next commit.';
+        }
+    }
+</script>
 </body>
 </html>
