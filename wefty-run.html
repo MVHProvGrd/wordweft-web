@@ -152,6 +152,19 @@
         z-index: 12;
     }
     .unlock-toast.hidden { display: none; }
+    header .header-btn {
+        margin-left: 6px;
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.25);
+        background: rgba(30, 30, 54, 0.92);
+        color: #fff;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    header .header-btn:active { transform: scale(0.92); }
     .help-btn {
         position: absolute;
         right: 12px; top: 40px;
@@ -322,13 +335,15 @@
     <a class="back" href="wefty-hub.html">← Hub</a>
     <div class="title">Wefty Run</div>
     <div class="dist" id="dist">0 m</div>
+    <span style="flex:1 1 auto;"></span>
+    <button id="btn-fs"    class="header-btn" title="Fullscreen">⛶</button>
+    <button id="btn-pause" class="header-btn" title="Pause">‖</button>
+    <button id="btn-help"  class="header-btn" title="Help">?</button>
 </header>
 <div id="stage">
     <canvas id="bg"></canvas>
     <canvas id="fg"></canvas>
 </div>
-<button id="btn-pause" class="help-btn" style="right:56px;top:40px;">‖</button>
-<button id="btn-fs" class="help-btn" style="right:100px;top:40px;" title="Toggle fullscreen">⛶</button>
 <button id="inv-double-jump" class="inv-btn inv-2x">2×<span class="count">0</span></button>
 <button id="inv-slow-mo"     class="inv-btn inv-slow">Slow<span class="count">0</span></button>
 <button id="inv-glider"      class="inv-btn inv-glide">Glide<span class="count">0</span></button>
@@ -356,7 +371,6 @@
         <button id="btn-fullscreen">Lock landscape</button>
     </div>
 </div>
-<button id="btn-help" class="help-btn">?</button>
 <div id="tutorial" class="tutorial">
     <div class="tutorial-card">
         <img id="tut-icon" src="wefty_wave.png" alt="">

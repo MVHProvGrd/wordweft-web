@@ -29,8 +29,21 @@
     }
     header a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
     header .title { font-weight: 700; font-size: 16px; }
-    header .hud { margin-left: auto; color: var(--muted); font-size: 13px; }
+    header .hud { color: var(--muted); font-size: 13px; margin-left: 8px; }
     header .needles { color: #EF4444; font-size: 16px; letter-spacing: 2px; margin-left: 12px; }
+    header .header-btn {
+        margin-left: 6px;
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.25);
+        background: rgba(30, 30, 54, 0.92);
+        color: #fff;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    header .header-btn:active { transform: scale(0.92); }
     #stage { position: absolute; inset: 0; touch-action: none; background: #070712; }
     canvas { position: absolute; top: 0; }
 
@@ -91,21 +104,6 @@
     }
     .lasso-btn.cooldown { opacity: 0.35; }
     .jump-btn:active, .lasso-btn:active { transform: scale(0.95); }
-
-    .top-btn {
-        position: absolute;
-        top: 10px;
-        width: 36px; height: 36px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(30, 30, 54, 0.92);
-        color: #fff;
-        font-weight: 700;
-        font-size: 16px;
-        cursor: pointer;
-        z-index: 7;
-    }
-    .top-btn:active { transform: scale(0.92); }
 
     .pause-overlay {
         position: absolute; inset: 0;
@@ -168,11 +166,11 @@
     <span class="title">Wefty Climb</span>
     <span class="hud" id="hud">best 0 m    0 m</span>
     <span class="needles" id="needles" title="Lives">❤❤❤</span>
-    <button id="btn-help" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer;margin-left:8px;">?</button>
+    <span style="flex:1 1 auto;"></span>
+    <button id="btn-fs"    class="header-btn" title="Fullscreen">⛶</button>
+    <button id="btn-pause" class="header-btn" title="Pause">‖</button>
+    <button id="btn-help"  class="header-btn" title="Help">?</button>
 </header>
-
-<button id="btn-pause" class="top-btn" style="right:56px;top:10px;" title="Pause">‖</button>
-<button id="btn-fs"    class="top-btn" style="right:100px;top:10px;" title="Fullscreen">⛶</button>
 
 <div id="pause-overlay" class="pause-overlay hidden">Paused — tap to resume</div>
 
@@ -227,7 +225,7 @@
     // ── Constants (mirror of WeftyClimbWorld) ─────────────────────────
     const MAX_NEEDLES = 5;
     const VIEWPORT_H = 1;
-    const ASCEND_SPEED = 0.094;         // +25% from 0.075 per user
+    const ASCEND_SPEED = 0.141;         // +50% from 0.094 per user
     const MOVE_SPEED = 0.42;
     const GRAVITY = 3.2;                // stronger for ballistic arcs
     const JUMP_VELOCITY = 1.15;         // max height ≈ 0.21 world units — clears one
@@ -303,11 +301,17 @@
         const len = 0.28 + rng() * 0.22;
         const prev = world.ledges[world.ledges.length - 1];
         const prevCenter = prev ? (prev.xStart + prev.xEnd) / 2 : 0.5;
-        const sign = prevCenter < 0.5 ? 1 : prevCenter > 0.5 ? -1 : (rng() < 0.5 ? 1 : -1);
-        const bias = sign * (0.12 + rng() * 0.25);
+        // Random sign (not biased back toward center). Reach-limited
+        // bias so the next ledge stays within a single-jump hop. Over
+        // many spawns the center performs a random walk across the
+        // full legal range instead of oscillating around 0.5.
+        const sign = rng() < 0.5 ? 1 : -1;
+        const bias = sign * (0.10 + rng() * 0.18);
         let center = prevCenter + bias;
-        const minC = len / 2 + 0.02;
-        const maxC = 1 - len / 2 - 0.02;
+        // Platforms may touch the screen edges (no safe margin). A
+        // 0.28-wide ledge can land with xStart = 0 or xEnd = 1.
+        const minC = len / 2;
+        const maxC = 1 - len / 2;
         if (center < minC) center = minC;
         if (center > maxC) center = maxC;
         const sticky = world.heightClimbed > 3 && rng() < 0.15;
@@ -378,7 +382,11 @@
 
         // Camera rises steadily.
         world.cameraY -= ASCEND_SPEED * dt;
-        world.heightClimbed = Math.max(world.heightClimbed, START_CAMERA_Y - world.cameraY);
+        // Height reflects how far WEFTY has actually climbed, not how
+        // long the camera has been scrolling. Dropping through a
+        // platform and falling must NOT grow the counter.
+        const climbed = 0.9 - world.weftyY;   // initial feet Y = 0.9
+        if (climbed > world.heightClimbed) world.heightClimbed = climbed;
 
         // Procedural generation — keep 1.5 viewports of ledges above.
         const topOfWorld = world.cameraY - 1.5;
@@ -874,7 +882,11 @@
                 fgCtx.save();
                 fgCtx.translate(endX, endY);
                 fgCtx.rotate(angle);
-                fgCtx.drawImage(lassoImg, -lassoSize / 2, -lassoSize / 2, lassoSize, lassoSize);
+                // Anchor the lasso's KNOT (bottom-center of the
+                // sprite) at the rope endpoint so the rope reads as
+                // terminating at the knot instead of cutting through
+                // the loop's middle.
+                fgCtx.drawImage(lassoImg, -lassoSize / 2, -lassoSize, lassoSize, lassoSize);
                 fgCtx.restore();
             }
         }
