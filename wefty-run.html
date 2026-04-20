@@ -237,6 +237,14 @@
         z-index: 10;
     }
     .game-over.hidden { display: none; }
+    .go-signin {
+        color: #FBBF24;
+        font-size: 12px;
+        font-weight: 500;
+        margin: 10px 0 6px 0;
+        text-align: center;
+    }
+    .go-signin.hidden { display: none; }
 
     /* Portrait-mode gate — mobile browsers don't let us force
        landscape, so pause gameplay and ask the player to rotate. */
@@ -369,6 +377,7 @@
         <h2>Run over</h2>
         <div class="score" id="go-score">Distance 0 m</div>
         <div class="scoreboard" id="go-scoreboard"></div>
+        <div id="go-signin-nudge" class="go-signin hidden">Sign in on the hub to appear on Top Runs →</div>
         <button id="btn-restart">Restart</button>
         <a class="back-link" href="wefty-hub.html"><button>Back to Hub</button></a>
     </div>
@@ -738,11 +747,10 @@
         if (len > 0.40) {
             const candidates = [];
             if (world.distance > 1)  candidates.push(['letter', 0.65]);
-            if (world.distance > 5)  candidates.push(['spring', 0.18]);
-            if (world.distance > 12) candidates.push(['djump',  0.10]);
-            if (world.distance > 20) candidates.push(['slowmo', 0.09]);
-            if (world.distance > 30) candidates.push(['glider', 0.10]);
-            if (world.distance > 40) candidates.push(['shield', 0.09]);
+            if (world.distance > 12) candidates.push(['djump',  0.20]);
+            if (world.distance > 20) candidates.push(['slowmo', 0.12]);
+            if (world.distance > 30) candidates.push(['glider', 0.12]);
+            if (world.distance > 40) candidates.push(['shield', 0.11]);
             const total = candidates.reduce((s, c) => s + c[1], 0);
             if (candidates.length && Math.random() < total) {
                 let roll = Math.random() * total;
@@ -809,11 +817,6 @@
             const letter = pool[Math.floor(Math.random() * pool.length)];
             const p = airborne(0.12, 0.14); if (!p) return;
             world.letters.push({ worldX: p.px, y: p.py, letter, collected: false });
-        } else if (kind === 'spring') {
-            const sx = x + len * (0.25 + Math.random() * 0.50);
-            const sy = surfaceYAt(x, len, top, crown, sx);
-            if (world.hazards.some(hz => Math.abs(hz.worldX - sx) < 0.10)) return;
-            world.springs.push({ worldX: sx, y: sy, consumed: false });
         } else if (kind === 'djump') {
             const p = airborne(0.18, 0.10); if (!p) return;
             world.doubleJumps.push({ worldX: p.px, y: p.py, collected: false });
@@ -1780,8 +1783,26 @@
 
         // Airborne pickups with a gentle bob
         const pickupSize = h * 0.13;
+        const djPickupSize = pickupSize * 0.5;
         for (const g of world.gliders)      if (!g.collected)  drawPickup(gliderImg, g.worldX, g.y, pickupSize, 4);
-        for (const dj of world.doubleJumps) if (!dj.collected) drawPickup(djImg, dj.worldX, dj.y, pickupSize, 4);
+        // Spring pickup: half-size + bounce + sway so it reads as a
+        // spring rather than a static icon drifting past.
+        for (const dj of world.doubleJumps) {
+            if (dj.collected) continue;
+            if (dj.worldX < world.cameraX - 0.1 || dj.worldX > world.cameraX + 1.1) continue;
+            const sx = (dj.worldX - world.cameraX) * w;
+            const phase = (world.frameTick || 0) * 0.18 + dj.worldX * 7;
+            const bobY = Math.sin(phase) * (djPickupSize * 0.18);
+            const swayDeg = Math.sin(phase * 0.85) * 14;
+            const sy = dj.y * h + bobY;
+            if (djImg.complete && djImg.naturalWidth) {
+                fgCtx.save();
+                fgCtx.translate(sx, sy);
+                fgCtx.rotate(swayDeg * Math.PI / 180);
+                fgCtx.drawImage(djImg, -djPickupSize / 2, -djPickupSize / 2, djPickupSize, djPickupSize);
+                fgCtx.restore();
+            }
+        }
         for (const sm of world.slowMos)     if (!sm.collected) drawPickup(slowMoImg, sm.worldX, sm.y, pickupSize, 4);
         for (const sh of world.shields)     if (!sh.collected) drawPickup(shieldImg, sh.worldX, sh.y, pickupSize, 4);
 
@@ -1937,52 +1958,42 @@
         const sSize = shrunk ? baseSize * 0.55 : baseSize;
         const cx = WEFTY_SCREEN_X * w;
         const feetY = world.weftyY * h;
-        // Base Wefty always at rolling size. Power-ups are rendered as
-        // separate overlay sprites anchored to her, so the mascot body
-        // never shrinks when an effect kicks in.
+        // Ability-state Wefty sprites — each variant has the accessory
+        // (kite / springs / bubble) baked onto Wefty herself so she
+        // stays recognizable and cute. Per-sprite scale + bottom-ratio
+        // compensates for the different compositions.
         const gliderActive = world.gliderUntil > performance.now() && !world.grounded;
         const hasShield = world.shieldCharges > 0;
         const hasDoubleJump = world.doubleJumpUntil > performance.now();
-        const base = !world.grounded ? weftyFall : weftyRunA;
-        const circ = sSize * Math.PI;
-        const rollDeg = world.grounded ? (world.cameraX * w / circ) * 360 : 0;
+        let spriteImg, spriteScale = 1, spriteBottom = 0.86;
+        if (gliderActive && weftyGlider.complete && weftyGlider.naturalWidth) {
+            spriteImg = weftyGlider; spriteScale = 1.55; spriteBottom = 0.70;
+        } else if (hasShield && weftyShield.complete && weftyShield.naturalWidth) {
+            spriteImg = weftyShield; spriteScale = 1.10; spriteBottom = 0.82;
+        } else if (hasDoubleJump && weftySpring.complete && weftySpring.naturalWidth) {
+            spriteImg = weftySpring; spriteScale = 0.65; spriteBottom = 0.92;
+        } else {
+            spriteImg = !world.grounded ? weftyFall : weftyRunA;
+        }
+        const effSize = sSize * spriteScale;
+        const rolling = spriteImg === weftyRunA;
+        const circ = effSize * Math.PI;
+        const rollDeg = rolling ? (world.cameraX * w / circ) * 360 : 0;
         const iframes = world.invincibleUntil > performance.now();
         const blink = iframes ? (Math.floor(performance.now() / 50) % 2 === 0 ? 0.4 : 1) : 1;
-        const ballTopY = feetY - sSize * 0.86;
-        // Springs BELOW the base so Wefty stands on top of the coils.
-        if (hasDoubleJump && springImg.complete && springImg.naturalWidth) {
-            const springSize = sSize * 0.8;
+        if (spriteImg && spriteImg.complete && spriteImg.naturalWidth > 0) {
             fgCtx.save();
             fgCtx.globalAlpha = blink;
-            fgCtx.drawImage(springImg, cx - springSize / 2, feetY - springSize * 0.1, springSize, springSize);
-            fgCtx.restore();
-        }
-        if (base.complete && base.naturalWidth > 0) {
-            fgCtx.save();
-            fgCtx.globalAlpha = blink;
-            fgCtx.translate(cx, feetY - sSize * 0.36);
+            // Anchor the image so its bottom-ratio * effSize above feetY
+            // lines up with the ground. Rotate at the ball's center.
+            const imgCenterY = feetY - effSize * (spriteBottom - 0.5);
+            fgCtx.translate(cx, imgCenterY);
             fgCtx.rotate(rollDeg * Math.PI / 180);
-            fgCtx.drawImage(base, -sSize / 2, -sSize / 2, sSize, sSize);
+            fgCtx.drawImage(spriteImg, -effSize / 2, -effSize / 2, effSize, effSize);
             fgCtx.restore();
         } else {
             fgCtx.fillStyle = palette.main;
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
-        }
-        // Kite ABOVE the base for glider mode.
-        if (gliderActive && gliderImg.complete && gliderImg.naturalWidth) {
-            const kiteSize = sSize * 1.2;
-            fgCtx.save();
-            fgCtx.globalAlpha = blink;
-            fgCtx.drawImage(gliderImg, cx - kiteSize / 2, ballTopY - kiteSize * 0.85, kiteSize, kiteSize);
-            fgCtx.restore();
-        }
-        // Shield ring — wraps Wefty in the knit bubble.
-        if (hasShield && shieldImg.complete && shieldImg.naturalWidth) {
-            const shieldSize = sSize * 1.35;
-            fgCtx.save();
-            fgCtx.globalAlpha = 0.85 * blink;
-            fgCtx.drawImage(shieldImg, cx - shieldSize / 2, ballTopY - (shieldSize - sSize) / 2, shieldSize, shieldSize);
-            fgCtx.restore();
         }
 
         // Lasso flash — yarn rope from Wefty toward target, plus a
@@ -2037,6 +2048,11 @@
         if (world.gameOver) {
             overlay.classList.remove('hidden');
             goScore.textContent = `Distance ${cur} m${cur >= bestDistance ? ' (new best!)' : ''}`;
+            const nudge = document.getElementById('go-signin-nudge');
+            if (nudge) {
+                const anon = (typeof Auth === 'undefined') || !Auth.uid || Auth.isAnonymous;
+                nudge.classList.toggle('hidden', !anon);
+            }
         }
 
         // Inventory badges — light up when there's stock, highlight when
