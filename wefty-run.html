@@ -2025,28 +2025,31 @@
             const extend = elapsed <= half ? elapsed / half : (totalTicks - elapsed) / half;
             const endX = fromX + (toX - fromX) * extend;
             const endY = fromY + (toY - fromY) * extend;
-            // Braided-rope line from Wefty to the loop — same tan braid
-            // texture as lasso.png so the rope + loop read as one piece.
+            // Knot-anchored rope+lasso join — rope ends at the knot
+            // on the loop's edge, loop encircles the target.
             const ropeDx = endX - fromX;
             const ropeDy = endY - fromY;
-            const ropeDist = Math.hypot(ropeDx, ropeDy);
-            const ropeThickness = h * 0.008;
-            if (ropeDist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
-                fgCtx.save();
-                fgCtx.translate(fromX, fromY);
-                fgCtx.rotate(Math.atan2(ropeDy, ropeDx));
-                fgCtx.drawImage(ropeImg, 0, -ropeThickness / 2, ropeDist, ropeThickness);
-                fgCtx.restore();
-            }
-            // Lasso loop sprite at the tip, rotated along throw vector.
-            if (lassoImg.complete && lassoImg.naturalWidth) {
-                const angle = Math.atan2(endY - fromY, endX - fromX);
-                const size = h * 0.10;
-                fgCtx.save();
-                fgCtx.translate(endX, endY);
-                fgCtx.rotate(angle);
-                fgCtx.drawImage(lassoImg, -size * 0.35, -size / 2, size, size);
-                fgCtx.restore();
+            const fullDist = Math.hypot(ropeDx, ropeDy);
+            if (fullDist > 2) {
+                const angle = Math.atan2(ropeDy, ropeDx);
+                const lassoSize = h * 0.18;            // loop inner hole ≈ scissor (h*0.10)
+                const knotOffset = lassoSize * 0.28;   // sprite center → knot in the PNG
+                const ropeDist = Math.max(0, fullDist - knotOffset);
+                const ropeThickness = h * 0.008;
+                if (ropeDist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
+                    fgCtx.save();
+                    fgCtx.translate(fromX, fromY);
+                    fgCtx.rotate(angle);
+                    fgCtx.drawImage(ropeImg, 0, -ropeThickness / 2, ropeDist, ropeThickness);
+                    fgCtx.restore();
+                }
+                if (lassoImg.complete && lassoImg.naturalWidth) {
+                    fgCtx.save();
+                    fgCtx.translate(endX, endY);
+                    fgCtx.rotate(angle + Math.PI / 2);
+                    fgCtx.drawImage(lassoImg, -lassoSize / 2, -lassoSize / 2, lassoSize, lassoSize);
+                    fgCtx.restore();
+                }
             }
         }
         // Cooldown visual on the lasso button

@@ -117,6 +117,23 @@
     }
     .pause-overlay.hidden { display: none; }
 
+    /* Portrait-lock overlay — Climb plays in portrait. On a landscape
+       phone we pause and ask the player to rotate the device. Desktop
+       browsers are wider than tall so this never shows there. */
+    .rotate-overlay {
+        position: absolute; inset: 0;
+        background: rgba(15, 15, 35, 0.98);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 15;
+        color: #fff;
+        text-align: center;
+        padding: 20px;
+    }
+    .rotate-overlay.hidden { display: none; }
+    .rotate-overlay .icon { font-size: 52px; margin-bottom: 14px; }
+    .rotate-overlay .title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .rotate-overlay .sub { font-size: 13px; color: #A0A0B8; }
+
     .dpad { position: absolute; left: 18px; bottom: 22px; display: flex; gap: 10px; z-index: 6; }
     .dpad button {
         width: 62px; height: 62px;
@@ -173,6 +190,14 @@
 </header>
 
 <div id="pause-overlay" class="pause-overlay hidden">Paused — tap to resume</div>
+
+<div id="rotate-overlay" class="rotate-overlay hidden">
+    <div>
+        <div class="icon">📱</div>
+        <div class="title">Rotate your device</div>
+        <div class="sub">Wefty Climb plays in portrait orientation.</div>
+    </div>
+</div>
 
 <div id="tutorial" class="tutorial hidden">
     <div class="panel">
@@ -301,15 +326,14 @@
         const len = 0.28 + rng() * 0.22;
         const prev = world.ledges[world.ledges.length - 1];
         const prevCenter = prev ? (prev.xStart + prev.xEnd) / 2 : 0.5;
-        // Random sign (not biased back toward center). Reach-limited
-        // bias so the next ledge stays within a single-jump hop. Over
-        // many spawns the center performs a random walk across the
-        // full legal range instead of oscillating around 0.5.
+        // Random-walk bias PLUS a 30% mean-reversion pull toward 0.5.
+        // Without the pull, the random walk drifts to a wall and the
+        // platforms cluster on one side. With it, the chain stays
+        // variable across the full width.
+        const pullToCenter = (0.5 - prevCenter) * 0.30;
         const sign = rng() < 0.5 ? 1 : -1;
-        const bias = sign * (0.10 + rng() * 0.18);
-        let center = prevCenter + bias;
-        // Platforms may touch the screen edges (no safe margin). A
-        // 0.28-wide ledge can land with xStart = 0 or xEnd = 1.
+        const bias = sign * (0.12 + rng() * 0.18);
+        let center = prevCenter + bias + pullToCenter;
         const minC = len / 2;
         const maxC = 1 - len / 2;
         if (center < minC) center = minC;
@@ -358,7 +382,7 @@
             const dx = hz.x - world.weftyX;
             const dy = hz.y - world.weftyY;
             const d = Math.sqrt(dx*dx + dy*dy);
-            if (d > 0.2) continue;
+            if (d > 0.3) continue;
             if (d < bestDist) { best = hz; bestDist = d; }
         }
         world.lassoReadyAtTick = world.frameTick + LASSO_COOLDOWN_FRAMES;
@@ -369,9 +393,10 @@
             const idx = world.hazards.indexOf(best);
             if (idx >= 0) world.hazards.splice(idx, 1);
         } else {
-            // Miss — short visual flick straight up.
+            // Miss — flick up at the full 0.3 strike range so the
+            // visible reach matches the snag range.
             world.lassoLastHitX = world.weftyX;
-            world.lassoLastHitY = world.weftyY - 0.18;
+            world.lassoLastHitY = world.weftyY - 0.30;
         }
     }
 
@@ -585,7 +610,7 @@
             setPaused(!world.isPaused);
         });
         pauseOverlay.addEventListener('click', () => setPaused(false));
-        // Fullscreen — landscape-lock on mobile if the browser allows.
+        // Fullscreen — portrait-lock on mobile if the browser allows.
         document.getElementById('btn-fs').addEventListener('click', async () => {
             const root = document.documentElement;
             try {
@@ -596,11 +621,32 @@
                     if (root.requestFullscreen) await root.requestFullscreen();
                     else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
                     if (screen.orientation && screen.orientation.lock) {
-                        try { await screen.orientation.lock('landscape'); } catch (_) {}
+                        try { await screen.orientation.lock('portrait'); } catch (_) {}
                     }
                 }
             } catch (_) {}
         });
+
+        // Portrait-lock gate — pause gameplay when the viewport is
+        // landscape (likely a rotated phone). Desktop browsers are
+        // almost always wider than tall, so this shouldn't trigger
+        // for them unless the user drastically resizes.
+        const rotateOverlay = document.getElementById('rotate-overlay');
+        let landscapeLockedPause = false;
+        function checkOrientation() {
+            const narrowEnoughToBeMobile = Math.min(window.innerWidth, window.innerHeight) < 600;
+            const isLandscape = window.innerWidth > window.innerHeight;
+            if (narrowEnoughToBeMobile && isLandscape) {
+                rotateOverlay.classList.remove('hidden');
+                if (!world.isPaused) { setPaused(true); landscapeLockedPause = true; }
+            } else {
+                rotateOverlay.classList.add('hidden');
+                if (landscapeLockedPause) { setPaused(false); landscapeLockedPause = false; }
+            }
+        }
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
+        checkOrientation();
     });
     window.addEventListener('keydown', (e) => {
         const k = e.key;
@@ -806,14 +852,18 @@
             }
             const centerX = ((l.xStart + l.xEnd) / 2) * w;
             const drawX = centerX - drawW / 2;
-            // Ledge sprite layout: per-biome topOffset so the visible
-            // SURFACE line lands at the same spot relative to the
-            // hitbox across all biomes. Green sprites have tuft
-            // blades extending above the grass surface (surface at
-            // ~23% from PNG top), brown and snow sprites have surface
-            // starting at the very top of the opaque region (~5%).
-            const topOffsetByBiome = { GREEN: 0.32, BROWN: 0.14, SNOW: 0.14 };
-            const topOffset = drawH * topOffsetByBiome[lb];
+            // Per-(biome, variant) topOffset so the visible SURFACE
+            // line lands at the same screen spot across every PNG.
+            // Variants whose sprite has decor sticking up above the
+            // walkable surface (green tufts, snow pines, brown
+            // crystal) need a LARGER offset than variants whose top
+            // pixel IS the surface.
+            const TOP_OFFSET = {
+                GREEN: [0.32, 0.32, 0.32, 0.32],
+                BROWN: [0.14, 0.14, 0.14, 0.20],
+                SNOW:  [0.14, 0.30, 0.30, 0.30],
+            };
+            const topOffset = drawH * (TOP_OFFSET[lb][l.variant] ?? 0.20);
             fgCtx.drawImage(sprite, drawX, lyScreen - topOffset, drawW, drawH);
             // (Sticky-ledge visual indicator removed for now — it was
             // drawing as an amber bar across the grass that looked
@@ -850,8 +900,9 @@
             fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.80, wSize, wSize);
         }
 
-        // Lasso visual — braided rope + lasso sprite at the tip.
-        // Same look as Wefty Run so the ability reads consistently.
+        // Lasso visual — rope from Wefty to the KNOT on the loop's
+        // edge, loop encircling the target. Matches the cartoon
+        // reference (rope tail + knot + oval loop as one piece).
         if (world.frameTick < world.lassoFlashUntilTick) {
             const fromX = wx;
             const fromY = wy - wSize * 0.5;
@@ -866,27 +917,32 @@
             const endY = fromY + (tgtY - fromY) * extend;
             const dx = endX - fromX, dy = endY - fromY;
             const dist = Math.hypot(dx, dy);
+            if (dist < 2) return;
             const angle = Math.atan2(dy, dx);
-            // Match the braid thickness inside the lasso loop sprite
-            // so the rope reads as a single cohesive piece.
+            const uDx = dx / dist, uDy = dy / dist;
+            // Sprite size: loop INNER hole ≈ scissor diameter so the
+            // scissors fit snugly inside. Inner hole is ~55% of the
+            // sprite width, so spriteSize ≈ 0.10 / 0.55 ≈ 0.18.
+            const lassoSize = h * 0.18;
+            // Knot sits ~28% below the sprite center in the PNG.
+            const knotOffset = lassoSize * 0.28;
+            const ropeDist = Math.max(0, dist - knotOffset);
             const ropeThickness = h * 0.008;
-            if (dist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
+            if (ropeDist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
                 fgCtx.save();
                 fgCtx.translate(fromX, fromY);
                 fgCtx.rotate(angle);
-                fgCtx.drawImage(ropeImg, 0, -ropeThickness / 2, dist, ropeThickness);
+                fgCtx.drawImage(ropeImg, 0, -ropeThickness / 2, ropeDist, ropeThickness);
                 fgCtx.restore();
             }
             if (lassoImg.complete && lassoImg.naturalWidth) {
-                const lassoSize = h * 0.10;
                 fgCtx.save();
                 fgCtx.translate(endX, endY);
-                fgCtx.rotate(angle);
-                // Anchor the lasso's KNOT (bottom-center of the
-                // sprite) at the rope endpoint so the rope reads as
-                // terminating at the knot instead of cutting through
-                // the loop's middle.
-                fgCtx.drawImage(lassoImg, -lassoSize / 2, -lassoSize, lassoSize, lassoSize);
+                // Rotate so the sprite's "down" (knot direction) points
+                // from the target back toward Wefty — the tail always
+                // dangles toward the thrower.
+                fgCtx.rotate(angle + Math.PI / 2);
+                fgCtx.drawImage(lassoImg, -lassoSize / 2, -lassoSize / 2, lassoSize, lassoSize);
                 fgCtx.restore();
             }
         }
