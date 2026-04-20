@@ -155,7 +155,7 @@
             <dt>A / D or ←/→</dt><dd>Move left / right</dd>
             <dt>W / Space / ↑</dt><dd>Jump</dd>
             <dt>S / ↓</dt><dd>Drop through the ledge below</dd>
-            <dt>F / Z</dt><dd>Throw lasso at a scissor above (2s cooldown)</dd>
+            <dt>F / Z</dt><dd>Throw lasso at a scissor above (available on demand)</dd>
             <dt>❤</dt><dd>Hit points — scissors each cost one. Zero = game over.</dd>
         </dl>
         <button class="start-btn" id="btn-start">Start climbing</button>
@@ -195,16 +195,17 @@
     // ── Constants (mirror of WeftyClimbWorld) ─────────────────────────
     const MAX_NEEDLES = 5;
     const VIEWPORT_H = 1;
-    const ASCEND_SPEED = 0.08;
+    const ASCEND_SPEED = 0.05;          // slowed from 0.08 for testing
     const MOVE_SPEED = 0.42;
-    const GRAVITY = 2.4;
-    const JUMP_VELOCITY = 1.35;
-    const HAZARD_FALL_SPEED = 0.18;
+    const GRAVITY = 3.2;                // stronger for ballistic arcs
+    const JUMP_VELOCITY = 1.65;         // paired w/ gravity — same max height, snappier feel
+    const HAZARD_FALL_SPEED = 0.14;     // slowed proportionally
     const HAZARD_RADIUS = 0.04;
     const MAX_LIVE_HAZARDS = 3;
     const START_CAMERA_Y = 0;
     const BIOME_BROWN_AT = 30;
     const BIOME_SNOW_AT  = 60;
+    const LASSO_COOLDOWN_FRAMES = 0;    // on-demand, no cooldown
 
     // ── World state ──────────────────────────────────────────────────
     const world = {
@@ -319,8 +320,9 @@
             const d = Math.sqrt(dx*dx + dy*dy);
             if (d < 0.7 && d < bestDist) { best = hz; bestDist = d; }
         }
-        world.lassoReadyAtTick = world.frameTick + 120;
+        world.lassoReadyAtTick = world.frameTick + LASSO_COOLDOWN_FRAMES;
         world.lassoFlashUntilTick = world.frameTick + 22;
+        try { Sound && Sound.playWordSubmit && Sound.playWordSubmit(); } catch (_) {}
         if (best) {
             world.lassoLastHitX = best.x; world.lassoLastHitY = best.y;
             const idx = world.hazards.indexOf(best);
@@ -433,8 +435,10 @@
             const dy = hz.y - world.weftyY + 0.04;
             if (Math.sqrt(dx*dx + dy*dy) < HAZARD_RADIUS + 0.035) {
                 world.needles--;
+                playHeartLoss();
                 if (world.needles <= 0) {
                     world.gameOver = true;
+                    try { musicLoop.pause(); } catch (_) {}
                 }
                 // Remove the hazard we hit so it can't chain-damage.
                 const idx = world.hazards.indexOf(hz);
@@ -484,6 +488,10 @@
         document.getElementById('btn-restart').addEventListener('click', () => {
             resetWorld();
             document.getElementById('game-over').classList.add('hidden');
+            if (musicStarted) {
+                try { musicLoop.currentTime = 0; musicLoop.play().catch(() => {}); }
+                catch (_) {}
+            }
         });
         // Help button re-opens tutorial anytime. Pauses gameplay.
         document.getElementById('btn-help').addEventListener('click', () => {
@@ -544,6 +552,38 @@
     const scissors   = loadImg('scissors_open.png');
     const weftyRoll  = loadImg('wefty_run_a.png');
     const weftyFall  = loadImg('wefty_fall.png');
+    const lassoImg   = loadImg('lasso.png');
+    const ropeImg    = loadImg('rope_texture.png');
+
+    // ── Music loop ─────────────────────────────────────────────────
+    // Reuse Run's loop until we have Climb-specific music.
+    const musicLoop = new Audio('wefty_run_loop.mp3');
+    musicLoop.loop = true; musicLoop.volume = 0.32;
+    let musicStarted = false;
+    function tryStartMusic() {
+        if (musicStarted) return;
+        musicStarted = true;
+        musicLoop.play().catch(() => { musicStarted = false; });
+    }
+    // Browsers block audio until a user gesture — start on first tap/key.
+    const startOnce = () => { tryStartMusic();
+        window.removeEventListener('pointerdown', startOnce);
+        window.removeEventListener('keydown', startOnce);
+    };
+    window.addEventListener('pointerdown', startOnce);
+    window.addEventListener('keydown', startOnce);
+
+    const heartLossSfx = new Audio('wefty_game_over.mp3');
+    heartLossSfx.volume = 0.4;
+    function playHeartLoss() {
+        // Short clip of the game-over sting — cut it after ~0.6s so
+        // it reads as "ouch" and not "final death".
+        try {
+            heartLossSfx.currentTime = 0;
+            heartLossSfx.play().catch(() => {});
+            setTimeout(() => { try { heartLossSfx.pause(); } catch (_) {} }, 600);
+        } catch (_) {}
+    }
 
     // ── Canvas ──────────────────────────────────────────────────────
     const bg = document.getElementById('bg');
@@ -575,7 +615,7 @@
         return ['#2A4968', '#E6EEF8'];
     }
     function fadeAlphas(hc) {
-        const band = 3;
+        const band = 6;   // 60m crossfade zone on each side of a biome boundary
         const aGreen = hc < BIOME_BROWN_AT - band ? 1
             : hc < BIOME_BROWN_AT ? 1 - (hc - (BIOME_BROWN_AT - band)) / band : 0;
         const aBrown = hc < BIOME_BROWN_AT - band ? 0
@@ -637,26 +677,45 @@
         }
         for (const l of world.ledges) {
             const lyScreen = (l.y - world.cameraY) * h;
-            if (lyScreen < -40 || lyScreen > h + 40) continue;
-            const lx = l.xStart * w;
+            if (lyScreen < -60 || lyScreen > h + 60) continue;
             const lw = (l.xEnd - l.xStart) * w;
             const lb = ledgeBiomeFor(l.y);
             const sprites = lb === 'GREEN' ? ledgeGreen
                            : lb === 'BROWN' ? ledgeBrown : ledgeSnow;
             const sprite = sprites[Math.max(0, Math.min(sprites.length - 1, l.variant))];
             if (!sprite.complete || !sprite.naturalWidth) continue;
-            // Fixed render height (accept some width distortion) so a
-            // ledge never dominates the screen just because its sprite
-            // PNG happens to be tall. The grass band sits roughly at
-            // 12% from the top of the sprite, so shift up by that much
-            // so Wefty's feet land on the grass line.
-            const drawH = h * 0.11;
-            const topOffset = drawH * 0.12;
-            fgCtx.drawImage(sprite, lx, lyScreen - topOffset, lw, drawH);
-
+            // Lock natural aspect, cap at a compact max size, center
+            // over the hitbox midpoint. Sprite visual width does NOT
+            // have to equal the hitbox width — collision is still
+            // xStart..xEnd. This keeps the PNG looking like the
+            // preview we approved (no horizontal drag).
+            const natAspect = sprite.naturalHeight / sprite.naturalWidth;
+            const maxH = h * 0.09;
+            const maxW = lw;
+            const widthLimitedH = maxW * natAspect;
+            let drawW, drawH;
+            if (widthLimitedH <= maxH) {
+                drawW = maxW; drawH = widthLimitedH;
+            } else {
+                drawH = maxH; drawW = drawH / natAspect;
+            }
+            const centerX = ((l.xStart + l.xEnd) / 2) * w;
+            const drawX = centerX - drawW / 2;
+            // Grass surface sits ~20% from the top of the sprite
+            // (above it are the wispy tufts). Offset by that so
+            // Wefty's feet at l.y land ON the grass, not above the
+            // tufts.
+            const topOffset = drawH * 0.20;
+            fgCtx.drawImage(sprite, drawX, lyScreen - topOffset, drawW, drawH);
+            // (Sticky indicator rendered as a subtle tint inside the
+            // grass band rather than an ugly amber bar across the top.)
             if (l.sticky) {
-                fgCtx.fillStyle = 'rgba(245,158,11,0.45)';
-                fgCtx.fillRect(lx, lyScreen, lw, h * 0.025);
+                fgCtx.save();
+                fgCtx.globalAlpha = 0.35;
+                fgCtx.fillStyle = '#F59E0B';
+                fgCtx.fillRect(drawX, lyScreen - topOffset + drawH * 0.15,
+                               drawW, drawH * 0.10);
+                fgCtx.restore();
             }
         }
 
@@ -686,23 +745,43 @@
             fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.9, wSize, wSize);
         }
 
-        // Lasso flash.
+        // Lasso visual — braided rope + lasso sprite at the tip.
+        // Same look as Wefty Run so the ability reads consistently.
         if (world.frameTick < world.lassoFlashUntilTick) {
             const fromX = wx;
             const fromY = wy - wSize * 0.5;
-            const toX   = world.lassoLastHitX * w;
-            const toY   = (world.lassoLastHitY - world.cameraY) * h;
-            fgCtx.strokeStyle = '#FBBF24';
-            fgCtx.lineWidth = 3;
-            fgCtx.beginPath();
-            fgCtx.moveTo(fromX, fromY);
-            fgCtx.lineTo(toX, toY);
-            fgCtx.stroke();
+            const total = 22;
+            const remaining = world.lassoFlashUntilTick - world.frameTick;
+            const elapsed = Math.max(0, Math.min(total, total - remaining));
+            const half = total / 2;
+            const extend = elapsed <= half ? elapsed / half : (total - elapsed) / half;
+            const tgtX = world.lassoLastHitX * w;
+            const tgtY = (world.lassoLastHitY - world.cameraY) * h;
+            const endX = fromX + (tgtX - fromX) * extend;
+            const endY = fromY + (tgtY - fromY) * extend;
+            const dx = endX - fromX, dy = endY - fromY;
+            const dist = Math.hypot(dx, dy);
+            const angle = Math.atan2(dy, dx);
+            const ropeThickness = h * 0.018;
+            if (dist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
+                fgCtx.save();
+                fgCtx.translate(fromX, fromY);
+                fgCtx.rotate(angle);
+                fgCtx.drawImage(ropeImg, 0, -ropeThickness / 2, dist, ropeThickness);
+                fgCtx.restore();
+            }
+            if (lassoImg.complete && lassoImg.naturalWidth) {
+                const lassoSize = h * 0.10;
+                fgCtx.save();
+                fgCtx.translate(endX, endY);
+                fgCtx.rotate(angle);
+                fgCtx.drawImage(lassoImg, -lassoSize / 2, -lassoSize / 2, lassoSize, lassoSize);
+                fgCtx.restore();
+            }
         }
 
-        // Lasso button cooldown tint.
-        if (lassoReady()) lassoBtn.classList.remove('cooldown');
-        else              lassoBtn.classList.add('cooldown');
+        // Lasso is on-demand — always visually ready.
+        lassoBtn.classList.remove('cooldown');
 
         // HUD — height + hearts.
         const cur = Math.round(world.heightClimbed * 10);
