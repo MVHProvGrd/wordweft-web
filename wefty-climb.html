@@ -30,8 +30,40 @@
     header a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
     header .title { font-weight: 700; font-size: 16px; }
     header .hud { margin-left: auto; color: var(--muted); font-size: 13px; }
+    header .needles { color: #EF4444; font-size: 16px; letter-spacing: 2px; margin-left: 12px; }
     #stage { position: absolute; inset: 0; touch-action: none; }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .tutorial {
+        position: absolute;
+        inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(10, 10, 25, 0.82);
+        z-index: 12;
+    }
+    .tutorial.hidden { display: none; }
+    .tutorial .panel {
+        background: rgba(30, 30, 54, 0.98);
+        padding: 22px 26px;
+        border-radius: 20px;
+        max-width: 440px;
+        text-align: left;
+    }
+    .tutorial h2 { margin: 0 0 12px 0; font-size: 20px; }
+    .tutorial dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 14px; }
+    .tutorial dt { color: #FBBF24; font-weight: 700; white-space: nowrap; }
+    .tutorial dd { margin: 0; color: #D0D0E0; }
+    .tutorial .start-btn {
+        margin-top: 16px;
+        padding: 9px 20px;
+        background: rgba(16, 185, 129, 0.88);
+        color: #fff;
+        font-weight: 700;
+        font-size: 14px;
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+    }
 
     .jump-btn, .lasso-btn {
         position: absolute;
@@ -108,7 +140,27 @@
     <a class="back" href="wefty-hub.html">← Hub</a>
     <span class="title">Wefty Climb</span>
     <span class="hud" id="hud">best 0 m    0 m</span>
+    <span class="needles" id="needles" title="Lives">❤❤❤</span>
+    <button id="btn-help" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer;margin-left:8px;">?</button>
 </header>
+
+<div id="tutorial" class="tutorial hidden">
+    <div class="panel">
+        <h2>Wefty Climb 🏔️</h2>
+        <p style="margin:0 0 12px 0;color:#D0D0E0;font-size:13px;">
+            Climb higher as the camera scrolls up. Don't fall off the bottom,
+            dodge the scissors, and watch the biome change every 300 m.
+        </p>
+        <dl>
+            <dt>A / D or ←/→</dt><dd>Move left / right</dd>
+            <dt>W / Space / ↑</dt><dd>Jump</dd>
+            <dt>S / ↓</dt><dd>Drop through the ledge below</dd>
+            <dt>F / Z</dt><dd>Throw lasso at a scissor above (2s cooldown)</dd>
+            <dt>❤</dt><dd>Hit points — scissors each cost one. Zero = game over.</dd>
+        </dl>
+        <button class="start-btn" id="btn-start">Start climbing</button>
+    </div>
+</div>
 
 <div id="stage">
     <canvas id="bg"></canvas>
@@ -196,8 +248,12 @@
         world.ledges.length = 0;
         world.hazards.length = 0;
         world.ledges.push({ xStart: 0, xEnd: 1, y: 0.9, sticky: false, variant: 0 });
-        // Pre-spawn a few ledges above so the first jump has targets.
-        for (let i = 0; i < 6; i++) spawnNextLedge();
+        // Pre-spawn plenty of ledges well above the top of the
+        // viewport so nothing visibly pops in during the first few
+        // seconds of play. With spacing ~0.25 each, 16 covers 4
+        // viewports of buffer — camera can scroll 40m before the
+        // procedural spawner has to work.
+        for (let i = 0; i < 16; i++) spawnNextLedge();
     }
     function spawnNextLedge() {
         const lastY = world.ledges.length
@@ -429,17 +485,36 @@
             resetWorld();
             document.getElementById('game-over').classList.add('hidden');
         });
+        // Help button re-opens tutorial anytime. Pauses gameplay.
+        document.getElementById('btn-help').addEventListener('click', () => {
+            world.isPaused = true;
+            document.getElementById('tutorial').classList.remove('hidden');
+        });
+        document.getElementById('btn-start').addEventListener('click', () => {
+            document.getElementById('tutorial').classList.add('hidden');
+            world.isPaused = false;
+            localStorage.setItem('wefty_climb_tutorial_v1', '1');
+        });
+        // First-run: show tutorial until dismissed.
+        if (!localStorage.getItem('wefty_climb_tutorial_v1')) {
+            world.isPaused = true;
+            document.getElementById('tutorial').classList.remove('hidden');
+        }
     });
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft')  world.horizontalInput = -1;
-        if (e.key === 'ArrowRight') world.horizontalInput = 1;
-        if (e.key === 'ArrowDown')  dropThrough();
-        if (e.key === ' ' || e.key === 'ArrowUp') { jump(); e.preventDefault(); }
-        if (e.key === 'z' || e.key === 'Z')       fireLasso();
+        const k = e.key;
+        if (k === 'ArrowLeft'  || k === 'a' || k === 'A') world.horizontalInput = -1;
+        if (k === 'ArrowRight' || k === 'd' || k === 'D') world.horizontalInput = 1;
+        if (k === 'ArrowDown'  || k === 's' || k === 'S') dropThrough();
+        if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') {
+            jump(); e.preventDefault();
+        }
+        if (k === 'z' || k === 'Z' || k === 'f' || k === 'F') fireLasso();
     });
     window.addEventListener('keyup', (e) => {
-        if (e.key === 'ArrowLeft'  && world.horizontalInput === -1) world.horizontalInput = 0;
-        if (e.key === 'ArrowRight' && world.horizontalInput === 1)  world.horizontalInput = 0;
+        const k = e.key;
+        if ((k === 'ArrowLeft'  || k === 'a' || k === 'A') && world.horizontalInput === -1) world.horizontalInput = 0;
+        if ((k === 'ArrowRight' || k === 'd' || k === 'D') && world.horizontalInput === 1)  world.horizontalInput = 0;
     });
 
     // ── Reset ───────────────────────────────────────────────────────
@@ -454,6 +529,7 @@
         world.dropThroughUntilY = -Infinity; world.offscreenSince = -1;
         world.hazards.length = 0; world.hazardSpawnCdn = 2;
         world.lassoReadyAtTick = 0; world.lassoFlashUntilTick = 0;
+        world._submitted = false;
         seed();
     }
 
@@ -527,27 +603,30 @@
         bgCtx.fillStyle = grad;
         bgCtx.fillRect(0, 0, w, h);
 
-        // Biome strips (parallax 0.5×).
-        const stripWorldHeight = 30;
-        const camOff = world.cameraY * 0.5;
+        // Biome backdrop. Instead of stretching one image across 300m
+        // of world, we TILE each biome's image vertically at its
+        // natural aspect (aspect-preserving, any screen ratio). Parallax
+        // 0.5× — backdrop scrolls half-speed relative to gameplay.
+        // Biome A → B transitions are a 30m alpha crossfade of the
+        // two tiled images.
         const [aG, aB, aS] = fadeAlphas(world.heightClimbed);
-        const stripBitmaps = [
-            [bgGreen, 0, aG],
-            [bgBrown, 1, aB],
-            [bgSnow,  2, aS],
-        ];
-        for (const [img, idx, alpha] of stripBitmaps) {
-            if (alpha <= 0 || !img.complete || !img.naturalWidth) continue;
-            const stripBotY = START_CAMERA_Y - idx * stripWorldHeight;
-            const stripTopY = stripBotY - stripWorldHeight;
-            const sTop = (stripTopY - camOff) * h;
-            const sBot = (stripBotY - camOff) * h;
-            if (sBot < -50 || sTop > h + 50) continue;
+        function drawTiledBg(img, alpha) {
+            if (!img.complete || !img.naturalWidth || alpha <= 0) return;
+            const tileH = w * (img.naturalHeight / img.naturalWidth);
+            if (tileH <= 0) return;
+            const scrollPx = world.cameraY * 0.5 * h;
+            let off = (-scrollPx) % tileH;
+            if (off > 0) off -= tileH;
             bgCtx.save();
             bgCtx.globalAlpha = alpha;
-            bgCtx.drawImage(img, 0, sTop, w, sBot - sTop);
+            for (let y = off; y < h; y += tileH) {
+                bgCtx.drawImage(img, 0, y, w, tileH);
+            }
             bgCtx.restore();
         }
+        drawTiledBg(bgGreen, aG);
+        drawTiledBg(bgBrown, aB);
+        drawTiledBg(bgSnow,  aS);
 
         // Ledges — per-ledge biome by its world-Y.
         function ledgeBiomeFor(ly) {
@@ -566,9 +645,13 @@
                            : lb === 'BROWN' ? ledgeBrown : ledgeSnow;
             const sprite = sprites[Math.max(0, Math.min(sprites.length - 1, l.variant))];
             if (!sprite.complete || !sprite.naturalWidth) continue;
-            const aspect = sprite.naturalHeight / sprite.naturalWidth;
-            const drawH = lw * aspect;
-            const topOffset = drawH * 0.25;
+            // Fixed render height (accept some width distortion) so a
+            // ledge never dominates the screen just because its sprite
+            // PNG happens to be tall. The grass band sits roughly at
+            // 12% from the top of the sprite, so shift up by that much
+            // so Wefty's feet land on the grass line.
+            const drawH = h * 0.11;
+            const topOffset = drawH * 0.12;
             fgCtx.drawImage(sprite, lx, lyScreen - topOffset, lw, drawH);
 
             if (l.sticky) {
@@ -621,16 +704,47 @@
         if (lassoReady()) lassoBtn.classList.remove('cooldown');
         else              lassoBtn.classList.add('cooldown');
 
-        // HUD.
+        // HUD — height + hearts.
         const cur = Math.round(world.heightClimbed * 10);
         hudEl.textContent = `best ${bestHeight} m    ${cur} m`;
-        if (world.gameOver) {
+        const needlesEl = document.getElementById('needles');
+        if (needlesEl) {
+            needlesEl.textContent = '❤'.repeat(Math.max(0, world.needles));
+        }
+        if (world.gameOver && !world._submitted) {
+            world._submitted = true;
             if (cur > bestHeight) {
                 bestHeight = cur;
                 localStorage.setItem('wefty_climb_best', String(cur));
+                // Submit to global Climb leaderboard — only if the
+                // player is signed in with a real account. Anonymous
+                // UIDs churn on reinstall and aren't worth tracking.
+                try {
+                    if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous) {
+                        firebase.database().ref('wefty_climb_leaderboard/' + Auth.uid).set({
+                            uid: Auth.uid,
+                            displayName: Auth.name || 'Player',
+                            avatar: Auth.avatar || '',
+                            bestHeight: cur,
+                            updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                        });
+                    }
+                } catch (_) {}
             }
             goScore.textContent = `Height ${cur} m${cur >= bestHeight ? ' (new best!)' : ''}`;
             overlay.classList.remove('hidden');
+            // Anonymous nudge: reuse the same pattern as Run.
+            let nudge = document.getElementById('go-signin-nudge-climb');
+            if (!nudge) {
+                nudge = document.createElement('div');
+                nudge.id = 'go-signin-nudge-climb';
+                nudge.style.cssText = 'color:#FBBF24;font-size:12px;font-weight:500;margin:10px 0 6px 0;';
+                nudge.textContent = 'Sign in on the hub to appear on Top Climbs →';
+                const panel = overlay.querySelector('.go-panel');
+                if (panel) panel.insertBefore(nudge, panel.querySelector('#btn-restart'));
+            }
+            const anon = (typeof Auth === 'undefined') || !Auth.uid || Auth.isAnonymous;
+            nudge.style.display = anon ? 'block' : 'none';
         }
     }
 
