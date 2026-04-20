@@ -1,5 +1,5 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v52';
+const CACHE_NAME = 'wordweft-v53';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -27,6 +27,22 @@ const STATIC_ASSETS = [
     '/wefty-hub.html',
     '/wefty-run.html',
     '/wefty-scores.html',
+    '/wefty-climb.html',
+    '/climb_bg_green.png',
+    '/climb_bg_brown.png',
+    '/climb_bg_snow.png',
+    '/climb_ledge_green_v0.png',
+    '/climb_ledge_green_v1.png',
+    '/climb_ledge_green_v2.png',
+    '/climb_ledge_green_v3.png',
+    '/climb_ledge_brown_v0.png',
+    '/climb_ledge_brown_v1.png',
+    '/climb_ledge_brown_v2.png',
+    '/climb_ledge_brown_v3.png',
+    '/climb_ledge_snow_v0.png',
+    '/climb_ledge_snow_v1.png',
+    '/climb_ledge_snow_v2.png',
+    '/climb_ledge_snow_v3.png',
     '/wefty_run_a.png',
     '/wefty_run_b.png',
     '/wefty_fall.png',

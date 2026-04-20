@@ -126,9 +126,12 @@
     if (localStorage.getItem('wefty_run_level3_unlocked')) {
         const t = document.getElementById('climb-tile');
         if (t) {
-            document.getElementById('climb-dot').className = 'dot sky';
+            t.classList.remove('locked');
+            t.href = 'wefty-climb.html';
+            t.querySelector('.tile-title').innerHTML =
+                '<span class="dot sky"></span>Wefty Climb 🏔️';
             document.getElementById('climb-sub').textContent =
-                'Vertical climb mode — coming next commit.';
+                'Mountain climb — ascend through green, rocky, and snowy biomes.';
         }
     }
 </script>

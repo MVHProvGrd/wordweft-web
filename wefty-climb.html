@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Wefty Climb</title>
+<style>
+    :root {
+        --bg-0: #0F0F23;
+        --bg-1: #1A1A2E;
+        --muted: #A0A0B8;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+        margin: 0;
+        width: 100%; height: 100%;
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        color: #fff;
+        background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
+        overflow: hidden;
+        user-select: none;
+    }
+    header {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        padding: 10px 14px;
+        display: flex; align-items: center; gap: 10px;
+        z-index: 5;
+    }
+    header a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
+    header .title { font-weight: 700; font-size: 16px; }
+    header .hud { margin-left: auto; color: var(--muted); font-size: 13px; }
+    #stage { position: absolute; inset: 0; touch-action: none; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    .jump-btn, .lasso-btn {
+        position: absolute;
+        bottom: 20px;
+        border-radius: 50%;
+        border: none;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+        z-index: 6;
+        touch-action: manipulation;
+    }
+    .jump-btn {
+        right: 20px;
+        width: 76px; height: 76px;
+        background: rgba(16, 185, 129, 0.88);
+        font-size: 15px;
+    }
+    .lasso-btn {
+        right: 108px; bottom: 24px;
+        width: 64px; height: 64px;
+        background: rgba(245, 158, 11, 0.88);
+        font-size: 13px;
+        transition: opacity 0.15s ease;
+    }
+    .lasso-btn.cooldown { opacity: 0.35; }
+    .jump-btn:active, .lasso-btn:active { transform: scale(0.95); }
+
+    .dpad { position: absolute; left: 18px; bottom: 22px; display: flex; gap: 10px; z-index: 6; }
+    .dpad button {
+        width: 62px; height: 62px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(100, 116, 139, 0.75);
+        color: #fff;
+        font-weight: 700;
+        font-size: 22px;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+    .dpad button:active { transform: scale(0.93); background: rgba(100, 116, 139, 0.95); }
+
+    .game-over {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(10, 10, 25, 0.55);
+        z-index: 10;
+    }
+    .game-over.hidden { display: none; }
+    .go-panel {
+        background: rgba(30, 30, 54, 0.96);
+        padding: 22px 28px;
+        border-radius: 20px;
+        text-align: center;
+        min-width: 260px;
+    }
+    .go-panel h2 { margin: 0 0 8px 0; font-size: 20px; }
+    .go-panel .score { color: var(--muted); font-size: 15px; margin-bottom: 18px; }
+    .go-panel button {
+        margin: 0 6px;
+        padding: 8px 18px;
+        border: 1px solid rgba(255,255,255,0.35);
+        background: transparent;
+        color: #fff;
+        font-size: 14px;
+        border-radius: 999px;
+        cursor: pointer;
+    }
+    .go-panel a { text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+    <a class="back" href="wefty-hub.html">← Hub</a>
+    <span class="title">Wefty Climb</span>
+    <span class="hud" id="hud">best 0 m    0 m</span>
+</header>
+
+<div id="stage">
+    <canvas id="bg"></canvas>
+    <canvas id="fg"></canvas>
+
+    <div class="dpad">
+        <button id="btn-left" aria-label="left">◀</button>
+        <button id="btn-down" aria-label="drop">▼</button>
+        <button id="btn-right" aria-label="right">▶</button>
+    </div>
+    <button id="btn-lasso" class="lasso-btn">Lasso</button>
+    <button id="btn-jump"  class="jump-btn">Jump</button>
+</div>
+
+<div id="game-over" class="game-over hidden">
+    <div class="go-panel">
+        <h2>Climb over</h2>
+        <div class="score" id="go-score">Height 0 m</div>
+        <button id="btn-restart">Restart</button>
+        <a href="wefty-hub.html"><button>Back to Hub</button></a>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="auth.js"></script>
+<script src="sound.js"></script>
+<script>
+(() => {
+    // ── Constants (mirror of WeftyClimbWorld) ─────────────────────────
+    const MAX_NEEDLES = 5;
+    const VIEWPORT_H = 1;
+    const ASCEND_SPEED = 0.08;
+    const MOVE_SPEED = 0.42;
+    const GRAVITY = 2.4;
+    const JUMP_VELOCITY = 1.35;
+    const HAZARD_FALL_SPEED = 0.18;
+    const HAZARD_RADIUS = 0.04;
+    const MAX_LIVE_HAZARDS = 3;
+    const START_CAMERA_Y = 0;
+    const BIOME_BROWN_AT = 30;
+    const BIOME_SNOW_AT  = 60;
+
+    // ── World state ──────────────────────────────────────────────────
+    const world = {
+        cameraY: START_CAMERA_Y,
+        weftyX: 0.5,
+        weftyY: 0.9,
+        weftyVy: 0,
+        weftyGrounded: true,
+        heightClimbed: 0,
+        frameTick: 0,
+        gameOver: false,
+        isPaused: false,
+        needles: 3,
+        horizontalInput: 0,     // -1, 0, +1
+        jumpHeld: false,
+        dropThroughUntilY: -Infinity,
+        offscreenSince: -1,
+        // Collections
+        ledges: [],
+        hazards: [],
+        hazardSpawnCdn: 2,
+        nextHazardId: 1,
+        // Lasso
+        lassoReadyAtTick: 0,
+        lassoFlashUntilTick: 0,
+        lassoLastHitX: 0,
+        lassoLastHitY: 0,
+    };
+    function lassoReady() { return world.frameTick >= world.lassoReadyAtTick; }
+
+    function rng() { return Math.random(); }   // seeded would be nicer, parity with Android's Random is fine for v1
+
+    function currentBiome(hc) {
+        if (hc < BIOME_BROWN_AT) return 'GREEN';
+        if (hc < BIOME_SNOW_AT)  return 'BROWN';
+        return 'SNOW';
+    }
+
+    // ── Procedural spawning ──────────────────────────────────────────
+    function seed() {
+        world.ledges.length = 0;
+        world.hazards.length = 0;
+        world.ledges.push({ xStart: 0, xEnd: 1, y: 0.9, sticky: false, variant: 0 });
+        // Pre-spawn a few ledges above so the first jump has targets.
+        for (let i = 0; i < 6; i++) spawnNextLedge();
+    }
+    function spawnNextLedge() {
+        const lastY = world.ledges.length
+            ? world.ledges[world.ledges.length - 1].y
+            : START_CAMERA_Y;
+        const newY = lastY - (0.18 + rng() * 0.10);
+        spawnLedgeAt(newY);
+    }
+    function spawnLedgeAt(y) {
+        const len = 0.28 + rng() * 0.22;
+        const prev = world.ledges[world.ledges.length - 1];
+        const prevCenter = prev ? (prev.xStart + prev.xEnd) / 2 : 0.5;
+        const sign = prevCenter < 0.5 ? 1 : prevCenter > 0.5 ? -1 : (rng() < 0.5 ? 1 : -1);
+        const bias = sign * (0.12 + rng() * 0.25);
+        let center = prevCenter + bias;
+        const minC = len / 2 + 0.02;
+        const maxC = 1 - len / 2 - 0.02;
+        if (center < minC) center = minC;
+        if (center > maxC) center = maxC;
+        const sticky = world.heightClimbed > 3 && rng() < 0.15;
+        const variant = Math.floor(rng() * 4);
+        world.ledges.push({
+            xStart: center - len / 2,
+            xEnd:   center + len / 2,
+            y, sticky, variant,
+        });
+    }
+
+    // ── Physics helpers ──────────────────────────────────────────────
+    function supportY(x, y) {
+        let bestY = null;
+        for (const l of world.ledges) {
+            if (l.y <= world.dropThroughUntilY) continue;
+            if (x < l.xStart || x > l.xEnd) continue;
+            if (l.y < y - 0.05) continue;   // ledge is above Wefty's feet
+            if (bestY === null || l.y < bestY) bestY = l.y;
+        }
+        return bestY;
+    }
+
+    function jump() {
+        if (world.gameOver) return;
+        if (world.weftyGrounded) {
+            world.weftyVy = -JUMP_VELOCITY;
+            world.weftyGrounded = false;
+            try { Sound && Sound.playGameStart && Sound.playGameStart(); } catch (_) {}
+        }
+    }
+    function dropThrough() {
+        if (world.gameOver || !world.weftyGrounded) return;
+        world.dropThroughUntilY = world.weftyY + 0.18;
+        world.weftyGrounded = false;
+        world.weftyVy = 0.15;
+    }
+    function fireLasso() {
+        if (world.gameOver || !lassoReady()) return;
+        let best = null, bestDist = Infinity;
+        for (const hz of world.hazards) {
+            if (hz.y > world.weftyY - 0.02) continue;
+            const dx = hz.x - world.weftyX;
+            const dy = hz.y - world.weftyY;
+            if (Math.abs(dx) > 0.25) continue;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < 0.7 && d < bestDist) { best = hz; bestDist = d; }
+        }
+        world.lassoReadyAtTick = world.frameTick + 120;
+        world.lassoFlashUntilTick = world.frameTick + 22;
+        if (best) {
+            world.lassoLastHitX = best.x; world.lassoLastHitY = best.y;
+            const idx = world.hazards.indexOf(best);
+            if (idx >= 0) world.hazards.splice(idx, 1);
+        } else {
+            world.lassoLastHitX = world.weftyX;
+            world.lassoLastHitY = world.weftyY - 0.55;
+        }
+    }
+
+    // ── Simulation step ──────────────────────────────────────────────
+    function step(dt) {
+        if (world.gameOver || world.isPaused) return;
+        world.frameTick++;
+
+        // Camera rises steadily.
+        world.cameraY -= ASCEND_SPEED * dt;
+        world.heightClimbed = Math.max(world.heightClimbed, START_CAMERA_Y - world.cameraY);
+
+        // Procedural generation — keep 1.5 viewports of ledges above.
+        const topOfWorld = world.cameraY - 1.5;
+        while ((world.ledges.length ? world.ledges[world.ledges.length - 1].y : START_CAMERA_Y) > topOfWorld) {
+            spawnNextLedge();
+        }
+        // Cull ledges/hazards below the camera.
+        world.ledges  = world.ledges .filter(l  => l.y  <= world.cameraY + VIEWPORT_H + 0.5);
+        world.hazards = world.hazards.filter(hz => hz.y <= world.cameraY + VIEWPORT_H + 0.2);
+
+        // Hazard movement.
+        for (const hz of world.hazards) {
+            hz.rot += dt * 2.4;
+            if (hz.kind === 'DROPPER') {
+                hz.y += HAZARD_FALL_SPEED * dt;
+            } else if (hz.kind === 'SWOOPER') {
+                hz.x += hz.vx * dt;
+                hz.phase += dt * 2.6;
+                hz.y = world.cameraY + 0.45 + Math.sin(hz.phase) * 0.020;
+            } else {   // ZIG
+                hz.y += HAZARD_FALL_SPEED * 0.85 * dt;
+                hz.phase += dt * 3.4;
+                hz.x = hz.baseX + Math.sin(hz.phase) * 0.12;
+            }
+        }
+        // Cull swoopers that left horizontally.
+        world.hazards = world.hazards.filter(hz =>
+            !(hz.kind === 'SWOOPER' && (hz.x < -0.08 || hz.x > 1.08)));
+
+        // Spawn new hazard.
+        world.hazardSpawnCdn -= dt;
+        const live = world.hazards.filter(hz =>
+            hz.y > world.cameraY - 0.2 && hz.y < world.cameraY + VIEWPORT_H + 0.1
+        ).length;
+        if (world.hazardSpawnCdn <= 0 && live < MAX_LIVE_HAZARDS) {
+            const roll = rng();
+            let kind;
+            if (roll < 0.50) kind = 'DROPPER';
+            else if (roll < 0.85) kind = 'SWOOPER';
+            else kind = 'ZIG';
+            if (kind === 'DROPPER') {
+                const x = rng();
+                world.hazards.push({ id: world.nextHazardId++, kind, x,
+                    y: world.cameraY - 0.05, rot: rng() * 6.28,
+                    vx: 0, phase: 0, baseX: x, baseY: world.cameraY - 0.05 });
+            } else if (kind === 'SWOOPER') {
+                const fromLeft = rng() < 0.5;
+                const sx = fromLeft ? -0.06 : 1.06;
+                const vx = (fromLeft ? 1 : -1) * (0.10 + rng() * 0.05);
+                const y  = world.cameraY + 0.45;
+                world.hazards.push({ id: world.nextHazardId++, kind, x: sx,
+                    y, rot: rng() * 6.28, vx,
+                    phase: rng() * 6.28, baseX: sx, baseY: y });
+            } else {
+                const x = 0.15 + rng() * 0.70;
+                world.hazards.push({ id: world.nextHazardId++, kind, x,
+                    y: world.cameraY - 0.05, rot: rng() * 6.28,
+                    vx: 0, phase: rng() * 6.28, baseX: x, baseY: world.cameraY - 0.05 });
+            }
+            world.hazardSpawnCdn = 1.6 + rng() * 1.2;
+        }
+
+        // Horizontal input.
+        world.weftyX += world.horizontalInput * MOVE_SPEED * dt;
+        if (world.weftyX < 0.02) world.weftyX = 0.02;
+        if (world.weftyX > 0.98) world.weftyX = 0.98;
+
+        // Gravity + ledge support.
+        const support = supportY(world.weftyX, world.weftyY);
+        const following = support !== null && world.weftyVy >= 0 &&
+            (world.weftyGrounded || world.weftyY >= support - 0.001);
+        if (following) {
+            world.weftyY = support;
+            world.weftyVy = 0;
+            world.weftyGrounded = true;
+        } else {
+            world.weftyGrounded = false;
+            world.weftyVy += GRAVITY * dt;
+            world.weftyY += world.weftyVy * dt;
+            if (support !== null && world.weftyY >= support) {
+                world.weftyY = support; world.weftyVy = 0; world.weftyGrounded = true;
+            }
+        }
+        // Clear drop-through once feet cleared the bypassed ledges.
+        if (world.weftyY > world.dropThroughUntilY) {
+            world.dropThroughUntilY = -Infinity;
+        }
+
+        // Hazard collision.
+        for (const hz of world.hazards) {
+            const dx = hz.x - world.weftyX;
+            const dy = hz.y - world.weftyY + 0.04;
+            if (Math.sqrt(dx*dx + dy*dy) < HAZARD_RADIUS + 0.035) {
+                world.needles--;
+                if (world.needles <= 0) {
+                    world.gameOver = true;
+                }
+                // Remove the hazard we hit so it can't chain-damage.
+                const idx = world.hazards.indexOf(hz);
+                if (idx >= 0) world.hazards.splice(idx, 1);
+                break;
+            }
+        }
+
+        // Fall-off-bottom death: Wefty below camera for > 0.8s ends.
+        if (world.weftyY > world.cameraY + VIEWPORT_H + 0.1) {
+            if (world.offscreenSince < 0) world.offscreenSince = performance.now();
+            if (performance.now() - world.offscreenSince > 800) {
+                world.gameOver = true;
+            }
+        } else {
+            world.offscreenSince = -1;
+        }
+    }
+
+    // ── Input ────────────────────────────────────────────────────────
+    function bindHold(btn, onStart, onEnd) {
+        const start = (e) => { e.preventDefault(); onStart(); };
+        const end   = (e) => { e.preventDefault(); onEnd(); };
+        btn.addEventListener('touchstart', start, { passive: false });
+        btn.addEventListener('touchend', end);
+        btn.addEventListener('touchcancel', end);
+        btn.addEventListener('mousedown', start);
+        btn.addEventListener('mouseup', end);
+        btn.addEventListener('mouseleave', end);
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        bindHold(document.getElementById('btn-left'),
+            () => { world.horizontalInput = -1; },
+            () => { if (world.horizontalInput === -1) world.horizontalInput = 0; });
+        bindHold(document.getElementById('btn-right'),
+            () => { world.horizontalInput = 1; },
+            () => { if (world.horizontalInput === 1) world.horizontalInput = 0; });
+        document.getElementById('btn-down').addEventListener('click', (e) => {
+            e.preventDefault(); dropThrough();
+        });
+        document.getElementById('btn-jump').addEventListener('click', (e) => {
+            e.preventDefault(); jump();
+        });
+        document.getElementById('btn-lasso').addEventListener('click', (e) => {
+            e.preventDefault(); fireLasso();
+        });
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            resetWorld();
+            document.getElementById('game-over').classList.add('hidden');
+        });
+    });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft')  world.horizontalInput = -1;
+        if (e.key === 'ArrowRight') world.horizontalInput = 1;
+        if (e.key === 'ArrowDown')  dropThrough();
+        if (e.key === ' ' || e.key === 'ArrowUp') { jump(); e.preventDefault(); }
+        if (e.key === 'z' || e.key === 'Z')       fireLasso();
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft'  && world.horizontalInput === -1) world.horizontalInput = 0;
+        if (e.key === 'ArrowRight' && world.horizontalInput === 1)  world.horizontalInput = 0;
+    });
+
+    // ── Reset ───────────────────────────────────────────────────────
+    function resetWorld() {
+        world.cameraY = START_CAMERA_Y;
+        world.weftyX = 0.5; world.weftyY = 0.9; world.weftyVy = 0;
+        world.weftyGrounded = true;
+        world.heightClimbed = 0; world.frameTick = 0;
+        world.gameOver = false; world.isPaused = false;
+        world.needles = 3;
+        world.horizontalInput = 0; world.jumpHeld = false;
+        world.dropThroughUntilY = -Infinity; world.offscreenSince = -1;
+        world.hazards.length = 0; world.hazardSpawnCdn = 2;
+        world.lassoReadyAtTick = 0; world.lassoFlashUntilTick = 0;
+        seed();
+    }
+
+    // ── Assets ──────────────────────────────────────────────────────
+    const loadImg = (src) => { const i = new Image(); i.src = src; return i; };
+    const bgGreen = loadImg('climb_bg_green.png');
+    const bgBrown = loadImg('climb_bg_brown.png');
+    const bgSnow  = loadImg('climb_bg_snow.png');
+    const ledgeGreen = [0,1,2,3].map(i => loadImg(`climb_ledge_green_v${i}.png`));
+    const ledgeBrown = [0,1,2,3].map(i => loadImg(`climb_ledge_brown_v${i}.png`));
+    const ledgeSnow  = [0,1,2,3].map(i => loadImg(`climb_ledge_snow_v${i}.png`));
+    const scissors   = loadImg('scissors_open.png');
+    const weftyRoll  = loadImg('wefty_run_a.png');
+    const weftyFall  = loadImg('wefty_fall.png');
+
+    // ── Canvas ──────────────────────────────────────────────────────
+    const bg = document.getElementById('bg');
+    const fg = document.getElementById('fg');
+    const bgCtx = bg.getContext('2d');
+    const fgCtx = fg.getContext('2d');
+    function fit() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        for (const c of [bg, fg]) {
+            c.width  = window.innerWidth * dpr;
+            c.height = window.innerHeight * dpr;
+            c.style.width  = window.innerWidth + 'px';
+            c.style.height = window.innerHeight + 'px';
+            c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+    }
+    fit(); window.addEventListener('resize', fit);
+
+    // ── Rendering ──────────────────────────────────────────────────
+    const overlay = document.getElementById('game-over');
+    const goScore = document.getElementById('go-score');
+    const lassoBtn = document.getElementById('btn-lasso');
+    const hudEl = document.getElementById('hud');
+    let bestHeight = parseInt(localStorage.getItem('wefty_climb_best') || '0', 10);
+
+    function skyPair(biome) {
+        if (biome === 'GREEN') return ['#89D4FF', '#CFE9FF'];
+        if (biome === 'BROWN') return ['#6E7A8C', '#C2A485'];
+        return ['#2A4968', '#E6EEF8'];
+    }
+    function fadeAlphas(hc) {
+        const band = 3;
+        const aGreen = hc < BIOME_BROWN_AT - band ? 1
+            : hc < BIOME_BROWN_AT ? 1 - (hc - (BIOME_BROWN_AT - band)) / band : 0;
+        const aBrown = hc < BIOME_BROWN_AT - band ? 0
+            : hc < BIOME_BROWN_AT ? (hc - (BIOME_BROWN_AT - band)) / band
+            : hc < BIOME_SNOW_AT - band ? 1
+            : hc < BIOME_SNOW_AT ? 1 - (hc - (BIOME_SNOW_AT - band)) / band
+            : 0;
+        const aSnow  = hc < BIOME_SNOW_AT - band ? 0
+            : hc < BIOME_SNOW_AT ? (hc - (BIOME_SNOW_AT - band)) / band : 1;
+        return [aGreen, aBrown, aSnow];
+    }
+
+    function render() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        bgCtx.clearRect(0, 0, w, h);
+        fgCtx.clearRect(0, 0, w, h);
+
+        // Sky per biome.
+        const biome = currentBiome(world.heightClimbed);
+        const [skyTop, skyBot] = skyPair(biome);
+        const grad = bgCtx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, skyTop);
+        grad.addColorStop(1, skyBot);
+        bgCtx.fillStyle = grad;
+        bgCtx.fillRect(0, 0, w, h);
+
+        // Biome strips (parallax 0.5×).
+        const stripWorldHeight = 30;
+        const camOff = world.cameraY * 0.5;
+        const [aG, aB, aS] = fadeAlphas(world.heightClimbed);
+        const stripBitmaps = [
+            [bgGreen, 0, aG],
+            [bgBrown, 1, aB],
+            [bgSnow,  2, aS],
+        ];
+        for (const [img, idx, alpha] of stripBitmaps) {
+            if (alpha <= 0 || !img.complete || !img.naturalWidth) continue;
+            const stripBotY = START_CAMERA_Y - idx * stripWorldHeight;
+            const stripTopY = stripBotY - stripWorldHeight;
+            const sTop = (stripTopY - camOff) * h;
+            const sBot = (stripBotY - camOff) * h;
+            if (sBot < -50 || sTop > h + 50) continue;
+            bgCtx.save();
+            bgCtx.globalAlpha = alpha;
+            bgCtx.drawImage(img, 0, sTop, w, sBot - sTop);
+            bgCtx.restore();
+        }
+
+        // Ledges — per-ledge biome by its world-Y.
+        function ledgeBiomeFor(ly) {
+            const hcLedge = START_CAMERA_Y - ly;
+            if (hcLedge < BIOME_BROWN_AT) return 'GREEN';
+            if (hcLedge < BIOME_SNOW_AT)  return 'BROWN';
+            return 'SNOW';
+        }
+        for (const l of world.ledges) {
+            const lyScreen = (l.y - world.cameraY) * h;
+            if (lyScreen < -40 || lyScreen > h + 40) continue;
+            const lx = l.xStart * w;
+            const lw = (l.xEnd - l.xStart) * w;
+            const lb = ledgeBiomeFor(l.y);
+            const sprites = lb === 'GREEN' ? ledgeGreen
+                           : lb === 'BROWN' ? ledgeBrown : ledgeSnow;
+            const sprite = sprites[Math.max(0, Math.min(sprites.length - 1, l.variant))];
+            if (!sprite.complete || !sprite.naturalWidth) continue;
+            const aspect = sprite.naturalHeight / sprite.naturalWidth;
+            const drawH = lw * aspect;
+            const topOffset = drawH * 0.25;
+            fgCtx.drawImage(sprite, lx, lyScreen - topOffset, lw, drawH);
+
+            if (l.sticky) {
+                fgCtx.fillStyle = 'rgba(245,158,11,0.45)';
+                fgCtx.fillRect(lx, lyScreen, lw, h * 0.025);
+            }
+        }
+
+        // Hazards.
+        const hazSize = h * 0.10;
+        for (const hz of world.hazards) {
+            const sx = hz.x * w;
+            const sy = (hz.y - world.cameraY) * h;
+            if (sy < -hazSize || sy > h + hazSize) continue;
+            if (!scissors.complete || !scissors.naturalWidth) continue;
+            let rotDeg;
+            if (hz.kind === 'SWOOPER') rotDeg = hz.vx >= 0 ? 90 : -90;
+            else rotDeg = hz.rot * 180 / Math.PI;
+            fgCtx.save();
+            fgCtx.translate(sx, sy);
+            fgCtx.rotate(rotDeg * Math.PI / 180);
+            fgCtx.drawImage(scissors, -hazSize / 2, -hazSize / 2, hazSize, hazSize);
+            fgCtx.restore();
+        }
+
+        // Wefty (plain rolling sprite for v1).
+        const wSize = h * 0.10;
+        const wx = world.weftyX * w;
+        const wy = (world.weftyY - world.cameraY) * h;
+        const sprite = world.weftyGrounded ? weftyRoll : weftyFall;
+        if (sprite.complete && sprite.naturalWidth) {
+            fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.9, wSize, wSize);
+        }
+
+        // Lasso flash.
+        if (world.frameTick < world.lassoFlashUntilTick) {
+            const fromX = wx;
+            const fromY = wy - wSize * 0.5;
+            const toX   = world.lassoLastHitX * w;
+            const toY   = (world.lassoLastHitY - world.cameraY) * h;
+            fgCtx.strokeStyle = '#FBBF24';
+            fgCtx.lineWidth = 3;
+            fgCtx.beginPath();
+            fgCtx.moveTo(fromX, fromY);
+            fgCtx.lineTo(toX, toY);
+            fgCtx.stroke();
+        }
+
+        // Lasso button cooldown tint.
+        if (lassoReady()) lassoBtn.classList.remove('cooldown');
+        else              lassoBtn.classList.add('cooldown');
+
+        // HUD.
+        const cur = Math.round(world.heightClimbed * 10);
+        hudEl.textContent = `best ${bestHeight} m    ${cur} m`;
+        if (world.gameOver) {
+            if (cur > bestHeight) {
+                bestHeight = cur;
+                localStorage.setItem('wefty_climb_best', String(cur));
+            }
+            goScore.textContent = `Height ${cur} m${cur >= bestHeight ? ' (new best!)' : ''}`;
+            overlay.classList.remove('hidden');
+        }
+    }
+
+    // ── Main loop ──────────────────────────────────────────────────
+    let lastT = performance.now();
+    function loop(now) {
+        const dt = Math.min(0.05, (now - lastT) / 1000);
+        lastT = now;
+        step(dt);
+        render();
+        requestAnimationFrame(loop);
+    }
+    // Kick off Firebase auth (best-effort; game is playable offline).
+    (async () => {
+        try {
+            if (typeof Auth !== 'undefined') {
+                await Auth.init();
+                await Auth.ensureSignedIn();
+            }
+        } catch (_) {}
+    })();
+    seed();
+    requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
