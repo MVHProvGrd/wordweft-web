@@ -31,8 +31,8 @@
     header .title { font-weight: 700; font-size: 16px; }
     header .hud { margin-left: auto; color: var(--muted); font-size: 13px; }
     header .needles { color: #EF4444; font-size: 16px; letter-spacing: 2px; margin-left: 12px; }
-    #stage { position: absolute; inset: 0; touch-action: none; }
-    canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #stage { position: absolute; inset: 0; touch-action: none; background: #070712; }
+    canvas { position: absolute; top: 0; }
 
     .tutorial {
         position: absolute;
@@ -408,10 +408,20 @@
         if (world.weftyX < 0.02) world.weftyX = 0.02;
         if (world.weftyX > 0.98) world.weftyX = 0.98;
 
+        // After horizontal movement, re-check grounded. If we walked
+        // off the edge of the ledge we WERE on, start falling rather
+        // than snapping down to the next ledge below.
+        if (world.weftyGrounded) {
+            const s = supportY(world.weftyX, world.weftyY);
+            if (s === null || Math.abs(s - world.weftyY) > 0.02) {
+                world.weftyGrounded = false;
+            }
+        }
+
         // Gravity + ledge support.
         const support = supportY(world.weftyX, world.weftyY);
         const following = support !== null && world.weftyVy >= 0 &&
-            (world.weftyGrounded || world.weftyY >= support - 0.001);
+            world.weftyGrounded && Math.abs(support - world.weftyY) < 0.02;
         if (following) {
             world.weftyY = support;
             world.weftyVy = 0;
@@ -420,7 +430,8 @@
             world.weftyGrounded = false;
             world.weftyVy += GRAVITY * dt;
             world.weftyY += world.weftyVy * dt;
-            if (support !== null && world.weftyY >= support) {
+            // Landing: if we just crossed a support this frame, snap.
+            if (support !== null && world.weftyVy > 0 && world.weftyY >= support) {
                 world.weftyY = support; world.weftyVy = 0; world.weftyGrounded = true;
             }
         }
@@ -590,13 +601,22 @@
     const fg = document.getElementById('fg');
     const bgCtx = bg.getContext('2d');
     const fgCtx = fg.getContext('2d');
+    // Lock gameplay canvas to a portrait aspect (max width = 0.70 ×
+    // height) so the experience is the same on a phone and a 21:9
+    // monitor. Wider screens get dark letterbox bars on the sides.
     function fit() {
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const h = window.innerHeight;
+        const maxW = Math.round(h * 0.70);
+        const gameW = Math.min(window.innerWidth, maxW);
+        const offsetX = Math.round((window.innerWidth - gameW) / 2);
         for (const c of [bg, fg]) {
-            c.width  = window.innerWidth * dpr;
-            c.height = window.innerHeight * dpr;
-            c.style.width  = window.innerWidth + 'px';
-            c.style.height = window.innerHeight + 'px';
+            c.width  = gameW * dpr;
+            c.height = h * dpr;
+            c.style.width  = gameW + 'px';
+            c.style.height = h + 'px';
+            c.style.left = offsetX + 'px';
+            c.style.right = 'auto';
             c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
         }
     }
@@ -629,8 +649,11 @@
     }
 
     function render() {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+        // Use the canvas's CSS size (letterboxed to portrait) rather
+        // than the window size — keeps gameplay feeling the same on
+        // wide monitors. X=0 and X=w are the canvas's own bounds.
+        const w = bg.clientWidth;
+        const h = bg.clientHeight;
         bgCtx.clearRect(0, 0, w, h);
         fgCtx.clearRect(0, 0, w, h);
 
@@ -701,11 +724,14 @@
             }
             const centerX = ((l.xStart + l.xEnd) / 2) * w;
             const drawX = centerX - drawW / 2;
-            // Grass surface sits ~20% from the top of the sprite
-            // (above it are the wispy tufts). Offset by that so
-            // Wefty's feet at l.y land ON the grass, not above the
-            // tufts.
-            const topOffset = drawH * 0.20;
+            // Ledge sprite layout: pull the sprite down so its grass
+            // SURFACE (where the flowers are rooted) sits at the
+            // hitbox line — tufts then stand UP into the air above
+            // the surface, not above Wefty's head. Combined with the
+            // Wefty anchor below (feet sit a bit into the grass),
+            // she reads as planted on the platform with tufts around
+            // her feet.
+            const topOffset = drawH * 0.32;
             fgCtx.drawImage(sprite, drawX, lyScreen - topOffset, drawW, drawH);
             // (Sticky indicator rendered as a subtle tint inside the
             // grass band rather than an ugly amber bar across the top.)
@@ -720,7 +746,7 @@
         }
 
         // Hazards.
-        const hazSize = h * 0.10;
+        const hazSize = h * 0.065;
         for (const hz of world.hazards) {
             const sx = hz.x * w;
             const sy = (hz.y - world.cameraY) * h;
@@ -742,7 +768,10 @@
         const wy = (world.weftyY - world.cameraY) * h;
         const sprite = world.weftyGrounded ? weftyRoll : weftyFall;
         if (sprite.complete && sprite.naturalWidth) {
-            fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.9, wSize, wSize);
+            // Anchor so Wefty's visible bottom is slightly INSIDE the
+            // grass — tufts + flowers end up standing up around her
+            // rather than hovering above her head.
+            fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.75, wSize, wSize);
         }
 
         // Lasso visual — braided rope + lasso sprite at the tip.
