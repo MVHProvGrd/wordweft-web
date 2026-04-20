@@ -2032,7 +2032,7 @@
             const fullDist = Math.hypot(ropeDx, ropeDy);
             if (fullDist > 2) {
                 const angle = Math.atan2(ropeDy, ropeDx);
-                const lassoSize = h * 0.18;            // loop inner hole ≈ scissor (h*0.10)
+                const lassoSize = h * 0.21;            // loop outer diameter ≈ Wefty sprite (h*0.165)
                 const knotOffset = lassoSize * 0.28;   // sprite center → knot in the PNG
                 const ropeDist = Math.max(0, fullDist - knotOffset);
                 const ropeThickness = h * 0.008;

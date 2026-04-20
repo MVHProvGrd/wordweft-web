@@ -147,6 +147,24 @@
         touch-action: manipulation;
     }
     .dpad button:active { transform: scale(0.93); background: rgba(100, 116, 139, 0.95); }
+    .dpad button.hidden { display: none; }
+
+    /* iOS needs an explicit user-gesture permission prompt for
+       DeviceOrientationEvent. Shown as a small pill next to the D-pad
+       on the first tap-to-play — disappears once permission is granted
+       or denied. */
+    .tilt-prompt {
+        position: absolute;
+        left: 50%; transform: translateX(-50%);
+        bottom: 110px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        background: rgba(245, 158, 11, 0.92);
+        color: #fff; font-weight: 700; font-size: 13px;
+        border: none; cursor: pointer;
+        z-index: 7;
+    }
+    .tilt-prompt.hidden { display: none; }
 
     .game-over {
         position: absolute; inset: 0;
@@ -226,6 +244,7 @@
         <button id="btn-down" aria-label="drop">▼</button>
         <button id="btn-right" aria-label="right">▶</button>
     </div>
+    <button id="btn-tilt" class="tilt-prompt hidden">Tap to enable tilt</button>
     <button id="btn-lasso" class="lasso-btn">Lasso</button>
     <button id="btn-jump"  class="jump-btn">Jump</button>
 </div>
@@ -647,6 +666,66 @@
         window.addEventListener('resize', checkOrientation);
         window.addEventListener('orientationchange', checkOrientation);
         checkOrientation();
+
+        // ── Tilt controls ─────────────────────────────────────────
+        // On mobile, steer Wefty by tilting the device side-to-side.
+        // `gamma` is the left-right tilt in degrees: positive = top
+        // edge rotated right → move right. Deadzone keeps her still
+        // on a near-level hold. iOS requires a user-gesture permission
+        // grant; Android fires events freely. If no tilt events arrive
+        // within 2 seconds, keep the D-pad visible as a fallback.
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const tiltBtn = document.getElementById('btn-tilt');
+        let tiltActive = false;
+
+        function onTilt(e) {
+            if (e.gamma == null) return;
+            if (!tiltActive) {
+                tiltActive = true;
+                btnLeft.classList.add('hidden');
+                btnRight.classList.add('hidden');
+                tiltBtn.classList.add('hidden');
+            }
+            const deg = e.gamma;
+            const dead = 3;
+            const maxTilt = 22;  // full deflection at 22° of roll
+            let centered = 0;
+            if (deg > dead) centered = deg - dead;
+            else if (deg < -dead) centered = deg + dead;
+            world.horizontalInput = Math.max(-1, Math.min(1, centered / maxTilt));
+        }
+
+        function wireTilt() {
+            // Desktop browsers fire DeviceOrientationEvent too but
+            // always with (0,0,0) — we only enable tilt steering when
+            // the viewport looks like a phone in portrait, which the
+            // rotate-overlay check already approximates.
+            const narrowEnoughToBeMobile =
+                Math.min(window.innerWidth, window.innerHeight) < 600;
+            if (!narrowEnoughToBeMobile) return;
+            const hasReqPerm =
+                (typeof DeviceOrientationEvent !== 'undefined') &&
+                (typeof DeviceOrientationEvent.requestPermission === 'function');
+            if (hasReqPerm) {
+                // iOS: requestPermission() must be called from a user
+                // gesture. Show the pill until tapped.
+                tiltBtn.classList.remove('hidden');
+                tiltBtn.addEventListener('click', async () => {
+                    try {
+                        const res = await DeviceOrientationEvent.requestPermission();
+                        if (res === 'granted') {
+                            window.addEventListener('deviceorientation', onTilt);
+                        }
+                    } catch (_) {}
+                    tiltBtn.classList.add('hidden');
+                }, { once: true });
+            } else if (typeof DeviceOrientationEvent !== 'undefined') {
+                // Android / other — no permission needed.
+                window.addEventListener('deviceorientation', onTilt);
+            }
+        }
+        wireTilt();
     });
     window.addEventListener('keydown', (e) => {
         const k = e.key;
@@ -920,10 +999,10 @@
             if (dist < 2) return;
             const angle = Math.atan2(dy, dx);
             const uDx = dx / dist, uDy = dy / dist;
-            // Sprite size: loop INNER hole ≈ scissor diameter so the
-            // scissors fit snugly inside. Inner hole is ~55% of the
-            // sprite width, so spriteSize ≈ 0.10 / 0.55 ≈ 0.18.
-            const lassoSize = h * 0.18;
+            // Sprite size: loop OUTER diameter matches Wefty's sprite
+            // size (h * 0.10). Loop outer is ~78% of sprite width, so
+            // spriteSize ≈ 0.10 / 0.78 ≈ 0.128.
+            const lassoSize = h * 0.13;
             // Knot sits ~28% below the sprite center in the PNG.
             const knotOffset = lassoSize * 0.28;
             const ropeDist = Math.max(0, dist - knotOffset);
