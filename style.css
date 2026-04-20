@@ -832,7 +832,7 @@ html, body {
 }
 
 /* Easter-egg: small waving Wefty in the home-screen corner — tap to
-   launch the Wefty Weave mini-game. Positioned so it doesn't interfere
+   open the Wefty Playground hub. Positioned so it doesn't interfere
    with the main CTA stack. */
 .wefty-egg {
     position: fixed;

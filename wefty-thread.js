@@ -1,4 +1,4 @@
-// Shared yarn-thread renderer for Wefty Weave and Wefty Run.
+// Shared yarn-thread renderer for Wefty Run and Wefty Climb.
 // Exposes window.WeftyThread = { PALETTES, GUIDE_PALETTE, loadYarnPattern,
 // drawThread, strokePath } so both mini-games can draw the same look
 // without copy-paste drift.
