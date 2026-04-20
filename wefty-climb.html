@@ -195,10 +195,11 @@
     // ── Constants (mirror of WeftyClimbWorld) ─────────────────────────
     const MAX_NEEDLES = 5;
     const VIEWPORT_H = 1;
-    const ASCEND_SPEED = 0.05;          // slowed from 0.08 for testing
+    const ASCEND_SPEED = 0.075;         // 1.5× the previous 0.05 per user
     const MOVE_SPEED = 0.42;
     const GRAVITY = 3.2;                // stronger for ballistic arcs
-    const JUMP_VELOCITY = 1.65;         // paired w/ gravity — same max height, snappier feel
+    const JUMP_VELOCITY = 1.15;         // max height ≈ 0.21 world units — clears one
+                                        // ledge gap (spawner capped at 0.20), never two
     const HAZARD_FALL_SPEED = 0.14;     // slowed proportionally
     const HAZARD_RADIUS = 0.04;
     const MAX_LIVE_HAZARDS = 3;
@@ -260,7 +261,10 @@
         const lastY = world.ledges.length
             ? world.ledges[world.ledges.length - 1].y
             : START_CAMERA_Y;
-        const newY = lastY - (0.18 + rng() * 0.10);
+        // Vertical spacing capped at 0.20 so a single jump always
+        // reaches the next ledge up. Lower bound keeps ledges close
+        // enough that misses are short falls, not catastrophic.
+        const newY = lastY - (0.13 + rng() * 0.07);
         spawnLedgeAt(newY);
     }
     function spawnLedgeAt(y) {
@@ -791,7 +795,9 @@
             const dx = endX - fromX, dy = endY - fromY;
             const dist = Math.hypot(dx, dy);
             const angle = Math.atan2(dy, dx);
-            const ropeThickness = h * 0.018;
+            // Match the braid thickness inside the lasso loop sprite
+            // so the rope reads as a single cohesive piece.
+            const ropeThickness = h * 0.008;
             if (dist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
                 fgCtx.save();
                 fgCtx.translate(fromX, fromY);
