@@ -92,6 +92,33 @@
     .lasso-btn.cooldown { opacity: 0.35; }
     .jump-btn:active, .lasso-btn:active { transform: scale(0.95); }
 
+    .top-btn {
+        position: absolute;
+        top: 10px;
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(30, 30, 54, 0.92);
+        color: #fff;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+        z-index: 7;
+    }
+    .top-btn:active { transform: scale(0.92); }
+
+    .pause-overlay {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(10, 10, 25, 0.65);
+        z-index: 11;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .pause-overlay.hidden { display: none; }
+
     .dpad { position: absolute; left: 18px; bottom: 22px; display: flex; gap: 10px; z-index: 6; }
     .dpad button {
         width: 62px; height: 62px;
@@ -144,6 +171,11 @@
     <button id="btn-help" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer;margin-left:8px;">?</button>
 </header>
 
+<button id="btn-pause" class="top-btn" style="right:56px;top:10px;" title="Pause">‖</button>
+<button id="btn-fs"    class="top-btn" style="right:100px;top:10px;" title="Fullscreen">⛶</button>
+
+<div id="pause-overlay" class="pause-overlay hidden">Paused — tap to resume</div>
+
 <div id="tutorial" class="tutorial hidden">
     <div class="panel">
         <h2>Wefty Climb 🏔️</h2>
@@ -195,7 +227,7 @@
     // ── Constants (mirror of WeftyClimbWorld) ─────────────────────────
     const MAX_NEEDLES = 5;
     const VIEWPORT_H = 1;
-    const ASCEND_SPEED = 0.075;         // 1.5× the previous 0.05 per user
+    const ASCEND_SPEED = 0.094;         // +25% from 0.075 per user
     const MOVE_SPEED = 0.42;
     const GRAVITY = 3.2;                // stronger for ballistic arcs
     const JUMP_VELOCITY = 1.15;         // max height ≈ 0.21 world units — clears one
@@ -204,8 +236,8 @@
     const HAZARD_RADIUS = 0.04;
     const MAX_LIVE_HAZARDS = 3;
     const START_CAMERA_Y = 0;
-    const BIOME_BROWN_AT = 30;
-    const BIOME_SNOW_AT  = 60;
+    const BIOME_BROWN_AT = 15;          // 150m per biome for testing (was 300m)
+    const BIOME_SNOW_AT  = 30;
     const LASSO_COOLDOWN_FRAMES = 0;    // on-demand, no cooldown
 
     // ── World state ──────────────────────────────────────────────────
@@ -315,14 +347,15 @@
     }
     function fireLasso() {
         if (world.gameOver || !lassoReady()) return;
+        // Omnidirectional: snag the nearest hazard in any direction,
+        // capped at 0.2 world-units (≈ 1/5 of the viewport).
         let best = null, bestDist = Infinity;
         for (const hz of world.hazards) {
-            if (hz.y > world.weftyY - 0.02) continue;
             const dx = hz.x - world.weftyX;
             const dy = hz.y - world.weftyY;
-            if (Math.abs(dx) > 0.25) continue;
             const d = Math.sqrt(dx*dx + dy*dy);
-            if (d < 0.7 && d < bestDist) { best = hz; bestDist = d; }
+            if (d > 0.2) continue;
+            if (d < bestDist) { best = hz; bestDist = d; }
         }
         world.lassoReadyAtTick = world.frameTick + LASSO_COOLDOWN_FRAMES;
         world.lassoFlashUntilTick = world.frameTick + 22;
@@ -332,8 +365,9 @@
             const idx = world.hazards.indexOf(best);
             if (idx >= 0) world.hazards.splice(idx, 1);
         } else {
+            // Miss — short visual flick straight up.
             world.lassoLastHitX = world.weftyX;
-            world.lassoLastHitY = world.weftyY - 0.55;
+            world.lassoLastHitY = world.weftyY - 0.18;
         }
     }
 
@@ -523,6 +557,42 @@
             world.isPaused = true;
             document.getElementById('tutorial').classList.remove('hidden');
         }
+
+        // Pause toggle — pause the sim, pause music, show overlay.
+        const pauseOverlay = document.getElementById('pause-overlay');
+        const pauseBtn = document.getElementById('btn-pause');
+        function setPaused(p) {
+            world.isPaused = p;
+            pauseBtn.textContent = p ? '▶' : '‖';
+            if (p) {
+                pauseOverlay.classList.remove('hidden');
+                try { musicLoop.pause(); } catch (_) {}
+            } else {
+                pauseOverlay.classList.add('hidden');
+                if (musicStarted && !world.gameOver) musicLoop.play().catch(() => {});
+            }
+        }
+        pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setPaused(!world.isPaused);
+        });
+        pauseOverlay.addEventListener('click', () => setPaused(false));
+        // Fullscreen — landscape-lock on mobile if the browser allows.
+        document.getElementById('btn-fs').addEventListener('click', async () => {
+            const root = document.documentElement;
+            try {
+                if (document.fullscreenElement || document.webkitFullscreenElement) {
+                    if (document.exitFullscreen) await document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                } else {
+                    if (root.requestFullscreen) await root.requestFullscreen();
+                    else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+                    if (screen.orientation && screen.orientation.lock) {
+                        try { await screen.orientation.lock('landscape'); } catch (_) {}
+                    }
+                }
+            } catch (_) {}
+        });
     });
     window.addEventListener('keydown', (e) => {
         const k = e.key;
@@ -728,25 +798,19 @@
             }
             const centerX = ((l.xStart + l.xEnd) / 2) * w;
             const drawX = centerX - drawW / 2;
-            // Ledge sprite layout: pull the sprite down so its grass
-            // SURFACE (where the flowers are rooted) sits at the
-            // hitbox line — tufts then stand UP into the air above
-            // the surface, not above Wefty's head. Combined with the
-            // Wefty anchor below (feet sit a bit into the grass),
-            // she reads as planted on the platform with tufts around
-            // her feet.
-            const topOffset = drawH * 0.32;
+            // Ledge sprite layout: per-biome topOffset so the visible
+            // SURFACE line lands at the same spot relative to the
+            // hitbox across all biomes. Green sprites have tuft
+            // blades extending above the grass surface (surface at
+            // ~23% from PNG top), brown and snow sprites have surface
+            // starting at the very top of the opaque region (~5%).
+            const topOffsetByBiome = { GREEN: 0.32, BROWN: 0.14, SNOW: 0.14 };
+            const topOffset = drawH * topOffsetByBiome[lb];
             fgCtx.drawImage(sprite, drawX, lyScreen - topOffset, drawW, drawH);
-            // (Sticky indicator rendered as a subtle tint inside the
-            // grass band rather than an ugly amber bar across the top.)
-            if (l.sticky) {
-                fgCtx.save();
-                fgCtx.globalAlpha = 0.35;
-                fgCtx.fillStyle = '#F59E0B';
-                fgCtx.fillRect(drawX, lyScreen - topOffset + drawH * 0.15,
-                               drawW, drawH * 0.10);
-                fgCtx.restore();
-            }
+            // (Sticky-ledge visual indicator removed for now — it was
+            // drawing as an amber bar across the grass that looked
+            // out of place. Sticky physics still applies; we'll add
+            // a different visual cue later.)
         }
 
         // Hazards.
@@ -773,9 +837,9 @@
         const sprite = world.weftyGrounded ? weftyRoll : weftyFall;
         if (sprite.complete && sprite.naturalWidth) {
             // Anchor so Wefty's visible bottom is slightly INSIDE the
-            // grass — tufts + flowers end up standing up around her
-            // rather than hovering above her head.
-            fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.75, wSize, wSize);
+            // grass — but not so deep that her body is swallowed by
+            // the tufts on the taller flower-rich variants.
+            fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.80, wSize, wSize);
         }
 
         // Lasso visual — braided rope + lasso sprite at the tip.
