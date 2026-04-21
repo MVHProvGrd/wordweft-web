@@ -1534,15 +1534,35 @@
         seedPlatforms();
     }
 
+    // Build a Platform with variant + sprite world coords attached.
+    // Shared between seedPlatforms() and addNextPlatform() so the
+    // initial buffer renders with real island sprites instead of the
+    // green fallback (prior bug: seed-created platforms had no
+    // variant → renderer fell through to fallback for the leading
+    // chunk of the run).
+    function buildPlatform(xStart, xEnd, top, crown = 0) {
+        const variant = pickRunIslandVariant();
+        const WATER_Y_WORLD = 0.98;
+        let spriteTopY, spriteHeight, spriteRenderW;
+        if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
+            const s = RUN_ISLAND_SURFACES[variant];
+            const aspect = s.h / s.w;
+            const maxRidge = Math.max.apply(null, s.surface);
+            spriteHeight = (WATER_Y_WORLD - top) / Math.max(0.15, 1 - maxRidge);
+            spriteTopY = WATER_Y_WORLD - spriteHeight;
+            spriteRenderW = spriteHeight / aspect;
+        }
+        return { xStart, xEnd, top, crown, variant, spriteTopY, spriteHeight, spriteRenderW };
+    }
     function seedPlatforms() {
         // Short flat runway so height variance starts kicking in quickly.
-        world.platforms.push({ xStart: -0.5, xEnd: 1.4, top: PLATFORM_Y });
+        world.platforms.push(buildPlatform(-0.5, 1.4, PLATFORM_Y));
         let x = 1.4;
         for (let i = 0; i < 3; i++) {
             const gap = Math.random() * 0.12 + 0.12;
             x += gap;
             const len = Math.random() * 0.5 + 0.55;
-            world.platforms.push({ xStart: x, xEnd: x + len, top: PLATFORM_Y });
+            world.platforms.push(buildPlatform(x, x + len, PLATFORM_Y));
             x += len;
         }
     }
@@ -1587,23 +1607,35 @@
         // into the baked ridge. Until the JSON loads, leave the fields
         // undefined — platformSurfaceY falls back to the sin-crown math.
         const variant = pickRunIslandVariant();
-        let spriteTopY, spriteHeight;
+        // Sprite sizing & anchor (user-driven redesign):
+        //   • Scale proportionally — sprite height + width pinned to
+        //     natural aspect (no stretching).
+        //   • Anchor sprite BOTTOM at the waterline (no hovering).
+        //   • Target sprite HEIGHT driven by the baked max-ridge fraction
+        //     so Wefty's feet land at p.top regardless of which variant
+        //     got picked.
+        //   • Sprite WIDTH derived from height × aspect. May be narrower
+        //     or wider than the platform hitbox — that's fine; water
+        //     fills horizontal gaps, the hitbox stays xStart..xEnd.
+        const WATER_Y_WORLD = 0.98;   // sprite bottom pinned here
+        let spriteTopY, spriteHeight, spriteRenderW;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
-            const aspect = s.h / s.w;
-            spriteHeight = len * aspect;
-            // Anchor: sprite's max-ridge value (= body-edge Y, the
-            // lowest grass point) lines up with legacy p.top so old
-            // world.platforms chain remains compatible. Anything above
-            // the ridge (tufts/trees/mushrooms/flowers) extends up
-            // into the visible play area.
+            const aspect = s.h / s.w;    // H/W
             const maxRidge = Math.max.apply(null, s.surface);
-            spriteTopY = top - maxRidge * spriteHeight;
+            // We want: spriteTopY + maxRidge * spriteHeight = p.top (Wefty's feet).
+            // Also: spriteTopY + spriteHeight = WATER_Y_WORLD (bottom pinned).
+            // Solve → spriteHeight = (WATER_Y_WORLD - top) / (1 - maxRidge)
+            spriteHeight = (WATER_Y_WORLD - top) / Math.max(0.15, 1 - maxRidge);
+            spriteTopY = WATER_Y_WORLD - spriteHeight;
+            // Sprite width from aspect, then capped at 1.3× platform
+            // width so very-tall variants (pines) don't grow silly-wide.
+            spriteRenderW = spriteHeight / aspect;
         }
 
         const p = {
             xStart: x, xEnd: x + len, top, crown,
-            variant, spriteTopY, spriteHeight,
+            variant, spriteTopY, spriteHeight, spriteRenderW,
         };
         world.platforms.push(p);
 
@@ -2498,19 +2530,14 @@
         .then(data => { RUN_ISLAND_SURFACES = data; })
         .catch(() => { /* offline — legacy collision keeps running */ });
 
-    // Animated water — 6-frame horizontally tileable river strip for
-    // the gaps between platforms (Phase 5). Rendered at a fixed
-    // waterline behind the island BG layer, tile scrolls + cycles
-    // frame every WATER_FRAME_TICKS frames.
-    const WATER_TILES = [
-        loadImg('water_tile_f0.png'),
-        loadImg('water_tile_f1.png'),
-        loadImg('water_tile_f2.png'),
-        loadImg('water_tile_f3.png'),
-        loadImg('water_tile_f4.png'),
-        loadImg('water_tile_f5.png'),
-    ];
-    const WATER_FRAME_TICKS = 7;   // tick per frame of the water loop
+    // Solid water block tile (Phase 5 redo). One vertically +
+    // horizontally tileable sprite with subtle ripple impressions
+    // baked in. Rendered as a solid column in each gap; the tile
+    // texture SCROLLS VERTICALLY at a slow speed to suggest flowing
+    // current. Direction (up/down) is assigned per-gap at spawn so
+    // adjacent rivers vary.
+    const WATER_BLOCK = loadImg('water_block.png');
+    const WATER_SCROLL_SPEED = 0.15;   // slow; full tile every ~7s
 
     // First-gap wooden bridge — rope-railing + plank-deck sprites.
     // BG = deck + posts (renders behind Wefty). FG = yarn rope rail
@@ -3051,15 +3078,17 @@
         const camOffsetX = world.cameraX * w;
         bgCtx.save();
         bgCtx.translate(-camOffsetX, 0);
-        // WATER IN GAPS (Phase 5). For each pair of adjacent
-        // platforms, tile an animated water strip between their
-        // edges. Waterline sits just below PLATFORM_Y so islands
-        // visually "float" with water lapping at their base.
-        const waterY = PLATFORM_Y + 0.10;   // world-units
+        // WATER IN GAPS (Phase 5 redo). For each pair of adjacent
+        // platforms, fill the whole gap as a solid body of water
+        // tiled with the water_block sprite. Tile scrolls VERTICALLY
+        // at a slow speed to suggest flowing current; direction is
+        // stable per-gap (pseudo-random from xStart) so adjacent
+        // rivers vary in flow direction. No horizontal camera scroll
+        // — the water stays pinned to its gap.
+        const waterY = PLATFORM_Y + 0.10;
         const wlPx = waterY * h;
-        const waterFrameIdx = Math.floor(((world.frameTick || 0) / WATER_FRAME_TICKS)) % WATER_TILES.length;
-        const waterFrame = WATER_TILES[waterFrameIdx];
-        const waterReady = waterFrame && waterFrame.complete && waterFrame.naturalWidth > 0;
+        const waterReady = WATER_BLOCK.complete && WATER_BLOCK.naturalWidth > 0;
+        const waterTick = world.frameTick || 0;
         for (let i = 0; i < world.platforms.length - 1; i++) {
             const p1 = world.platforms[i], p2 = world.platforms[i + 1];
             const gapStart = p1.xEnd;
@@ -3068,28 +3097,46 @@
             if (gapEnd < world.cameraX - 0.2 || gapStart > world.cameraX + 1.2) continue;
             const gx1 = gapStart * w;
             const gx2 = gapEnd * w;
-            // Body fill — solid deep blue from waterline down to screen bottom
-            bgCtx.fillStyle = '#1A3D6B';
+            // Solid body fill — waterline down to screen bottom
+            bgCtx.fillStyle = '#2C5F9E';
             bgCtx.fillRect(gx1, wlPx, gx2 - gx1, h - wlPx);
-            // Animated surface — tile the frame horizontally, scrolling
-            // slightly slower than the camera so it reads as moving water.
             if (waterReady) {
-                const tileAspect = waterFrame.naturalHeight / waterFrame.naturalWidth;
-                const tileRenderW = Math.max(96, (gx2 - gx1) / 4);
-                const tileRenderH = tileRenderW * tileAspect;
-                const scroll = (world.cameraX * 0.8 * w) % tileRenderW;
-                for (let tx = gx1 - scroll; tx < gx2; tx += tileRenderW) {
-                    const drawX = Math.max(tx, gx1);
-                    const drawEnd = Math.min(tx + tileRenderW, gx2);
-                    if (drawEnd <= drawX) continue;
-                    // Clip-render only the gap-visible portion of each tile
-                    const srcX = (drawX - tx) / tileRenderW * waterFrame.naturalWidth;
-                    const srcW = (drawEnd - drawX) / tileRenderW * waterFrame.naturalWidth;
-                    bgCtx.drawImage(
-                        waterFrame,
-                        srcX, 0, srcW, waterFrame.naturalHeight,
-                        drawX, wlPx - tileRenderH * 0.25, drawEnd - drawX, tileRenderH,
-                    );
+                // Stable per-gap direction + phase offset
+                const seed = Math.floor((gapStart + 100) * 73.3);
+                const dir = (seed & 1) === 0 ? 1 : -1;
+                const phase = Math.abs(seed * 31) % 97 / 97;
+                // Tile size: scale so the tile is ~1/3 of viewport
+                // height — gives noticeable ripple detail without
+                // overwhelming at small canvas sizes.
+                const tileH = h * 0.33;
+                const tileW = tileH * (WATER_BLOCK.naturalWidth / WATER_BLOCK.naturalHeight);
+                // Vertical scroll — frameTick × speed × dir
+                let vOff = (dir * waterTick * WATER_SCROLL_SPEED + phase * tileH) % tileH;
+                if (vOff < 0) vOff += tileH;
+                // Tile horizontally across the gap, vertically from
+                // waterline down to screen bottom.
+                for (let tx = gx1; tx < gx2; tx += tileW) {
+                    const drawX = tx;
+                    const drawEndX = Math.min(tx + tileW, gx2);
+                    const tileDrawW = drawEndX - drawX;
+                    // Vertical strip — top edge at wlPx - vOff (so the
+                    // tile appears to scroll through). Draw multiple
+                    // vertical copies until screen bottom.
+                    for (let ty = wlPx - vOff; ty < h; ty += tileH) {
+                        const drawY = Math.max(ty, wlPx);
+                        const drawEndY = Math.min(ty + tileH, h);
+                        const tileDrawH = drawEndY - drawY;
+                        if (tileDrawH <= 0) continue;
+                        const srcX = 0;
+                        const srcW = (tileDrawW / tileW) * WATER_BLOCK.naturalWidth;
+                        const srcY = (drawY - ty) / tileH * WATER_BLOCK.naturalHeight;
+                        const srcH = (tileDrawH / tileH) * WATER_BLOCK.naturalHeight;
+                        bgCtx.drawImage(
+                            WATER_BLOCK,
+                            srcX, srcY, srcW, srcH,
+                            drawX, drawY, tileDrawW, tileDrawH,
+                        );
+                    }
                 }
             }
         }
@@ -3106,10 +3153,11 @@
                 const bw = (fb.xEnd - fb.xStart) * w;
                 const aspect = FIRST_BRIDGE_BG.naturalHeight / FIRST_BRIDGE_BG.naturalWidth;
                 const bh = bw * aspect;
-                // Deck position: rope of the BG sprite sits at ~60%
-                // down, so align 60% of sprite height with the bridge
-                // deck Y.
-                const by = fb.deckY * h - bh * 0.60;
+                // Deck anchor: plank-top sits at ~45% down the cropped
+                // sprite (measured by scanning wood-colored pixels).
+                // Aligning that row with fb.deckY means Wefty rolls on
+                // the planks, not clipping through / under them.
+                const by = fb.deckY * h - bh * 0.45;
                 bgCtx.drawImage(FIRST_BRIDGE_BG, bx, by, bw, bh);
             }
         }
@@ -3130,9 +3178,14 @@
             const ready = bgImg && bgImg.complete && bgImg.naturalWidth > 0
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
-                const drawW = (p.xEnd - p.xStart) * w;
+                // Proportional render — use the spriteRenderW from the
+                // spawner (natural aspect, no stretching). Center the
+                // sprite over the platform's midpoint. Sprite BOTTOM
+                // is pinned at the waterline (spriteTopY + spriteHeight).
+                const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
                 const drawH = p.spriteHeight * h;
-                const drawX = p.xStart * w;
+                const centerX = ((p.xStart + p.xEnd) / 2) * w;
+                const drawX = centerX - drawW / 2;
                 const drawY = p.spriteTopY * h;
                 bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
             } else {
@@ -3509,9 +3562,10 @@
             const fgImg = p.variant ? RUN_ISLAND_FG[p.variant] : null;
             if (!fgImg || !fgImg.complete || !fgImg.naturalWidth) continue;
             if (p.spriteTopY === undefined) continue;
-            const drawW = (p.xEnd - p.xStart) * w;
+            const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
             const drawH = p.spriteHeight * h;
-            const drawX = p.xStart * w;
+            const centerX = ((p.xStart + p.xEnd) / 2) * w;
+            const drawX = centerX - drawW / 2;
             const drawY = p.spriteTopY * h;
             fgCtx.drawImage(fgImg, drawX, drawY, drawW, drawH);
         }

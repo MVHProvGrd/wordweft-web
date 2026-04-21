@@ -1340,7 +1340,10 @@
     // Climb-specific music loop (Lyria-3 generated, cheerful
     // cartoon-adventure flute + glockenspiel). Distinct from Run's
     // loop so the mode switch reads immediately in the soundtrack.
-    const musicLoop = new Audio('wefty_climb_loop.mp3');
+    // Share Run's instrumental loop — the prior climb loop had
+    // vocals that the user flagged as unwanted. Revisit with a
+    // dedicated no-lyrics track later.
+    const musicLoop = new Audio('wefty_run_loop.mp3');
     musicLoop.loop = true; musicLoop.volume = 0.32;
     let musicStarted = false;
     function tryStartMusic() {
@@ -1482,21 +1485,16 @@
                            : lb === 'BROWN' ? ledgeBrown : ledgeSnow;
             const sprite = sprites[Math.max(0, Math.min(sprites.length - 1, l.variant))];
             if (!sprite.complete || !sprite.naturalWidth) continue;
-            // Lock natural aspect, cap at a compact max size, center
-            // over the hitbox midpoint. Sprite visual width does NOT
-            // have to equal the hitbox width — collision is still
-            // xStart..xEnd. This keeps the PNG looking like the
-            // preview we approved (no horizontal drag).
+            // Always scale the sprite to match the platform's HITBOX
+            // WIDTH and let natural aspect carry the height. Prior
+            // rule capped drawH at 7% of screen height, which squished
+            // tall (tree-bearing) variants down to miniatures while
+            // non-tree variants stayed full-width. Now every variant
+            // reads at the same deck scale — trees just extend taller
+            // upward above the walkable surface.
             const natAspect = sprite.naturalHeight / sprite.naturalWidth;
-            const maxH = h * 0.07;
-            const maxW = lw;
-            const widthLimitedH = maxW * natAspect;
-            let drawW, drawH;
-            if (widthLimitedH <= maxH) {
-                drawW = maxW; drawH = widthLimitedH;
-            } else {
-                drawH = maxH; drawW = drawH / natAspect;
-            }
+            const drawW = lw;
+            const drawH = drawW * natAspect;
             const centerX = ((l.xStart + l.xEnd) / 2) * w;
             const drawX = centerX - drawW / 2;
             // Per-(biome, variant) topOffset so the visible SURFACE
