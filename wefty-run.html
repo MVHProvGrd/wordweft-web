@@ -3164,22 +3164,31 @@
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
                 // Proportional render — natural aspect, no stretching.
-                // Sprite width = platform hitbox (edges meet water gaps
-                // cleanly). Ridge peak anchors Wefty's feet; sprite's
-                // natural bottom lands wherever it lands. Under the
-                // sprite, fill a matching-green rect down to the
-                // waterline so the island visibly sits in the water.
+                // Sprite width = platform hitbox. Ridge peak anchors
+                // Wefty's feet. Under the sprite, draw a ridge-shaped
+                // green plinth that traces the baked grass silhouette
+                // from the peak down to the waterline. Sprite renders
+                // on top, so the visible result is: sprite grass detail
+                // up top, smooth green extending the grass body down to
+                // the water — no flat-bench seam.
                 const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
                 const drawH = p.spriteHeight * h;
                 const centerX = ((p.xStart + p.xEnd) / 2) * w;
                 const drawX = centerX - drawW / 2;
                 const drawY = p.spriteTopY * h;
-                const spriteBottomPx = drawY + drawH;
                 const waterPx = (PLATFORM_Y + 0.10) * h;
-                if (spriteBottomPx < waterPx) {
-                    bgCtx.fillStyle = isStorm ? '#3A5A30' : '#4FAE63';
-                    bgCtx.fillRect(drawX, spriteBottomPx, drawW, waterPx - spriteBottomPx);
+                const surf = RUN_ISLAND_SURFACES[p.variant].surface;
+                bgCtx.beginPath();
+                bgCtx.moveTo(drawX, waterPx);
+                for (let i = 0; i < surf.length; i++) {
+                    const cx = drawX + (i / (surf.length - 1)) * drawW;
+                    const cy = drawY + surf[i] * drawH;
+                    bgCtx.lineTo(cx, cy);
                 }
+                bgCtx.lineTo(drawX + drawW, waterPx);
+                bgCtx.closePath();
+                bgCtx.fillStyle = isStorm ? '#3A5A30' : '#4FAE63';
+                bgCtx.fill();
                 bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
             } else {
                 // Loading fallback — simple grass-green path with sin crown
