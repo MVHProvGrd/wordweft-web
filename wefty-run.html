@@ -4,10 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Wefty Run</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Nunito:wght@400;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
+    /* Self-hosted variable fonts so the Wefty face-lift works
+       offline (no Google Fonts CDN round-trip, no SW exclusion
+       rules needed). Single TTF per family covers every weight
+       via the wght variation axis. */
+    @font-face {
+        font-family: 'Fraunces';
+        src: url('fraunces.ttf') format('truetype-variations');
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'Nunito';
+        src: url('nunito.ttf') format('truetype-variations');
+        font-weight: 200 900;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('jetbrains_mono.ttf') format('truetype-variations');
+        font-weight: 100 800;
+        font-style: normal;
+        font-display: swap;
+    }
     :root {
         --bg-0: #0F0F23;
         --bg-1: #1A1A2E;
@@ -438,7 +460,6 @@
         border-color: #b8862a;
         color: #2a1b22;
         filter: drop-shadow(0 3px 0 #8a5d1a);
-        position: relative;
     }
     .jump-btn {
         right: 20px;
@@ -2814,69 +2835,107 @@
         const camOffsetX = world.cameraX * w;
         bgCtx.save();
         bgCtx.translate(-camOffsetX, 0);
-        // Wave 5 · sprite-based ledge render. Replaces the previous
-        // path + yarn-texture + tint + gradient + grass-stroke stack
-        // with a single stretched-sprite blit per platform. Sprite
-        // pool is biome-keyed (meadow vs. storm); stable per-platform
-        // via a hash on xStart so ledges don't reshuffle frame-to-
-        // frame.
-        const ledgePool = isStorm ? RUN_LEDGE_SPRITES.storm : RUN_LEDGE_SPRITES.meadow;
+        // All main platforms — classic path + yarn-texture + biome
+        // tint + depth gradient + grass-stroke render. Sprites are
+        // reserved for floatingPlatforms only (below).
+        const samples = 24;
         for (const p of world.platforms) {
             if (p.xEnd < world.cameraX || p.xStart > world.cameraX + 1) continue;
             const span = p.xEnd - p.xStart;
-            const pxLeft = p.xStart * w;
-            const pw = span * w;
-            const topY = (p.crown ? (p.top - p.crown * 0.5) : p.top) * h;
-            const ph = h - topY;
-            const hashIdx = Math.abs(Math.floor(p.xStart * 1000)) % ledgePool.length;
-            const sprite = ledgePool[hashIdx];
-            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-                bgCtx.drawImage(sprite, pxLeft, topY, pw, ph);
-            } else {
-                // Fallback solid fill while sprite loads — matches
-                // the prior biome tint so first-frame reads sanely.
-                bgCtx.fillStyle = isStorm ? '#5C1A1A' : '#2F6B3A';
-                bgCtx.fillRect(pxLeft, topY, pw, ph);
+            function tracePath(ctx) {
+                ctx.beginPath();
+                for (let i = 0; i <= samples; i++) {
+                    const t = i / samples;
+                    const wx = (p.xStart + t * span) * w;
+                    const yTop = p.crown
+                        ? (p.top - p.crown * Math.sin(Math.PI * t)) * h
+                        : p.top * h;
+                    if (i === 0) ctx.moveTo(wx, yTop);
+                    else ctx.lineTo(wx, yTop);
+                }
             }
+            tracePath(bgCtx);
+            bgCtx.lineTo(p.xEnd * w, h);
+            bgCtx.lineTo(p.xStart * w, h);
+            bgCtx.closePath();
+            bgCtx.fillStyle = '#2a2140';
+            bgCtx.fill();
+            if (yarnPattern) {
+                bgCtx.save();
+                bgCtx.globalCompositeOperation = 'multiply';
+                bgCtx.globalAlpha = 0.70;
+                bgCtx.fillStyle = yarnPattern;
+                bgCtx.fill();
+                bgCtx.restore();
+            }
+            bgCtx.save();
+            bgCtx.globalAlpha = 0.55;
+            bgCtx.fillStyle = isStorm ? '#5C1A1A' : '#2F6B3A';
+            bgCtx.fill();
+            bgCtx.restore();
+            bgCtx.save();
+            const grad = bgCtx.createLinearGradient(0, p.top * h, 0, h);
+            grad.addColorStop(0, 'rgba(17,17,17,0)');
+            grad.addColorStop(1, 'rgba(17,17,17,0.35)');
+            bgCtx.fillStyle = grad;
+            bgCtx.fill();
+            bgCtx.restore();
+            tracePath(bgCtx);
+            bgCtx.strokeStyle = isStorm ? '#FCA5A5' : '#86EFAC';
+            bgCtx.lineWidth = 4;
+            bgCtx.lineCap = 'round';
+            bgCtx.lineJoin = 'round';
+            bgCtx.stroke();
         }
 
-        // Floating reward platforms — small elevated cushions with a
-        // soft golden halo. Drawn inside the translate so yarn pattern
-        // stays world-pinned.
+        // Floating reward platforms — the Wave-5 biome-keyed ledge
+        // sprites land here instead of on the main ground chain. Each
+        // cushion gets a meadow-variant sprite (storm gets red-rock)
+        // picked stably per-platform via a hash on xStart so it
+        // doesn't reshuffle as the camera scrolls. Sprite is blit at
+        // natural aspect with a soft gold halo behind it.
+        const ledgePool = isStorm ? RUN_LEDGE_SPRITES.storm : RUN_LEDGE_SPRITES.meadow;
         for (const f of world.floatingPlatforms) {
             if (f.xEnd < world.cameraX || f.xStart > world.cameraX + 1) continue;
             const fpw = (f.xEnd - f.xStart) * w;
             const fpx = f.xStart * w;
             const fpy = f.top * h;
-            const fph = h * 0.035;
-            // Halo
-            bgCtx.fillStyle = 'rgba(251, 191, 36, 0.22)';
-            bgCtx.beginPath();
-            if (bgCtx.roundRect) bgCtx.roundRect(fpx - 6, fpy - 8, fpw + 12, fph + 16, fph);
-            else bgCtx.rect(fpx - 6, fpy - 8, fpw + 12, fph + 16);
-            bgCtx.fill();
-            // Cushion
-            if (yarnPattern) {
-                bgCtx.save();
-                bgCtx.globalAlpha = 0.75;
-                bgCtx.fillStyle = yarnPattern;
+            const hashIdx = Math.abs(Math.floor(f.xStart * 1000)) % ledgePool.length;
+            const sprite = ledgePool[hashIdx];
+            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+                const sh = fpw * (sprite.naturalHeight / sprite.naturalWidth);
+                // Anchor the sprite's grass line (~38% from its top)
+                // to fpy so Wefty stands on the visible grass.
+                const spriteTop = fpy - sh * 0.38;
+                // Gold halo behind the sprite
+                bgCtx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+                bgCtx.beginPath();
+                if (bgCtx.roundRect) bgCtx.roundRect(fpx - 6, spriteTop - 4, fpw + 12, sh + 8, sh * 0.25);
+                else bgCtx.rect(fpx - 6, spriteTop - 4, fpw + 12, sh + 8);
+                bgCtx.fill();
+                bgCtx.drawImage(sprite, fpx, spriteTop, fpw, sh);
+            } else {
+                // Fallback cushion (sprite not yet loaded): soft halo +
+                // solid biome fill + grass-stroke top edge. Matches the
+                // pre-Wave-5 look.
+                const fph = h * 0.035;
+                bgCtx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+                bgCtx.beginPath();
+                if (bgCtx.roundRect) bgCtx.roundRect(fpx - 6, fpy - 8, fpw + 12, fph + 16, fph);
+                else bgCtx.rect(fpx - 6, fpy - 8, fpw + 12, fph + 16);
+                bgCtx.fill();
+                bgCtx.fillStyle = isStorm ? 'rgba(127, 29, 29, 0.55)' : 'rgba(47, 107, 58, 0.55)';
                 bgCtx.beginPath();
                 if (bgCtx.roundRect) bgCtx.roundRect(fpx, fpy, fpw, fph, fph / 2);
                 else bgCtx.rect(fpx, fpy, fpw, fph);
                 bgCtx.fill();
-                bgCtx.restore();
+                bgCtx.strokeStyle = isStorm ? '#FCA5A5' : '#86EFAC';
+                bgCtx.lineWidth = 3;
+                bgCtx.beginPath();
+                bgCtx.moveTo(fpx, fpy);
+                bgCtx.lineTo(fpx + fpw, fpy);
+                bgCtx.stroke();
             }
-            bgCtx.fillStyle = isStorm ? 'rgba(127, 29, 29, 0.55)' : 'rgba(47, 107, 58, 0.55)';
-            bgCtx.beginPath();
-            if (bgCtx.roundRect) bgCtx.roundRect(fpx, fpy, fpw, fph, fph / 2);
-            else bgCtx.rect(fpx, fpy, fpw, fph);
-            bgCtx.fill();
-            bgCtx.strokeStyle = isStorm ? '#FCA5A5' : '#86EFAC';
-            bgCtx.lineWidth = 3;
-            bgCtx.beginPath();
-            bgCtx.moveTo(fpx, fpy);
-            bgCtx.lineTo(fpx + fpw, fpy);
-            bgCtx.stroke();
         }
         bgCtx.restore();
 
