@@ -360,32 +360,39 @@
         cursor: pointer;
     }
 
+    /* Match Wefty Run's bottom-right action buttons (lasso + jump):
+       same silhouette, borders, drop shadows, palette. */
     .jump-btn, .lasso-btn {
         position: absolute;
-        bottom: 20px;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        width: 60px; height: 60px;
         border-radius: 50%;
-        border: none;
-        color: #fff;
-        font-weight: 700;
+        border: 2px solid;
+        padding: 0;
         cursor: pointer;
         z-index: 6;
         touch-action: manipulation;
+        font: 800 10px/1 "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
+        letter-spacing: 1px;
+        display: inline-flex; align-items: center; justify-content: center;
+    }
+    .lasso-btn {
+        right: 92px;
+        background: #e8b34c;
+        border-color: #b8862a;
+        color: #2a1b22;
+        filter: drop-shadow(0 3px 0 #8a5d1a);
     }
     .jump-btn {
         right: 20px;
-        width: 76px; height: 76px;
-        background: rgba(16, 185, 129, 0.88);
-        font-size: 15px;
-    }
-    .lasso-btn {
-        right: 108px; bottom: 24px;
-        width: 64px; height: 64px;
-        background: rgba(245, 158, 11, 0.88);
+        background: #8fd19e;
+        border-color: #4e8a5e;
+        color: #1a3a22;
         font-size: 13px;
-        transition: opacity 0.15s ease;
+        filter: drop-shadow(0 3px 0 #36684a);
     }
     .lasso-btn.cooldown { opacity: 0.35; }
-    .jump-btn:active, .lasso-btn:active { transform: scale(0.95); }
+    .jump-btn:active, .lasso-btn:active { transform: scale(0.94); }
 
     .pause-overlay {
         position: absolute; inset: 0;
@@ -588,8 +595,8 @@
         <button id="btn-right" aria-label="right">▶</button>
     </div>
     <button id="btn-tilt" class="tilt-prompt hidden">Tap to enable tilt</button>
-    <button id="btn-lasso" class="lasso-btn">Lasso</button>
-    <button id="btn-jump"  class="jump-btn">Jump</button>
+    <button id="btn-lasso" class="lasso-btn">LASSO</button>
+    <button id="btn-jump"  class="jump-btn">JUMP</button>
 </div>
 
 <!-- Game-over Beat 1 — stats review sheet (no CTA). Tap advances. -->
@@ -1608,7 +1615,8 @@
         if (tbCurEl) tbCurEl.textContent = String(cur);
         if (tbPbEl) tbPbEl.textContent = 'BEST ' + bestHeight + 'm';
         // Biome eyebrow + chip — matches the Run eyebrow pattern.
-        const biome = currentBiome(world.heightClimbed);
+        // NOTE: `biome` was already computed near the top of render()
+        // (around line 1429). Reuse it here instead of re-declaring.
         if (tbEyebrowEl) tbEyebrowEl.textContent = 'BIOME · ' + biome;
         if (tbBiomeLabelEl) tbBiomeLabelEl.textContent = biome;
         if (tbBiomeDotEl) {

@@ -86,12 +86,23 @@
         strokePath(ctx, pts);
         ctx.restore();
 
-        // 6. Dashed fiber stitches
+        // 5b. Braid twist — second offset dark ply on the opposite
+        // side for a rounded two-ply yarn look (Phase 6).
         ctx.save();
-        ctx.setLineDash([baseWidth * 0.22, baseWidth * 0.55]);
+        ctx.translate(baseWidth * 0.10, baseWidth * 0.08);
         ctx.strokeStyle = palette.dark;
-        ctx.lineWidth = baseWidth * 0.95;
-        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = baseWidth * 0.22;
+        ctx.globalAlpha = 0.55;
+        strokePath(ctx, pts);
+        ctx.restore();
+
+        // 6. Dashed fiber stitches — thicker + tighter than before
+        // (Phase 6) so the weave reads at a glance.
+        ctx.save();
+        ctx.setLineDash([baseWidth * 0.18, baseWidth * 0.42]);
+        ctx.strokeStyle = palette.dark;
+        ctx.lineWidth = baseWidth * 1.05;
+        ctx.globalAlpha = 0.45;
         strokePath(ctx, pts);
         ctx.restore();
     }

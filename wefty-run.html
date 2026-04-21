@@ -1490,6 +1490,7 @@
         world.biomeIndex = 0;
         world.lastMilestone = 0;
         world.isDrawing = false;
+        world.firstBridge = null;
         world.platforms.length = 0;
         world.bridges.length = 0;
         world.hazards.length = 0;
@@ -1547,6 +1548,16 @@
     }
     seedPlatforms();
 
+    // Pick a sprite variant appropriate to the current biome. Meadow
+    // in pre-storm + woodland recovery, storm pool in the storm band.
+    function pickRunIslandVariant() {
+        const biome = currentBiome();
+        if (biome === 'STORM') {
+            return 'storm_v' + Math.floor(Math.random() * 10);
+        }
+        return 'v' + Math.floor(Math.random() * 10);
+    }
+
     function addNextPlatform() {
         const last = world.platforms[world.platforms.length - 1];
         const difficulty = Math.min(world.distance / 8, 1.5);
@@ -1570,7 +1581,44 @@
         const crownMax = 0.22 * Math.min(1, len / 1.10);
         const crown = 0.05 + Math.random() * crownMax;
 
-        world.platforms.push({ xStart: x, xEnd: x + len, top, crown });
+        // Sprite-backed platform (Phase 3). Pick a variant for this
+        // platform; if the surfaces JSON is loaded, compute the
+        // sprite's world-Y + height so platformSurfaceY can interpolate
+        // into the baked ridge. Until the JSON loads, leave the fields
+        // undefined — platformSurfaceY falls back to the sin-crown math.
+        const variant = pickRunIslandVariant();
+        let spriteTopY, spriteHeight;
+        if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
+            const s = RUN_ISLAND_SURFACES[variant];
+            const aspect = s.h / s.w;
+            spriteHeight = len * aspect;
+            // Anchor: sprite's max-ridge value (= body-edge Y, the
+            // lowest grass point) lines up with legacy p.top so old
+            // world.platforms chain remains compatible. Anything above
+            // the ridge (tufts/trees/mushrooms/flowers) extends up
+            // into the visible play area.
+            const maxRidge = Math.max.apply(null, s.surface);
+            spriteTopY = top - maxRidge * spriteHeight;
+        }
+
+        const p = {
+            xStart: x, xEnd: x + len, top, crown,
+            variant, spriteTopY, spriteHeight,
+        };
+        world.platforms.push(p);
+
+        // First-gap wooden bridge: on the first real gap after spawn
+        // (last.xEnd < p.xStart), drop a pre-placed wooden bridge so
+        // the player sees what a bridge looks like before they need
+        // to draw one. The scripted tutorial demo uses the same
+        // world.platforms chain, so this shows up there too.
+        if (!world.firstBridge && last.xEnd < x) {
+            world.firstBridge = {
+                xStart: last.xEnd,
+                xEnd: x,
+                deckY: Math.min(last.top, top) + 0.02,
+            };
+        }
 
         // Scissors — storm biome bumps base rate + cap.
         const biome = currentBiome();
@@ -1585,7 +1633,7 @@
             const heightAbove = 0.06 + Math.random() * 0.04;
             // Offset from the actual hill surface at hazardX so it
             // sits above the crown, not buried inside it.
-            const surfaceY = surfaceYAt(x, len, top, crown, hazardX);
+            const surfaceY = platformSurfaceY(p, hazardX);
             world.hazards.push({
                 worldX: hazardX, y: surfaceY - heightAbove,
                 rot: Math.random() * 6.28, kind: 'STATIC', vx: 0,
@@ -1614,7 +1662,7 @@
             const forced = sinceKnot > 1.8;
             if (forced || Math.random() < 0.70) {
                 const kx = x + len * (0.20 + Math.random() * 0.60);
-                const ky = surfaceYAt(x, len, top, crown, kx) - 0.02;
+                const ky = platformSurfaceY(p, kx) - 0.02;
                 const clash = world.hazards.some(hz =>
                     Math.abs(hz.worldX - kx) < 0.10
                 );
@@ -1635,7 +1683,7 @@
             const springChance = biome === 'STORM' ? 0.28 : 0.20;
             if (Math.random() < springChance) {
                 const sx = x + len * (0.30 + Math.random() * 0.40);
-                const sy = surfaceYAt(x, len, top, crown, sx);
+                const sy = platformSurfaceY(p, sx);
                 const padClash = world.springs.some(sp =>
                     Math.abs(sp.worldX - sx) < 0.30
                 );
@@ -1662,7 +1710,7 @@
                     if (roll <= w) { picked = id; break; }
                     roll -= w;
                 }
-                spawnPickup(picked, x, top, len, crown);
+                spawnPickup(picked, p);
             }
         }
 
@@ -1698,13 +1746,13 @@
         }
     }
 
-    function spawnPickup(kind, x, top, len, crown) {
+    function spawnPickup(kind, p) {
         const airborne = (minH, rangeH) => {
             for (let i = 0; i < 6; i++) {
-                const px = x + len * (0.15 + Math.random() * 0.70);
+                const px = p.xStart + (p.xEnd - p.xStart) * (0.15 + Math.random() * 0.70);
                 // Use the hill-curve surface so pickups float above tall
                 // crowns instead of getting buried inside them.
-                const surf = surfaceYAt(x, len, top, crown, px);
+                const surf = platformSurfaceY(p, px);
                 const py = surf - (minH + Math.random() * rangeH);
                 const clash = world.hazards.some(hz => {
                     const dx = hz.worldX - px, dy = hz.y - py;
@@ -1823,13 +1871,33 @@
         return false;
     }
 
-    // Y at which a platform's surface sits at a given world X. Edges
-    // flat (t=0 and t=1 → sin=0), middle bulges up by `crown`.
+    // Y at which a platform's surface sits at a given world X.
+    // Sprite-backed platforms (Phase 3): if the platform has a
+    // baked `variant` + the surfaces JSON is loaded, interpolate
+    // into the per-column surface array. Otherwise fall back to
+    // the legacy sin-crown shape so a delayed JSON load can't
+    // break collision on the first few frames.
     function platformSurfaceY(p, worldX) {
+        if (p.variant && RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[p.variant]) {
+            const surf = RUN_ISLAND_SURFACES[p.variant].surface;
+            const t = Math.max(0, Math.min(1,
+                (worldX - p.xStart) / (p.xEnd - p.xStart)));
+            const idx = t * (surf.length - 1);
+            const lo = Math.floor(idx);
+            const hi = Math.min(surf.length - 1, lo + 1);
+            const f = idx - lo;
+            const yFrac = surf[lo] * (1 - f) + surf[hi] * f;
+            return p.spriteTopY + yFrac * p.spriteHeight;
+        }
         if (!p.crown) return p.top;
         const t = Math.max(0, Math.min(1, (worldX - p.xStart) / (p.xEnd - p.xStart)));
         return p.top - p.crown * Math.sin(Math.PI * t);
     }
+    // Legacy 5-arg signature for spawner-local callers that don't
+    // have a platform object yet. For the sprite-path the variant is
+    // picked and the platform is fully constructed before hazard/
+    // pickup spawning, so those callers use platformSurfaceY(p, x)
+    // via the updated addNextPlatform below.
     function surfaceYAt(x, len, top, crown, worldX) {
         if (!crown) return top;
         const t = Math.max(0, Math.min(1, (worldX - x) / len));
@@ -1843,6 +1911,12 @@
         }
         for (const f of world.floatingPlatforms || []) {
             if (worldX >= f.xStart && worldX <= f.xEnd) candidates.push(f.top);
+        }
+        // Pre-placed wooden first-gap bridge is a flat walkable deck.
+        if (world.firstBridge &&
+            worldX >= world.firstBridge.xStart &&
+            worldX <= world.firstBridge.xEnd) {
+            candidates.push(world.firstBridge.deckY);
         }
         for (const b of world.bridges) {
             if (!b.valid) continue;
@@ -1922,7 +1996,7 @@
     // Tick each frame: once Wefty's feet cross past the rightmost
     // point of an ACTIVE bridge, the bridge enters DISSIPATING for
     // BRIDGE_DISSIPATE_TICKS frames, then is removed.
-    const BRIDGE_DISSIPATE_TICKS = 45;   // ~0.75s at 60fps
+    const BRIDGE_DISSIPATE_TICKS = 22;   // ~0.37s at 60fps (user: snappier)
     function updateBridgeStates() {
         const weftyWX = world.cameraX + WEFTY_SCREEN_X;
         for (const b of world.bridges) {
@@ -2399,6 +2473,50 @@
         ],
         storm: [loadImg('run_ledge_storm_v0.png')],
     };
+    // Main-ground island sprites (Phase 3 · replaces the legacy path+
+    // gradient render for world.platforms). Each variant has a BG
+    // layer (grass body + tree trunks) and a FG layer (grass tufts,
+    // mushrooms, flowers, tree canopies). BG renders behind Wefty,
+    // FG renders after her for parallax depth.
+    const RUN_ISLAND_VARIANTS = [
+        'v0','v1','v2','v3','v4','v5','v6','v7','v8','v9',
+        'storm_v0','storm_v1','storm_v2','storm_v3','storm_v4',
+        'storm_v5','storm_v6','storm_v7','storm_v8','storm_v9',
+    ];
+    const RUN_ISLAND_BG = {};
+    const RUN_ISLAND_FG = {};
+    for (const v of RUN_ISLAND_VARIANTS) {
+        RUN_ISLAND_BG[v] = loadImg(`run_island_${v}_bg.png`);
+        RUN_ISLAND_FG[v] = loadImg(`run_island_${v}_fg.png`);
+    }
+    // Per-variant walkable surface (256 normalized Y samples).
+    // Populated asynchronously; until loaded, surfaceYAt falls back
+    // to the legacy sin-crown math via p.crown.
+    let RUN_ISLAND_SURFACES = null;
+    fetch('run_island_surfaces.json')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { RUN_ISLAND_SURFACES = data; })
+        .catch(() => { /* offline — legacy collision keeps running */ });
+
+    // Animated water — 6-frame horizontally tileable river strip for
+    // the gaps between platforms (Phase 5). Rendered at a fixed
+    // waterline behind the island BG layer, tile scrolls + cycles
+    // frame every WATER_FRAME_TICKS frames.
+    const WATER_TILES = [
+        loadImg('water_tile_f0.png'),
+        loadImg('water_tile_f1.png'),
+        loadImg('water_tile_f2.png'),
+        loadImg('water_tile_f3.png'),
+        loadImg('water_tile_f4.png'),
+        loadImg('water_tile_f5.png'),
+    ];
+    const WATER_FRAME_TICKS = 7;   // tick per frame of the water loop
+
+    // First-gap wooden bridge — rope-railing + plank-deck sprites.
+    // BG = deck + posts (renders behind Wefty). FG = yarn rope rail
+    // (renders in front so the rail occludes Wefty for depth).
+    const FIRST_BRIDGE_BG = loadImg('first_bridge_bg.png');
+    const FIRST_BRIDGE_FG = loadImg('first_bridge_fg.png');
 
     // ── Music ──────────────────────────────────────────────────────────
     const musicLoop = new Audio('wefty_run_loop.mp3');
@@ -2933,57 +3051,111 @@
         const camOffsetX = world.cameraX * w;
         bgCtx.save();
         bgCtx.translate(-camOffsetX, 0);
-        // All main platforms — classic path + yarn-texture + biome
-        // tint + depth gradient + grass-stroke render. Sprites are
-        // reserved for floatingPlatforms only (below).
+        // WATER IN GAPS (Phase 5). For each pair of adjacent
+        // platforms, tile an animated water strip between their
+        // edges. Waterline sits just below PLATFORM_Y so islands
+        // visually "float" with water lapping at their base.
+        const waterY = PLATFORM_Y + 0.10;   // world-units
+        const wlPx = waterY * h;
+        const waterFrameIdx = Math.floor(((world.frameTick || 0) / WATER_FRAME_TICKS)) % WATER_TILES.length;
+        const waterFrame = WATER_TILES[waterFrameIdx];
+        const waterReady = waterFrame && waterFrame.complete && waterFrame.naturalWidth > 0;
+        for (let i = 0; i < world.platforms.length - 1; i++) {
+            const p1 = world.platforms[i], p2 = world.platforms[i + 1];
+            const gapStart = p1.xEnd;
+            const gapEnd = p2.xStart;
+            if (gapEnd - gapStart < 0.01) continue;
+            if (gapEnd < world.cameraX - 0.2 || gapStart > world.cameraX + 1.2) continue;
+            const gx1 = gapStart * w;
+            const gx2 = gapEnd * w;
+            // Body fill — solid deep blue from waterline down to screen bottom
+            bgCtx.fillStyle = '#1A3D6B';
+            bgCtx.fillRect(gx1, wlPx, gx2 - gx1, h - wlPx);
+            // Animated surface — tile the frame horizontally, scrolling
+            // slightly slower than the camera so it reads as moving water.
+            if (waterReady) {
+                const tileAspect = waterFrame.naturalHeight / waterFrame.naturalWidth;
+                const tileRenderW = Math.max(96, (gx2 - gx1) / 4);
+                const tileRenderH = tileRenderW * tileAspect;
+                const scroll = (world.cameraX * 0.8 * w) % tileRenderW;
+                for (let tx = gx1 - scroll; tx < gx2; tx += tileRenderW) {
+                    const drawX = Math.max(tx, gx1);
+                    const drawEnd = Math.min(tx + tileRenderW, gx2);
+                    if (drawEnd <= drawX) continue;
+                    // Clip-render only the gap-visible portion of each tile
+                    const srcX = (drawX - tx) / tileRenderW * waterFrame.naturalWidth;
+                    const srcW = (drawEnd - drawX) / tileRenderW * waterFrame.naturalWidth;
+                    bgCtx.drawImage(
+                        waterFrame,
+                        srcX, 0, srcW, waterFrame.naturalHeight,
+                        drawX, wlPx - tileRenderH * 0.25, drawEnd - drawX, tileRenderH,
+                    );
+                }
+            }
+        }
+
+        // FIRST-GAP WOODEN BRIDGE · BG layer (deck + end posts).
+        // Sits in the only bridge-marked gap per run so the tutorial
+        // demo (and first-time player) sees what a bridge looks like
+        // before needing to draw one. FG layer (yarn rope rail)
+        // renders AFTER Wefty so the rail occludes her for depth.
+        if (world.firstBridge && FIRST_BRIDGE_BG.complete && FIRST_BRIDGE_BG.naturalWidth > 0) {
+            const fb = world.firstBridge;
+            if (fb.xEnd >= world.cameraX - 0.3 && fb.xStart <= world.cameraX + 1.3) {
+                const bx = fb.xStart * w;
+                const bw = (fb.xEnd - fb.xStart) * w;
+                const aspect = FIRST_BRIDGE_BG.naturalHeight / FIRST_BRIDGE_BG.naturalWidth;
+                const bh = bw * aspect;
+                // Deck position: rope of the BG sprite sits at ~60%
+                // down, so align 60% of sprite height with the bridge
+                // deck Y.
+                const by = fb.deckY * h - bh * 0.60;
+                bgCtx.drawImage(FIRST_BRIDGE_BG, bx, by, bw, bh);
+            }
+        }
+
+        // MAIN PLATFORMS · sprite-backed (Phase 3).
+        // Each platform renders its BG layer (grass body + trunks)
+        // here, BEFORE Wefty. The FG layer (tufts + mushrooms +
+        // flowers + canopies) renders AFTER Wefty so it occludes her
+        // as she rolls past — see drawRunIslandsFG below.
+        // Fallback: if the sprite isn't loaded yet OR the surfaces
+        // JSON hasn't fetched, draw a simple grass-green fill under
+        // the legacy sin-crown curve so the first frames aren't a
+        // void.
         const samples = 24;
         for (const p of world.platforms) {
-            if (p.xEnd < world.cameraX || p.xStart > world.cameraX + 1) continue;
-            const span = p.xEnd - p.xStart;
-            function tracePath(ctx) {
-                ctx.beginPath();
+            if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
+            const bgImg = p.variant ? RUN_ISLAND_BG[p.variant] : null;
+            const ready = bgImg && bgImg.complete && bgImg.naturalWidth > 0
+                          && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
+            if (ready) {
+                const drawW = (p.xEnd - p.xStart) * w;
+                const drawH = p.spriteHeight * h;
+                const drawX = p.xStart * w;
+                const drawY = p.spriteTopY * h;
+                bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
+            } else {
+                // Loading fallback — simple grass-green path with sin crown
+                bgCtx.beginPath();
                 for (let i = 0; i <= samples; i++) {
                     const t = i / samples;
-                    const wx = (p.xStart + t * span) * w;
+                    const wx = (p.xStart + t * (p.xEnd - p.xStart)) * w;
                     const yTop = p.crown
                         ? (p.top - p.crown * Math.sin(Math.PI * t)) * h
                         : p.top * h;
-                    if (i === 0) ctx.moveTo(wx, yTop);
-                    else ctx.lineTo(wx, yTop);
+                    if (i === 0) bgCtx.moveTo(wx, yTop);
+                    else bgCtx.lineTo(wx, yTop);
                 }
-            }
-            tracePath(bgCtx);
-            bgCtx.lineTo(p.xEnd * w, h);
-            bgCtx.lineTo(p.xStart * w, h);
-            bgCtx.closePath();
-            bgCtx.fillStyle = '#2a2140';
-            bgCtx.fill();
-            if (yarnPattern) {
-                bgCtx.save();
-                bgCtx.globalCompositeOperation = 'multiply';
-                bgCtx.globalAlpha = 0.70;
-                bgCtx.fillStyle = yarnPattern;
+                bgCtx.lineTo(p.xEnd * w, h);
+                bgCtx.lineTo(p.xStart * w, h);
+                bgCtx.closePath();
+                bgCtx.fillStyle = isStorm ? '#3A5A30' : '#4FAE63';
                 bgCtx.fill();
-                bgCtx.restore();
+                bgCtx.strokeStyle = isStorm ? '#264020' : '#2F7A44';
+                bgCtx.lineWidth = 3;
+                bgCtx.stroke();
             }
-            bgCtx.save();
-            bgCtx.globalAlpha = 0.55;
-            bgCtx.fillStyle = isStorm ? '#5C1A1A' : '#2F6B3A';
-            bgCtx.fill();
-            bgCtx.restore();
-            bgCtx.save();
-            const grad = bgCtx.createLinearGradient(0, p.top * h, 0, h);
-            grad.addColorStop(0, 'rgba(17,17,17,0)');
-            grad.addColorStop(1, 'rgba(17,17,17,0.35)');
-            bgCtx.fillStyle = grad;
-            bgCtx.fill();
-            bgCtx.restore();
-            tracePath(bgCtx);
-            bgCtx.strokeStyle = isStorm ? '#FCA5A5' : '#86EFAC';
-            bgCtx.lineWidth = 4;
-            bgCtx.lineCap = 'round';
-            bgCtx.lineJoin = 'round';
-            bgCtx.stroke();
         }
 
         // Floating reward platforms — the Wave-5 biome-keyed ledge
@@ -3310,6 +3482,40 @@
             fgCtx.fillStyle = palette.main;
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
         }
+
+        // MAIN PLATFORMS · FG layer (Phase 3). Renders grass tufts,
+        // mushrooms, flowers, tree canopies over Wefty so she appears
+        // to roll behind them for parallax depth. Tree trunks are
+        // already in the BG layer, so Wefty correctly reads as in
+        // FRONT of trunks but BEHIND canopies.
+        fgCtx.save();
+        fgCtx.translate(-world.cameraX * w, 0);
+        // First-gap wooden bridge · FG layer (yarn rope rail) — draws
+        // IN FRONT of Wefty so the rope visually occludes her as she
+        // rolls across.
+        if (world.firstBridge && FIRST_BRIDGE_FG.complete && FIRST_BRIDGE_FG.naturalWidth > 0) {
+            const fb = world.firstBridge;
+            if (fb.xEnd >= world.cameraX - 0.3 && fb.xStart <= world.cameraX + 1.3) {
+                const bx = fb.xStart * w;
+                const bw = (fb.xEnd - fb.xStart) * w;
+                const aspect = FIRST_BRIDGE_FG.naturalHeight / FIRST_BRIDGE_FG.naturalWidth;
+                const bh = bw * aspect;
+                const by = fb.deckY * h - bh * 0.60;
+                fgCtx.drawImage(FIRST_BRIDGE_FG, bx, by, bw, bh);
+            }
+        }
+        for (const p of world.platforms) {
+            if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
+            const fgImg = p.variant ? RUN_ISLAND_FG[p.variant] : null;
+            if (!fgImg || !fgImg.complete || !fgImg.naturalWidth) continue;
+            if (p.spriteTopY === undefined) continue;
+            const drawW = (p.xEnd - p.xStart) * w;
+            const drawH = p.spriteHeight * h;
+            const drawX = p.xStart * w;
+            const drawY = p.spriteTopY * h;
+            fgCtx.drawImage(fgImg, drawX, drawY, drawW, drawH);
+        }
+        fgCtx.restore();
 
         // Lasso flash — yarn rope from Wefty toward target, plus a
         // real lasso sprite at the rope tip. Interpolated extend +
