@@ -587,21 +587,104 @@
         font-size: 11px;
         font-weight: 700;
     }
+    /* ── Storm title card (Wave 3 · Part G) ───────────────────────
+       Replaces the bare "scissors storm" popup with a richer card:
+       eyebrow + serif headline + 3 stat chips. Held ~2.5s when the
+       player crosses 300m. */
     .storm-banner {
         position: absolute;
-        top: 38%; left: 50%;
-        transform: translateX(-50%);
-        background: rgba(74, 16, 16, 0.82);
-        color: #fff;
-        padding: 16px 28px;
-        border-radius: 22px;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(26,14,20,0.82);
+        border: 2px solid #d8554a;
+        border-radius: 18px;
+        padding: 22px 28px;
         text-align: center;
-        z-index: 12;
+        z-index: 13;
         pointer-events: none;
+        box-shadow: 0 18px 40px -12px rgba(0,0,0,0.6);
+        max-width: 600px;
     }
     .storm-banner.hidden { display: none; }
-    .storm-banner .title { color: #FBBF24; font-size: 20px; font-weight: 700; }
-    .storm-banner .sub { font-size: 13px; margin-top: 4px; }
+    .storm-banner .title {
+        color: #d8554a;
+        font-size: 11px; font-weight: 800; letter-spacing: 4px;
+        margin-bottom: 6px;
+    }
+    .storm-banner .sub {
+        color: #fbf3e7;
+        font: 900 38px "Georgia", "Iowan Old Style", serif;
+        margin-bottom: 18px;
+    }
+    .storm-chips {
+        display: flex; gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .storm-chip {
+        background: rgba(26,14,20,0.6);
+        border-radius: 12px;
+        padding: 8px 14px;
+        min-width: 140px;
+        text-align: left;
+        border: 1.5px solid;
+    }
+    .storm-chip.speed { border-color: #d8554a; }
+    .storm-chip.new   { border-color: #e8b34c; }
+    .storm-chip.watch { border-color: #ea8fa3; }
+    .storm-chip .l {
+        font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+    }
+    .storm-chip.speed .l { color: #d8554a; }
+    .storm-chip.new   .l { color: #e8b34c; }
+    .storm-chip.watch .l { color: #ea8fa3; }
+    .storm-chip .v {
+        color: #fbf3e7;
+        font-size: 13px; font-weight: 800;
+        margin-top: 2px;
+    }
+
+    /* ── Storm rain + lightning overlay ───────────────────────────
+       Pure CSS layer that sits behind the toasts but in front of the
+       canvas. Toggled via the .stormvfx class on #stage while in the
+       storm window. */
+    #storm-vfx {
+        position: absolute; inset: 0;
+        pointer-events: none;
+        z-index: 4;
+        opacity: 0;
+        transition: opacity 0.4s;
+    }
+    #storm-vfx.on { opacity: 1; }
+    #storm-vfx::before {
+        /* Diagonal rain streaks — a tiled linear-gradient that scrolls
+           via background-position-y. Cheap and runs at 60fps. */
+        content: '';
+        position: absolute; inset: 0;
+        background:
+            repeating-linear-gradient(
+                100deg,
+                rgba(200,184,168,0) 0,
+                rgba(200,184,168,0) 12px,
+                rgba(200,184,168,0.32) 12px,
+                rgba(200,184,168,0.32) 14px
+            );
+        animation: rain-fall 0.6s linear infinite;
+        opacity: 0.4;
+    }
+    @keyframes rain-fall {
+        from { background-position: 0 0; }
+        to   { background-position: -40px 80px; }
+    }
+    #storm-flash {
+        position: absolute; inset: 0;
+        background: rgba(255,233,168,0.55);
+        pointer-events: none;
+        z-index: 5;
+        opacity: 0;
+        transition: opacity 0.08s ease-out;
+    }
+    #storm-flash.on { opacity: 1; }
     .unlock-toast {
         position: absolute;
         top: 52px; left: 50%;
@@ -869,9 +952,25 @@
 <div id="active-chips" class="active-chips"></div>
 <div id="toasts" class="toasts"></div>
 <div id="storm-banner" class="storm-banner hidden">
-    <div class="title">⚡ SCISSORS STORM</div>
-    <div class="sub">300 m — watch for knots on the ground.</div>
+    <div class="title">STORM INCOMING · 300M</div>
+    <div class="sub">Level 2 · The Tangle</div>
+    <div class="storm-chips">
+        <div class="storm-chip speed">
+            <div class="l">SPEED</div>
+            <div class="v">1.0× → 1.5×</div>
+        </div>
+        <div class="storm-chip new">
+            <div class="l">NEW</div>
+            <div class="v">Angry knots + flying scissors</div>
+        </div>
+        <div class="storm-chip watch">
+            <div class="l">WATCH</div>
+            <div class="v">Scissors faster</div>
+        </div>
+    </div>
 </div>
+<div id="storm-vfx"></div>
+<div id="storm-flash"></div>
 <div id="unlock-toast" class="unlock-toast hidden">✨ Level unlocked!</div>
 <div id="pre-run" class="pre-run hidden">
     <div class="pre-run-chips">
@@ -1380,8 +1479,25 @@
             // Offset from the actual hill surface at hazardX so it
             // sits above the crown, not buried inside it.
             const surfaceY = surfaceYAt(x, len, top, crown, hazardX);
-            world.hazards.push({ worldX: hazardX, y: surfaceY - heightAbove, rot: Math.random() * 6.28 });
+            world.hazards.push({
+                worldX: hazardX, y: surfaceY - heightAbove,
+                rot: Math.random() * 6.28, kind: 'STATIC', vx: 0,
+            });
             world.lastHazardAtX = hazardX;
+        }
+
+        // SWOOPER scissors (Wave 3 · Part H) — fly horizontally across
+        // the screen at a fixed Y. Spawn only inside the storm band
+        // (≥300m) and keep firing past 750m even though the visuals
+        // revert to L1 (calm sky, dangerous world).
+        if (biome === 'STORM' && len > 0.55 && Math.random() < 0.18) {
+            const swooperX = x + len * (0.20 + Math.random() * 0.60);
+            const swooperY = top - (0.10 + Math.random() * 0.05);
+            const vx = -(0.35 + Math.random() * 0.20) * (world.currentSpeedMultiplier || 1);
+            world.hazards.push({
+                worldX: swooperX, y: swooperY,
+                rot: 0, kind: 'SWOOPER', vx,
+            });
         }
 
         // Floor knots — Level 2 only. Spiky tangles on the platform
@@ -1709,12 +1825,15 @@
             addNextPlatform();
         }
 
-        // Rotate + reap hazards. A hazard drifting past the camera
-        // without ever colliding bumps the survival combo (player
-        // jumped/lassoed/out-paced it). Combo resets on hit below.
+        // Rotate + reap hazards. SWOOPER scissors also drift
+        // horizontally so they fly across the screen instead of
+        // hovering. A hazard drifting past the camera without ever
+        // colliding bumps the survival combo (player jumped, lassoed
+        // or out-paced it). Combo resets on hit below.
         for (let i = world.hazards.length - 1; i >= 0; i--) {
             const hz = world.hazards[i];
             hz.rot += dt * 2.4;
+            if (hz.kind === 'SWOOPER' && hz.vx) hz.worldX += hz.vx * dt;
             if (hz.worldX < world.cameraX - 0.5) {
                 world.hazards.splice(i, 1);
                 if (!world.tutorialMode) {
@@ -1980,7 +2099,9 @@
                 hasSound && Sound.playGameStart();
                 const banner = document.getElementById('storm-banner');
                 banner.classList.remove('hidden');
-                setTimeout(() => banner.classList.add('hidden'), 2500);
+                // First flash to punch the title card in.
+                triggerStormFlash();
+                setTimeout(() => banner.classList.add('hidden'), 3000);
             }
             else if (e === 'milestone-1500') {
                 hasSound && Sound.playGameStart();
@@ -2468,22 +2589,61 @@
         }
     });
 
+    // ── Storm VFX (Wave 3 · Part G) ───────────────────────────
+    // Rain overlay toggles via a CSS class; lightning flash is fired
+    // by triggerStormFlash() on a random ~4–8s cadence while in the
+    // storm window.
+    const stormVfxEl = document.getElementById('storm-vfx');
+    const stormFlashEl = document.getElementById('storm-flash');
+    let nextFlashAt = 0;
+    function triggerStormFlash() {
+        if (!stormFlashEl) return;
+        stormFlashEl.classList.add('on');
+        setTimeout(() => stormFlashEl.classList.remove('on'), 90);
+        // Sometimes a quick double-flash to feel like a real strike.
+        if (Math.random() < 0.4) {
+            setTimeout(() => {
+                stormFlashEl.classList.add('on');
+                setTimeout(() => stormFlashEl.classList.remove('on'), 70);
+            }, 180);
+        }
+    }
+    function tickStormVfx() {
+        const showVfx = world.distance >= 30 && world.distance < 75 && !world.isPaused;
+        if (stormVfxEl) stormVfxEl.classList.toggle('on', showVfx);
+        if (showVfx) {
+            const now = performance.now();
+            if (nextFlashAt === 0) nextFlashAt = now + 4000 + Math.random() * 4000;
+            if (now >= nextFlashAt) {
+                triggerStormFlash();
+                nextFlashAt = now + 4000 + Math.random() * 4000;
+            }
+        } else {
+            nextFlashAt = 0;
+        }
+    }
+
     function renderFrame() {
         // Tick the pre-run countdown before anything else so the
         // overlay updates and unpauses on its own once it hits zero.
         updatePreRunCountdown();
         tickMidRunToasts();
+        tickStormVfx();
         const w = window.innerWidth;
         const h = window.innerHeight;
-        const palette = currentBiome() === 'STORM'
+        // Storm VFX run from 300m to 750m (Wave 3 · Part I). Past 750m
+        // the L3 unlock fires, sky reverts to calm L1 even though every
+        // L2 hazard keeps spawning — "calm sky, dangerous world".
+        const showStormVfx = world.distance >= 30 && world.distance < 75;
+        const palette = showStormVfx
             ? WeftyThread.PALETTES[3]
             : WeftyThread.PALETTES[world.biomeIndex % WeftyThread.PALETTES.length];
         bgCtx.clearRect(0, 0, w, h);
 
-        // Sky gradient — swings to crimson once the scissors storm is
-        // active so the biome transition reads at a glance.
+        // Sky gradient — swings to crimson during the storm window,
+        // back to calm navy once L3 unlocks.
         const skyGrad = bgCtx.createLinearGradient(0, 0, 0, h);
-        if (world.distance >= 30) {
+        if (showStormVfx) {
             skyGrad.addColorStop(0, '#4A1010');
             skyGrad.addColorStop(1, '#1A0005');
         } else {
@@ -2493,7 +2653,7 @@
         bgCtx.fillStyle = skyGrad;
         bgCtx.fillRect(0, 0, w, h);
 
-        const isStorm = world.distance >= 30;
+        const isStorm = showStormVfx;
         // Parallax background — tiles horizontally, scrolls 0.3x camera.
         // During the STORM biome we drop the alpha hard so the pink
         // backdrop doesn't wash out the crimson sky.
@@ -2574,8 +2734,9 @@
                 bgCtx.restore();
             }
             // Biome tint — mossy green normally, crimson during the
-            // scissors storm. Turns the off-white yarn into a landscape.
-            const isStorm = world.distance >= 30;
+            // scissors storm window (300-750m). Turns the off-white
+            // yarn into a landscape. Reverts to green past 750m.
+            const isStorm = world.distance >= 30 && world.distance < 75;
             bgCtx.save();
             bgCtx.globalAlpha = 0.55;
             bgCtx.fillStyle = isStorm ? '#5C1A1A' : '#2F6B3A';
