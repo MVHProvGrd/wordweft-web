@@ -75,6 +75,13 @@
         text-decoration: none;
     }
     .tb-tile:active { transform: scale(0.92); }
+    /* Pause button: two explicit bars with breathing room so the icon
+       doesn't read as one squished double-pipe. */
+    .tb-tile.tb-pause .pb-bars { display: inline-flex; align-items: center; gap: 4px; }
+    .tb-tile.tb-pause .pb-bars span { width: 3px; height: 12px; background: currentColor; border-radius: 1px; display: inline-block; }
+    .tb-tile.tb-pause.is-paused .pb-bars { display: none; }
+    .tb-tile.tb-pause .pb-play { display: none; font-size: 14px; line-height: 1; }
+    .tb-tile.tb-pause.is-paused .pb-play { display: inline-block; }
     .tb-title {
         display: flex; flex-direction: column; justify-content: center;
         line-height: 1.1;
@@ -180,10 +187,11 @@
         transition: width 0.3s;
     }
     .tb-hearts {
-        display: flex; gap: 2px;
+        display: flex; gap: 4px;
+        margin-left: 14px;          /* breathe after the last WEFTY letter */
     }
     .tb-heart {
-        width: 18px; height: 18px;
+        width: 28px; height: 28px;   /* match the WEFTY letter-pill size */
         display: inline-block;
     }
     .tb-heart svg { width: 100%; height: 100%; display: block; }
@@ -680,26 +688,10 @@
         transition: opacity 0.4s;
     }
     #storm-vfx.on { opacity: 1; }
-    #storm-vfx::before {
-        /* Diagonal rain streaks — a tiled linear-gradient that scrolls
-           via background-position-y. Cheap and runs at 60fps. */
-        content: '';
-        position: absolute; inset: 0;
-        background:
-            repeating-linear-gradient(
-                100deg,
-                rgba(200,184,168,0) 0,
-                rgba(200,184,168,0) 12px,
-                rgba(200,184,168,0.32) 12px,
-                rgba(200,184,168,0.32) 14px
-            );
-        animation: rain-fall 0.6s linear infinite;
-        opacity: 0.4;
-    }
-    @keyframes rain-fall {
-        from { background-position: 0 0; }
-        to   { background-position: -40px 80px; }
-    }
+    /* Rain is rendered as diagonal canvas streaks in the step loop; the
+       prior CSS ::before "repeating-linear-gradient + rain-fall" block
+       produced ugly solid near-vertical stripes the user flagged, so
+       it's gone now. */
     #storm-flash {
         position: absolute; inset: 0;
         background: rgba(255,233,168,0.55);
@@ -751,21 +743,20 @@
     }
 
     .tutorial {
-        position: absolute; left: 0; right: 0; bottom: 0;
+        position: absolute; inset: 0;
         background: transparent;
-        display: flex; align-items: flex-end; justify-content: center;
-        padding: 0 0 18px;
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px;
         pointer-events: none;          /* only the card catches clicks */
         z-index: 50;                   /* above the pause overlay (40) */
     }
     .tutorial .tutorial-card { pointer-events: auto; }
     .tutorial::before {
-        /* A subtle gradient wash behind the card so text stays readable
-           even with the game visibly running. */
+        /* Soft radial wash keeps card text readable over the live
+           demo behind it, without anchoring to bottom. */
         content: '';
-        position: absolute; left: 0; right: 0; bottom: 0;
-        height: 52%;
-        background: linear-gradient(0deg, rgba(15,15,35,0.85) 20%, rgba(15,15,35,0) 100%);
+        position: absolute; inset: 0;
+        background: radial-gradient(60% 50% at 50% 50%, rgba(15,15,35,0.82) 0%, rgba(15,15,35,0) 100%);
         pointer-events: none;
         z-index: -1;
     }
@@ -985,7 +976,7 @@
     </div>
     <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
     <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
-    <button id="btn-pause" class="tb-tile" title="Pause">‖</button>
+    <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
     <button id="btn-help"  class="tb-tile" title="Help">?</button>
 </header>
 <div id="stage">
@@ -1290,14 +1281,14 @@
     function renderScoreboard(_justScored) { /* see populateGameOverBeat1 */ }
 
     // Tutorial pages — kept here so we add more panels alongside new features.
-    const TUTORIAL = [
-        { icon: 'tut_meet_wefty.svg', title: 'Meet Wefty',
+    const TUTORIAL_ALL = [
+        { icon: 'wefty_wave.png', title: 'Meet Wefty',
           body: 'Wefty runs forever — your job is to keep her going. The further, the higher your score.' },
         { icon: 'tut_bridge_gaps.svg', title: 'Bridge the gaps',
           body: 'Draw a thread across any gap and Wefty walks across. Any stroke works — the longer the gap, the longer the bridge.' },
         { icon: 'tut_tap_jump.svg', title: 'Tap to jump',
           body: 'A short tap jumps. Hit the green Jump button, or press Space / ↑ on web.' },
-        { icon: 'tut_dodge_scissors.svg', title: 'Dodge the scissors',
+        { icon: 'scissors_hazard.png', title: 'Dodge the scissors',
           body: 'Spinning scissors float above platforms. Jump under them or tap the orange Lasso to snag the nearest one (1.5s cooldown).' },
         { icon: 'tut_spell_wefty.svg', title: 'Spell WEFTY',
           body: 'Grab the floating W · E · F · T · Y letters. Collect all five and Wefty shrinks for 18 seconds — scissors fly right over her.' },
@@ -1305,9 +1296,9 @@
           body: 'Red spring pads on the ground super-jump Wefty skyward. They trigger automatically — just roll over one.' },
         { icon: 'tut_powerups.svg', title: 'Power-up inventory',
           body: 'Blue kite, green orb, lilac clock, and navy shield go into your inventory. Tap the coloured buttons (or 1–4) to activate: 2× double-jump, Slow 5s slow-mo, Glide 10s slow-fall (hold Jump mid-air), Shield absorbs next hit.' },
-        { icon: 'tut_storm.svg', title: 'Level 2 at 300 m',
+        { icon: 'yarn_knot.png', title: 'Level 2 at 300 m',
           body: 'Past 300m the world storms: crimson palette, angry scowling yarn knots on the ground, and run speed ramps from 1.0× to 1.3× over the next 100m. Jump or lasso the knots.' },
-        { icon: 'tut_keys.svg', title: 'PC key bindings', keys: [
+        { icon: 'tut_keys.svg', title: 'PC key bindings', desktopOnly: true, keys: [
             ['Jump', 'Space / ↑ / W'],
             ['Lasso', 'L or F'],
             ['Double-jump orb', '1'],
@@ -1321,6 +1312,10 @@
         { icon: 'tut_best.svg', title: 'Chase your best',
           body: 'Your best distance sticks across runs. At 750m a new game mode unlocks on the hub. Reopen this help anytime with the ? button — even while paused.' },
     ];
+    // Hide the PC-keybinds slide on touch devices where keyboard
+    // shortcuts don't apply.
+    const isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const TUTORIAL = TUTORIAL_ALL.filter(p => !p.desktopOnly || !isCoarsePointer);
     let tutorialPage = 0;
     const tutorialEl = document.getElementById('tutorial');
     const tutIcon = document.getElementById('tut-icon');
@@ -1366,6 +1361,19 @@
     function closeTutorial() {
         tutorialEl.classList.add('hidden');
         localStorage.setItem('wefty_run_tutorial_v3', '1');
+        if (world._pausedBeforeTutorial) {
+            // Help was opened from a paused game — restore the pause
+            // sheet exactly where the user left it. No countdown, no
+            // reset. They tap RESUME to unpause.
+            world._pausedBeforeTutorial = false;
+            world.isPaused = true;
+            try { pauseBtn.classList.add('is-paused'); } catch (_) {}
+            try {
+                refreshPauseStats();
+                pauseOverlay.classList.remove('hidden');
+            } catch (_) {}
+            return;
+        }
         if (world.tutorialMode) {
             // Came from the demo mode — wipe and start a fresh run.
             world.tutorialMode = false;
@@ -1446,12 +1454,30 @@
     // while they're reading — in-progress run state is sacrificed for
     // consistency.
     document.getElementById('btn-help').addEventListener('click', () => {
-        openTutorial(true);
+        // If the player paused first and THEN tapped the help icon,
+        // preserve their paused run state — show the tutorial without
+        // the scripted demo wiping the world. closeTutorial() restores
+        // the pause sheet on dismiss.
+        if (world.isPaused) {
+            world._pausedBeforeTutorial = true;
+            const po = document.getElementById('pause-overlay');
+            if (po) po.classList.add('hidden');
+            openTutorial(false);
+        } else {
+            openTutorial(true);
+        }
     });
     if (!localStorage.getItem('wefty_run_tutorial_v3')) {
+        // First-timer — openTutorial(true) starts the scripted demo,
+        // and closeTutorial() fires the 3-2-1 countdown when they tap
+        // "Let's go!".
         openTutorial(true);
     } else {
+        // Returning player — skip the tutorial, but still run the 3-2-1
+        // countdown so the camera scroll doesn't start before they've
+        // settled their grip (same beat as after a game over restart).
         closeTutorial();
+        startPreRunCountdown();
     }
 
     function resetWorld() {
@@ -1595,6 +1621,26 @@
                 if (!clash) {
                     world.knots.push({ worldX: kx, y: ky });
                     world.lastKnotAtX = kx;
+                }
+            }
+        }
+
+        // Spring pads — ground-anchored trampolines that super-jump
+        // Wefty skyward on contact. The tutorial promises them, so they
+        // MUST actually appear in the run (prior to this patch the
+        // world.springs array was declared but never populated — users
+        // saw none in the wild). Spawn on wide enough platforms at a
+        // ~20% base rate, stepping up through the storm biome.
+        if (len > 0.55 && world.distance > 3) {
+            const springChance = biome === 'STORM' ? 0.28 : 0.20;
+            if (Math.random() < springChance) {
+                const sx = x + len * (0.30 + Math.random() * 0.40);
+                const sy = surfaceYAt(x, len, top, crown, sx);
+                const padClash = world.springs.some(sp =>
+                    Math.abs(sp.worldX - sx) < 0.30
+                );
+                if (!padClash) {
+                    world.springs.push({ worldX: sx, y: sy, consumed: false });
                 }
             }
         }
@@ -1825,42 +1871,76 @@
     }
 
     const MAX_STROKE_SPAN = 1 / 3;
+    // Cap by TOTAL 2D PATH LENGTH (sum of segment distances) — not by
+    // |endX - startX|. This makes the cap direction-invariant and shape-
+    // invariant: drawing right-to-left, left-to-right, or a U-shape
+    // yields the same maximum bridge. Prior bug (user-reported): R→L
+    // drew a longer bridge than L→R, and a U-shape doubled the length
+    // because the axis-aligned span test ignored the backtrack.
     function capStrokeSpan(pts) {
-        const startX = pts[0][0];
         const out = [pts[0]];
+        let acc = 0;
         for (let i = 1; i < pts.length; i++) {
             const [px, py] = pts[i];
-            if (Math.abs(px - startX) > MAX_STROKE_SPAN) {
-                const [lx, ly] = out[out.length - 1];
-                const dx = px - lx;
-                if (dx === 0) break;
-                const allowed = MAX_STROKE_SPAN - Math.abs(lx - startX);
-                if (allowed <= 0) break;
-                const step = allowed * Math.sign(dx);
-                const t = step / dx;
-                out.push([lx + step, ly + (py - ly) * t]);
+            const [lx, ly] = out[out.length - 1];
+            const dx = px - lx;
+            const dy = py - ly;
+            const segLen = Math.hypot(dx, dy);
+            if (segLen === 0) continue;
+            if (acc + segLen <= MAX_STROKE_SPAN) {
+                acc += segLen;
+                out.push([px, py]);
+            } else {
+                const remain = MAX_STROKE_SPAN - acc;
+                const t = remain / segLen;
+                out.push([lx + dx * t, ly + dy * t]);
                 break;
             }
-            out.push([px, py]);
         }
         return out;
     }
 
     function addStroke(worldPts) {
         if (world.gameOver || worldPts.length < 2) return;
-        // Capped at 1/3 of the viewport so the widest (~0.50) gaps demand
-        // a bridge + jump combo. Anti-cheese: a new stroke evicts any
-        // bridges that sit entirely ahead of Wefty (so the player can't
-        // stack three 33% strokes into a ladder), but keeps ones she's
-        // currently on or has already crossed.
+        // One-bridge-at-a-time. If a bridge already exists (active OR
+        // mid-dissipate), the new stroke is rejected — the mist has to
+        // finish first. Visual feedback: emit a 'bridge-blocked' event
+        // the render layer flashes briefly.
+        const hasAny = world.bridges.some(b => b.state !== 'GONE');
+        if (hasAny) {
+            world.events.push('bridge-blocked');
+            return;
+        }
         const capped = capStrokeSpan(worldPts);
         if (capped.length < 2) return;
-        const weftyWX = world.cameraX + WEFTY_SCREEN_X;
-        world.bridges = world.bridges.filter(b =>
-            b.pts.some(([x]) => x <= weftyWX + 0.05)
-        );
-        world.bridges.push({ pts: capped, valid: true, ttl: Infinity });
+        world.bridges.push({
+            pts: capped, valid: true, ttl: Infinity,
+            state: 'ACTIVE', dissipateStartTick: 0,
+        });
         world.events.push('bridge-valid');
+    }
+    // Tick each frame: once Wefty's feet cross past the rightmost
+    // point of an ACTIVE bridge, the bridge enters DISSIPATING for
+    // BRIDGE_DISSIPATE_TICKS frames, then is removed.
+    const BRIDGE_DISSIPATE_TICKS = 45;   // ~0.75s at 60fps
+    function updateBridgeStates() {
+        const weftyWX = world.cameraX + WEFTY_SCREEN_X;
+        for (const b of world.bridges) {
+            if (b.state === 'ACTIVE') {
+                const maxX = Math.max.apply(null, b.pts.map(p => p[0]));
+                if (weftyWX > maxX + 0.02) {
+                    b.state = 'DISSIPATING';
+                    b.dissipateStartTick = world.frameTick;
+                }
+            }
+        }
+        world.bridges = world.bridges.filter(b => {
+            if (b.state !== 'DISSIPATING') return true;
+            const age = world.frameTick - b.dissipateStartTick;
+            if (age >= BRIDGE_DISSIPATE_TICKS) return false;
+            b._dissipateFrac = age / BRIDGE_DISSIPATE_TICKS;
+            return true;
+        });
     }
 
     function step(dt) {
@@ -1900,6 +1980,10 @@
                 world.bridges.splice(i, 1);
             }
         }
+        // One-bridge-at-a-time state machine: mark bridges as
+        // DISSIPATING once Wefty has cleared them, then reap after the
+        // mist animation completes.
+        updateBridgeStates();
 
         // Procedurally add platforms ahead
         while (world.platforms[world.platforms.length - 1].xEnd < world.cameraX + 4) {
@@ -1937,17 +2021,22 @@
             }
         }
 
-        // Hazard collision — circle vs circle. Shrink mode → smaller
-        // hitbox. I-frames skip collision briefly after a hit.
+        // Hazard collision — circle vs circle. Shrink mode = total
+        // SCISSORS immunity (matches the tutorial's "scissors fly
+        // right over her" copy) + smaller hitbox for knots. I-frames
+        // skip collision briefly after a hit.
         const wcx = world.cameraX + WEFTY_SCREEN_X;
         const wcy = world.weftyY - 0.05;
         const now = performance.now();
-        const bodyR = (world.shrinkUntil > now) ? 0.018 : 0.035;
+        const shrunk = world.shrinkUntil > now;
+        const bodyR = shrunk ? 0.018 : 0.035;
         if (now > world.invincibleUntil) {
             let hitKind = 'NONE';
-            for (const hz of world.hazards) {
-                const dx = hz.worldX - wcx, dy = hz.y - wcy;
-                if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + bodyR) { hitKind = 'SCISSORS'; break; }
+            if (!shrunk) {
+                for (const hz of world.hazards) {
+                    const dx = hz.worldX - wcx, dy = hz.y - wcy;
+                    if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + bodyR) { hitKind = 'SCISSORS'; break; }
+                }
             }
             // Floor knots — grounded collision only.
             if (hitKind === 'NONE' && world.grounded) {
@@ -2327,8 +2416,11 @@
         musicStarted = true;
         musicLoop.play().catch(() => { musicStarted = false; });
     }
-    document.addEventListener('pointerdown', startMusic, { once: true });
-    document.addEventListener('keydown', startMusic, { once: true });
+    // Capture-phase listeners fire BEFORE any deeper handler calls
+    // stopPropagation(), which the Jump / Lasso / dock buttons all do.
+    // Without `capture: true` a first-tap on Jump never unlocks music.
+    window.addEventListener('pointerdown', startMusic, { once: true, capture: true });
+    window.addEventListener('keydown', startMusic, { once: true, capture: true });
 
     // ── Input ──────────────────────────────────────────────────────────
     const stage = document.getElementById('stage');
@@ -2744,12 +2836,18 @@
         // woodland biome — calm sky, green parallax forest — matching
         // the base of the mountain in Wefty Climb for continuity.
         const showStormVfx = world.distance >= 30 && world.distance < 75;
-        // Woodland blend fraction: 0 at 650m, ramps to 1 at 850m so the
-        // transition reads as the storm clearing over ~200m. Stays at
-        // 1 from 850m onward.
-        const woodlandBlend = world.distance >= 65
-            ? Math.min(1, (world.distance - 65) / 20)
-            : 0;
+        // Woodland blend fraction: 0 until 750m (the L3 unlock moment),
+        // then a gradual crossfade to 1 over the next 100m, using the
+        // same smooth fadeAlphas curve shape as Climb's biome bands.
+        // Rationale: keep the world stormy for the whole storm window
+        // and flip to "clear woodland" right as L3 lights up.
+        const woodlandBlend = (() => {
+            const d = world.distance;
+            if (d < 75) return 0;
+            if (d >= 85) return 1;
+            const t = (d - 75) / 10;            // linear 0..1
+            return t * t * (3 - 2 * t);          // smoothstep — matches Climb's feel
+        })();
         const palette = showStormVfx
             ? WeftyThread.PALETTES[3]
             : WeftyThread.PALETTES[world.biomeIndex % WeftyThread.PALETTES.length];
@@ -2971,7 +3069,32 @@
 
         for (const b of world.bridges) {
             const pts = b.pts.map(([wx, wy]) => [(wx - world.cameraX) * w, wy * h]);
-            WeftyThread.drawThread(fgCtx, pts, palette, bridgeWidth, yarnPattern);
+            if (b.state === 'DISSIPATING') {
+                // Fade the thread out while scattering 12 mist motes
+                // along its length. Mist drifts up + sideways + fades.
+                const frac = b._dissipateFrac || 0;
+                fgCtx.save();
+                fgCtx.globalAlpha = 1 - frac;
+                WeftyThread.drawThread(fgCtx, pts, palette, bridgeWidth, yarnPattern);
+                fgCtx.restore();
+                fgCtx.save();
+                fgCtx.fillStyle = 'rgba(251,243,231,' + (0.6 * (1 - frac)) + ')';
+                const N = 12;
+                for (let i = 0; i < N; i++) {
+                    const seg = Math.min(pts.length - 2, Math.floor((i / N) * (pts.length - 1)));
+                    const t = (i / N) * (pts.length - 1) - seg;
+                    const [x0, y0] = pts[seg];
+                    const [x1, y1] = pts[seg + 1];
+                    const mx = x0 + (x1 - x0) * t + (Math.sin(i * 3.7 + frac * 4) * 10);
+                    const my = y0 + (y1 - y0) * t - frac * 22 + Math.cos(i * 2.3) * 4;
+                    fgCtx.beginPath();
+                    fgCtx.arc(mx, my, 2.5 + frac * 3, 0, 6.283);
+                    fgCtx.fill();
+                }
+                fgCtx.restore();
+            } else {
+                WeftyThread.drawThread(fgCtx, pts, palette, bridgeWidth, yarnPattern);
+            }
         }
         if (currentStroke && currentStroke.length >= 2) {
             WeftyThread.drawThread(fgCtx, currentStroke, palette, bridgeWidth * 0.9, yarnPattern);
@@ -3285,12 +3408,12 @@
             if (got) collectedCount++;
         });
         tbEl.fill.style.width = (collectedCount * 20) + '%';
-        // Hearts — up to 3 filled reflecting needles; the 4th/5th are
-        // tracked in world.needles but not shown in this row.
-        const shown = 3;
-        const n = Math.min(world.needles, shown);
+        // Hearts — show every heart the player currently holds. Row
+        // grows past 3 when bonus hearts are picked up (user reported
+        // the 4th collect had no visible feedback).
+        const shown = Math.max(3, world.needles);
         let html = '';
-        for (let i = 0; i < shown; i++) html += heartSvg(i < n);
+        for (let i = 0; i < shown; i++) html += heartSvg(i < world.needles);
         tbEl.hearts.innerHTML = html;
         if (world.gameOver && !overlay.dataset.populated) {
             populateGameOverBeat1(cur);
@@ -3379,7 +3502,7 @@
     }
     function setPaused(p) {
         world.isPaused = p;
-        pauseBtn.textContent = p ? '▶' : '‖';
+        pauseBtn.classList.toggle('is-paused', !!p);
         if (p) {
             refreshPauseStats();
             pauseOverlay.classList.remove('hidden');
@@ -3399,7 +3522,10 @@
     });
     document.getElementById('ps-help').addEventListener('click', (e) => {
         e.stopPropagation();
-        setPaused(false);
+        // Keep the world paused while the tutorial card is up; the
+        // pause sheet is re-shown automatically on closeTutorial().
+        world._pausedBeforeTutorial = true;
+        pauseOverlay.classList.add('hidden');
         openTutorial(false);   // mid-run help — doesn't reset progress
     });
     document.getElementById('ps-end').addEventListener('click', (e) => {

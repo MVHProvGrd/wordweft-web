@@ -321,6 +321,13 @@
     }
     #stage { position: absolute; inset: 0; touch-action: none; background: #070712; }
     canvas { position: absolute; top: 0; }
+    /* Pause button: two explicit bars with breathing room so the icon
+       doesn't read as one squished double-pipe. */
+    .tb-tile.tb-pause .pb-bars { display: inline-flex; align-items: center; gap: 4px; }
+    .tb-tile.tb-pause .pb-bars span { width: 3px; height: 12px; background: currentColor; border-radius: 1px; display: inline-block; }
+    .tb-tile.tb-pause.is-paused .pb-bars { display: none; }
+    .tb-tile.tb-pause .pb-play { display: none; font-size: 14px; line-height: 1; }
+    .tb-tile.tb-pause.is-paused .pb-play { display: inline-block; }
 
     .tutorial {
         position: absolute;
@@ -493,7 +500,7 @@
     </div>
     <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
     <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
-    <button id="btn-pause" class="tb-tile" title="Pause">‖</button>
+    <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
     <button id="btn-help"  class="tb-tile" title="Help">?</button>
 </header>
 <span id="hud" style="display:none;"></span>
@@ -697,22 +704,22 @@
         const lastY = world.ledges.length
             ? world.ledges[world.ledges.length - 1].y
             : START_CAMERA_Y;
-        // Vertical gap 0.08–0.11 world units (tightened from 0.11–0.16
-        // after player feedback that jumps felt out of reach when
-        // combined with the horizontal offset + camera ascend).
-        const newY = lastY - (0.08 + rng() * 0.03);
+        // Vertical gap 0.11-0.16 world units. Max jump height is
+        // v²/(2g) = 1.15²/6.4 ≈ 0.207, so 0.16 leaves a 22% margin —
+        // every jump is comfortably reachable, not pixel-perfect.
+        const newY = lastY - (0.11 + rng() * 0.05);
         spawnLedgeAt(newY);
     }
     function spawnLedgeAt(y) {
         const len = 0.28 + rng() * 0.22;
         const prev = world.ledges[world.ledges.length - 1];
         const prevCenter = prev ? (prev.xStart + prev.xEnd) / 2 : 0.5;
-        // Horizontal bias 0.05–0.11 (tightened from 0.10–0.22). Full-
-        // jump reach is ~0.30 but assumes the player pins the D-pad
-        // the whole arc; in practice casual drift clears ~0.12 max.
+        // Horizontal reach at full jump is ~0.30 world units. Cap the
+        // bias well inside that so even a wall-hugging chain stays
+        // reachable after the mean-reversion pull is applied.
         const pullToCenter = (0.5 - prevCenter) * 0.30;
         const sign = rng() < 0.5 ? 1 : -1;
-        const bias = sign * (0.05 + rng() * 0.06);
+        const bias = sign * (0.10 + rng() * 0.12);
         let center = prevCenter + bias + pullToCenter;
         const minC = len / 2;
         const maxC = 1 - len / 2;
@@ -961,15 +968,28 @@
             }
             startPreRunCountdown();
         });
-        // Help button re-opens tutorial anytime. Pauses gameplay.
+        // Help button re-opens tutorial anytime. If the game was
+        // already paused, remember that so btn-start returns the
+        // player to the pause sheet instead of unpausing into a
+        // countdown.
         document.getElementById('btn-help').addEventListener('click', () => {
+            world._pausedBeforeTutorial = world.isPaused === true;
             world.isPaused = true;
             document.getElementById('tutorial').classList.remove('hidden');
         });
         document.getElementById('btn-start').addEventListener('click', () => {
             document.getElementById('tutorial').classList.add('hidden');
-            world.isPaused = false;
             localStorage.setItem('wefty_climb_tutorial_v1', '1');
+            if (world._pausedBeforeTutorial) {
+                // Restore paused state — player taps RESUME when ready.
+                world._pausedBeforeTutorial = false;
+                world.isPaused = true;
+                refreshPauseStats();
+                pauseOverlay.classList.remove('hidden');
+                pauseBtn.classList.add('is-paused');
+                return;
+            }
+            world.isPaused = false;
             startPreRunCountdown();
         });
         // First-run: show tutorial until dismissed. On subsequent
@@ -999,7 +1019,7 @@
         }
         function setPaused(p) {
             world.isPaused = p;
-            pauseBtn.textContent = p ? '▶' : '‖';
+            pauseBtn.classList.toggle('is-paused', !!p);
             if (p) {
                 refreshPauseStats();
                 pauseOverlay.classList.remove('hidden');
@@ -1323,11 +1343,13 @@
     }
     // Browsers block audio until a user gesture — start on first tap/key.
     const startOnce = () => { tryStartMusic();
-        window.removeEventListener('pointerdown', startOnce);
-        window.removeEventListener('keydown', startOnce);
+        window.removeEventListener('pointerdown', startOnce, true);
+        window.removeEventListener('keydown', startOnce, true);
     };
-    window.addEventListener('pointerdown', startOnce);
-    window.addEventListener('keydown', startOnce);
+    // Capture-phase so the first tap on the Jump / Lasso / dock buttons
+    // (which all stopPropagation) still unlocks music.
+    window.addEventListener('pointerdown', startOnce, true);
+    window.addEventListener('keydown', startOnce, true);
 
     const heartLossSfx = new Audio('wefty_game_over.mp3');
     heartLossSfx.volume = 0.4;
@@ -1653,8 +1675,35 @@
             }
         } catch (_) {}
     })();
-    seed();
-    requestAnimationFrame(loop);
+    // Diagnostic overlay: append ?diag=1 to the URL to surface init
+    // errors in-page. Set up unconditionally so we ALSO catch runtime
+    // errors post-first-frame.
+    const diagOn = new URLSearchParams(location.search).has('diag');
+    if (diagOn) {
+        const d = document.createElement('div');
+        d.id = 'diag';
+        d.style.cssText = 'position:fixed;top:60px;left:8px;right:8px;z-index:99;'
+            + 'background:#7A1F1F;color:#fff;font:12px/1.3 JetBrains Mono,monospace;'
+            + 'padding:8px;border-radius:6px;max-height:60vh;overflow:auto;white-space:pre-wrap;';
+        document.body.appendChild(d);
+        window.addEventListener('error', (e) => {
+            d.textContent += `ERR ${e.message} @ ${e.filename}:${e.lineno}\n`;
+        });
+        window.addEventListener('unhandledrejection', (e) => {
+            d.textContent += `REJ ${e.reason}\n`;
+        });
+    }
+    try {
+        seed();
+        requestAnimationFrame(loop);
+    } catch (e) {
+        if (diagOn) {
+            const d = document.getElementById('diag');
+            if (d) d.textContent += `INIT-THROW ${e && e.stack ? e.stack : e}\n`;
+        }
+        // Re-throw so devtools still surface it for non-diag users.
+        throw e;
+    }
 })();
 </script>
 </body>

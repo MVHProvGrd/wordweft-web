@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
   <g font-family="Fraunces, Georgia, serif" font-weight="900" font-size="14" text-anchor="middle">
-    <rect x="4" y="46" width="20" height="28" rx="5" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
+    <circle cx="14" cy="60" r="10" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
     <text x="14" y="65" fill="#2a1b22">W</text>
-    <rect x="28" y="46" width="20" height="28" rx="5" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
+    <circle cx="38" cy="60" r="10" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
     <text x="38" y="65" fill="#2a1b22">E</text>
-    <rect x="52" y="46" width="20" height="28" rx="5" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
+    <circle cx="62" cy="60" r="10" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
     <text x="62" y="65" fill="#2a1b22">F</text>
-    <rect x="76" y="46" width="20" height="28" rx="5" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
+    <circle cx="86" cy="60" r="10" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
     <text x="86" y="65" fill="#2a1b22">T</text>
-    <rect x="100" y="46" width="20" height="28" rx="5" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
+    <circle cx="110" cy="60" r="10" fill="#e8b34c" stroke="#2a1b22" stroke-width="2"/>
     <text x="110" y="65" fill="#2a1b22">Y</text>
   </g>
   <path d="M8 82 L116 82" stroke="#e8b34c" stroke-width="4" stroke-linecap="round"/>
