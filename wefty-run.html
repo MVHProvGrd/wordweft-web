@@ -1534,6 +1534,12 @@
         seedPlatforms();
     }
 
+    // Per-variant walkable surface arrays + aspect meta. Populated
+    // asynchronously via the fetch() lower down; MUST be declared
+    // before buildPlatform so the seed-time call path (resetWorld →
+    // seedPlatforms → buildPlatform) doesn't TDZ on the `let`.
+    let RUN_ISLAND_SURFACES = null;
+
     // Build a Platform with variant + sprite world coords attached.
     // Shared between seedPlatforms() and addNextPlatform() so the
     // initial buffer renders with real island sprites instead of the
@@ -1542,24 +1548,25 @@
     // chunk of the run).
     function buildPlatform(xStart, xEnd, topHint, crown = 0) {
         const variant = pickRunIslandVariant();
-        // Waterline Y matches the water-fill top (PLATFORM_Y + 0.10).
-        // Sprite bottom pins here so islands "touch the deck".
-        const WATER_Y_WORLD = PLATFORM_Y + 0.10;
+        // Sprite width = platform hitbox (no horizontal overhang into
+        // adjacent water gaps). Height follows natural aspect. Sprite
+        // is anchored so the peak of the baked ridge (the highest
+        // grass point) lands at topHint — Wefty walks on that peak.
+        // Wherever the sprite's natural bottom edge lands, the
+        // renderer backfills a matching-green rect down to the
+        // waterline so the island visibly touches the deck. `top`
+        // stays at the caller's topHint so bridges/fx align with
+        // Wefty's actual walking Y instead of shifting per variant.
         let spriteTopY, spriteHeight, spriteRenderW;
-        let top = topHint;
+        const top = topHint;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
             const aspect = s.h / s.w;
-            // Natural aspect: width tracks platform hitbox × 1.20 for
-            // decor overhang; height = width × aspect. Bottom pinned to
-            // the waterline.
-            spriteRenderW = Math.max(0.55, (xEnd - xStart) * 1.20);
+            spriteRenderW = xEnd - xStart;
             spriteHeight = spriteRenderW * aspect;
-            spriteTopY = WATER_Y_WORLD - spriteHeight;
-            // Derive top from the ridge at platform center so bridges
-            // and fx align with the visible grass Wefty actually stands on.
-            const center = s.surface[Math.floor(s.surface.length / 2)];
-            top = spriteTopY + center * spriteHeight;
+            let minRidge = s.surface[0];
+            for (const v of s.surface) if (v < minRidge) minRidge = v;
+            spriteTopY = topHint - minRidge * spriteHeight;
         }
         return { xStart, xEnd, top, crown, variant, spriteTopY, spriteHeight, spriteRenderW };
     }
@@ -2500,8 +2507,9 @@
     }
     // Per-variant walkable surface (256 normalized Y samples).
     // Populated asynchronously; until loaded, surfaceYAt falls back
-    // to the legacy sin-crown math via p.crown.
-    let RUN_ISLAND_SURFACES = null;
+    // to the legacy sin-crown math via p.crown. Declaration is
+    // hoisted up near buildPlatform so early seed-time access doesn't
+    // TDZ.
     fetch('run_island_surfaces.json')
         .then(r => r.ok ? r.json() : null)
         .then(data => { RUN_ISLAND_SURFACES = data; })
@@ -3155,15 +3163,23 @@
             const ready = bgImg && bgImg.complete && bgImg.naturalWidth > 0
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
-                // Proportional render — use the spriteRenderW from the
-                // spawner (natural aspect, no stretching). Center the
-                // sprite over the platform's midpoint. Sprite BOTTOM
-                // is pinned at the waterline (spriteTopY + spriteHeight).
+                // Proportional render — natural aspect, no stretching.
+                // Sprite width = platform hitbox (edges meet water gaps
+                // cleanly). Ridge peak anchors Wefty's feet; sprite's
+                // natural bottom lands wherever it lands. Under the
+                // sprite, fill a matching-green rect down to the
+                // waterline so the island visibly sits in the water.
                 const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
                 const drawH = p.spriteHeight * h;
                 const centerX = ((p.xStart + p.xEnd) / 2) * w;
                 const drawX = centerX - drawW / 2;
                 const drawY = p.spriteTopY * h;
+                const spriteBottomPx = drawY + drawH;
+                const waterPx = (PLATFORM_Y + 0.10) * h;
+                if (spriteBottomPx < waterPx) {
+                    bgCtx.fillStyle = isStorm ? '#3A5A30' : '#4FAE63';
+                    bgCtx.fillRect(drawX, spriteBottomPx, drawW, waterPx - spriteBottomPx);
+                }
                 bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
             } else {
                 // Loading fallback — simple grass-green path with sin crown
