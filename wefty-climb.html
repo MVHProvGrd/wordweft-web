@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Wefty Climb</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Nunito:wght@400;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
     :root {
         --bg-0: #0F0F23;
@@ -14,36 +17,289 @@
     html, body {
         margin: 0;
         width: 100%; height: 100%;
-        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        font-family: "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
         color: #fff;
         background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
         overflow: hidden;
         user-select: none;
     }
-    header {
+    /* ── Face-lift top bar (Climb) ────────────────────────────────
+       Port of the Wefty Run top bar, adapted for height + biome. */
+    header.top-bar {
         position: absolute;
         top: 0; left: 0; right: 0;
-        padding: 10px 14px;
-        display: flex; align-items: center; gap: 10px;
+        padding: 8px 10px;
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
         z-index: 5;
+        background: linear-gradient(180deg, rgba(26,14,20,0.55), rgba(26,14,20,0));
+        pointer-events: none;
     }
-    header a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
-    header .title { font-weight: 700; font-size: 16px; }
-    header .hud { color: var(--muted); font-size: 13px; margin-left: 8px; }
-    header .needles { color: #EF4444; font-size: 16px; letter-spacing: 2px; margin-left: 12px; }
-    header .header-btn {
-        margin-left: 6px;
-        width: 32px; height: 32px;
-        border-radius: 50%;
-        border: 1px solid rgba(255,255,255,0.25);
-        background: rgba(30, 30, 54, 0.92);
-        color: #fff;
-        font-weight: 700;
-        font-size: 14px;
+    header.top-bar > * { pointer-events: auto; }
+    .tb-tile {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 30px; height: 30px;
+        border-radius: 8px;
+        border: 1px solid rgba(251,243,231,0.22);
+        background: rgba(251,243,231,0.12);
+        color: #fbf3e7;
+        font-weight: 700; font-size: 14px;
+        font-family: "Fraunces", "Georgia", "Iowan Old Style", serif;
+        cursor: pointer; flex-shrink: 0; padding: 0;
+        text-decoration: none;
+    }
+    .tb-tile:active { transform: scale(0.92); }
+    .tb-title {
+        display: flex; flex-direction: column; justify-content: center;
+        line-height: 1.1;
+    }
+    .tb-title-main {
+        font-family: "Fraunces", "Georgia", "Iowan Old Style", serif;
+        font-weight: 900; font-size: 13px; letter-spacing: 0.3px;
+        color: #fbf3e7;
+    }
+    .tb-title-sub {
+        font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+        color: rgba(251,243,231,0.55);
+        text-transform: uppercase;
+    }
+    .tb-distance {
+        position: relative;
+        min-width: 160px; height: 48px;
+        padding: 6px 10px;
+        border-radius: 12px;
+        background: rgba(26,14,20,0.55);
+        border: 1px solid rgba(251,243,231,0.14);
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        column-gap: 8px;
+        align-items: start;
+    }
+    .tb-distance-label {
+        font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+        color: rgba(251,243,231,0.55);
+        grid-column: 1; grid-row: 1;
+    }
+    .tb-distance-value {
+        font-family: "Fraunces", "Georgia", "Iowan Old Style", serif;
+        font-weight: 900; font-size: 22px;
+        color: #fbf3e7;
+        line-height: 1.0;
+        grid-column: 1; grid-row: 2;
+    }
+    .tb-distance-value .tb-m {
+        font-family: "Nunito", -apple-system, system-ui, sans-serif;
+        font-size: 12px; font-weight: 700;
+        color: rgba(251,243,231,0.65);
+        margin-left: 2px;
+    }
+    .tb-distance-pb {
+        font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+        color: rgba(232,179,76,0.80);
+        grid-column: 2; grid-row: 1;
+        justify-self: end;
+    }
+    .tb-hearts { display: flex; gap: 2px; }
+    .tb-heart  { width: 18px; height: 18px; display: inline-block; }
+    .tb-heart svg { width: 100%; height: 100%; display: block; }
+    .tb-biome {
+        display: inline-flex; align-items: center;
+        height: 30px; padding: 0 8px;
+        border-radius: 15px;
+        background: rgba(251,243,231,0.14);
+        border: 1px solid rgba(251,243,231,0.25);
+        gap: 6px; flex-shrink: 0;
+    }
+    .tb-biome-dot {
+        width: 10px; height: 10px; border-radius: 5px; background: #6fb8a8;
+    }
+    .tb-biome-dot.green { background: #5a7a3e; }
+    .tb-biome-dot.brown { background: #6d4757; }
+    .tb-biome-dot.snow  { background: #E6EEF8; }
+    .tb-biome-label {
+        font-size: 11px; font-weight: 800; color: #fbf3e7;
+        letter-spacing: 0.5px;
+    }
+    .tb-spacer { flex: 1 1 auto; }
+    /* Legacy hud / needles selectors kept as a safety net — ignored
+       because the old elements are replaced below. */
+    header .hud, header .needles, header .header-btn { display: none; }
+
+    /* ── Sheet primitives (port of Run Wave 2) ────────────────── */
+    .sheet-overlay {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(10,10,25,0.65);
+        z-index: 12;
+    }
+    .sheet-overlay.hidden { display: none; }
+    .sheet {
+        position: relative;
+        background: #22161c;
+        border: 1px solid rgba(251,243,231,0.08);
+        border-radius: 22px;
+        padding: 24px 28px;
+        max-width: 460px; min-width: 300px;
+        box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 18px 40px -18px rgba(0,0,0,0.55);
+        color: #fbf3e7;
+    }
+    .sheet::before {
+        content: '';
+        position: absolute;
+        left: 22px; right: 22px; top: -2px;
+        height: 6px;
+        background: var(--sheet-accent, #6fb8a8);
+        clip-path: polygon(0 100%, 50% 0, 100% 100%);
+        opacity: 0.9;
+    }
+    .sheet.accent-teal { --sheet-accent: #6fb8a8; }
+    .sheet.accent-red  { --sheet-accent: #d8554a; }
+    .sheet.accent-mint { --sheet-accent: #8fd19e; }
+    .sheet-eyebrow {
+        font-size: 10px; font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--sheet-accent, #6fb8a8);
+        text-transform: uppercase;
+    }
+    .sheet h2 {
+        margin: 6px 0 6px;
+        font: 900 28px "Fraunces", "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+    }
+    .sheet .sub {
+        margin: 0 0 18px;
+        font-size: 13px; font-weight: 500;
+        color: rgba(251,243,231,0.65);
+    }
+    .sheet-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        background: rgba(251,243,231,0.05);
+        border: 1px solid rgba(251,243,231,0.10);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 18px;
+    }
+    .sheet-stat .l {
+        font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+        color: rgba(251,243,231,0.5);
+        text-transform: uppercase;
+    }
+    .sheet-stat .v {
+        font: 900 18px "Fraunces", "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+        margin-top: 2px;
+    }
+    .sheet-stat .v.gold { color: #e8b34c; }
+    .sheet-buttons {
+        display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .sheet-btn {
+        flex: 1 1 auto;
+        min-width: 120px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(251,243,231,0.35);
+        background: rgba(251,243,231,0.08);
+        color: #fbf3e7;
+        font: 800 13px/1 "Nunito", -apple-system, system-ui, sans-serif;
+        letter-spacing: 0.5px;
         cursor: pointer;
-        flex-shrink: 0;
     }
-    header .header-btn:active { transform: scale(0.92); }
+    .sheet-btn:active { transform: scale(0.96); }
+    .sheet-btn.primary {
+        background: #e8b34c;
+        border-color: #b8862a;
+        color: #2a1b22;
+        filter: drop-shadow(0 3px 0 #8a5d1a);
+        flex: 1 1 100%;
+        font-size: 14px;
+        padding: 12px 20px;
+    }
+    .sheet-btn.primary:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 #8a5d1a); }
+
+    /* Pre-run countdown (ported from Run). */
+    .pre-run {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 14;
+        pointer-events: none;
+        background: rgba(10,10,25,0.55);
+    }
+    .pre-run.hidden { display: none; }
+    .pre-run-ring { position: relative; width: 180px; height: 180px; }
+    .pre-run-ring svg { width: 100%; height: 100%; display: block; }
+    .pre-run-ring .num {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font: 900 90px/1 "Fraunces", "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+        text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .pre-run-chips {
+        position: absolute; top: 24px; left: 0; right: 0;
+        display: flex; justify-content: space-between;
+        padding: 0 24px; gap: 12px;
+        pointer-events: none;
+    }
+    .pre-run-chip {
+        background: rgba(26,14,20,0.65);
+        border: 1px solid rgba(251,243,231,0.18);
+        border-radius: 14px;
+        padding: 8px 12px;
+        min-width: 140px;
+    }
+    .pre-run-chip .label {
+        font-size: 9px; font-weight: 700;
+        color: rgba(251,243,231,0.55);
+        letter-spacing: 1.5px;
+    }
+    .pre-run-chip .value {
+        font: 900 16px "Fraunces", "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+        margin-top: 2px;
+    }
+    .pre-run-chip .value .gold { color: #e8b34c; }
+    .pre-run-tip {
+        position: absolute; bottom: 90px; left: 0; right: 0;
+        text-align: center;
+        font-size: 12px; font-weight: 600;
+        color: rgba(251,243,231,0.78);
+    }
+    .pre-run-tip .accent { color: #fbf3e7; font-weight: 800; }
+
+    /* Mid-run toasts. */
+    .toasts {
+        position: absolute;
+        top: 80px; right: 16px;
+        display: flex; flex-direction: column; gap: 8px;
+        z-index: 7;
+        max-width: 320px;
+        pointer-events: none;
+    }
+    .toast {
+        background: rgba(232,179,76,0.95);
+        color: #2a1b22;
+        border: 2px solid #b8862a;
+        border-radius: 14px;
+        padding: 10px 14px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        animation: toast-in 0.32s ease-out;
+        min-width: 220px;
+    }
+    .toast .label { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; opacity: 0.78; }
+    .toast .body  { margin-top: 2px; font: 900 16px "Fraunces", "Georgia", serif; }
+    .toast.fade-out { animation: toast-out 0.4s ease-in forwards; }
+    @keyframes toast-in {
+        from { opacity: 0; transform: translateX(20px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toast-out {
+        from { opacity: 1; transform: translateX(0); }
+        to   { opacity: 0; transform: translateX(20px); }
+    }
     #stage { position: absolute; inset: 0; touch-action: none; background: #070712; }
     canvas { position: absolute; top: 0; }
 
@@ -196,18 +452,79 @@
 </style>
 </head>
 <body>
-<header>
-    <a class="back" href="wefty-hub.html">← Hub</a>
-    <span class="title">Wefty Climb</span>
-    <span class="hud" id="hud">best 0 m    0 m</span>
-    <span class="needles" id="needles" title="Lives">❤❤❤</span>
-    <span style="flex:1 1 auto;"></span>
-    <button id="btn-fs"    class="header-btn" title="Fullscreen">⛶</button>
-    <button id="btn-pause" class="header-btn" title="Pause">‖</button>
-    <button id="btn-help"  class="header-btn" title="Help">?</button>
+<header class="top-bar">
+    <a class="tb-tile" href="wefty-hub.html" title="Back to hub">←</a>
+    <div class="tb-title">
+        <div class="tb-title-main">WEFTY CLIMB</div>
+        <div class="tb-title-sub" id="tb-eyebrow">BIOME · GREEN</div>
+    </div>
+    <div class="tb-distance">
+        <div class="tb-distance-label">HEIGHT</div>
+        <div class="tb-distance-value">
+            <span id="tb-cur">0</span><span class="tb-m">m</span>
+        </div>
+        <div class="tb-distance-pb" id="tb-pb">BEST 0m</div>
+    </div>
+    <span class="tb-spacer"></span>
+    <div class="tb-hearts" id="tb-hearts"></div>
+    <span class="tb-spacer"></span>
+    <div class="tb-biome">
+        <span class="tb-biome-dot green" id="tb-biome-dot"></span>
+        <span class="tb-biome-label" id="tb-biome-label">GREEN</span>
+    </div>
+    <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
+    <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
+    <button id="btn-pause" class="tb-tile" title="Pause">‖</button>
+    <button id="btn-help"  class="tb-tile" title="Help">?</button>
 </header>
+<span id="hud" style="display:none;"></span>
+<span id="needles" style="display:none;"></span>
 
-<div id="pause-overlay" class="pause-overlay hidden">Paused — tap to resume</div>
+<!-- Pause sheet (ported from Run). -->
+<div id="pause-overlay" class="sheet-overlay hidden">
+    <div class="sheet accent-teal">
+        <div class="sheet-eyebrow">PAUSED</div>
+        <h2>Take a breath</h2>
+        <p class="sub">You're at <span id="ps-height">0m</span> · Wefty is waiting</p>
+        <div class="sheet-stats">
+            <div class="sheet-stat"><div class="l">Height</div><div class="v" id="ps-h">0m</div></div>
+            <div class="sheet-stat"><div class="l">Biome</div><div class="v" id="ps-biome">GREEN</div></div>
+            <div class="sheet-stat"><div class="l">Best</div><div class="v gold" id="ps-best">0m</div></div>
+        </div>
+        <div class="sheet-buttons">
+            <button class="sheet-btn primary" id="ps-resume">RESUME (P)</button>
+            <a class="sheet-btn" href="wefty-hub.html" style="text-decoration:none; text-align:center;">BACK TO HUB</a>
+        </div>
+    </div>
+</div>
+<!-- Pre-run countdown. -->
+<div id="pre-run" class="pre-run hidden">
+    <div class="pre-run-chips">
+        <div class="pre-run-chip">
+            <div class="label">YOUR BEST</div>
+            <div class="value" id="pr-pb">0<span class="gold">m</span></div>
+        </div>
+        <div class="pre-run-chip" style="text-align:right;">
+            <div class="label">NEXT BIOME</div>
+            <div class="value" id="pr-next">GREEN</div>
+        </div>
+    </div>
+    <div class="pre-run-ring">
+        <svg viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="80" fill="rgba(26,14,20,0.5)" stroke="rgba(251,243,231,0.15)" stroke-width="3"/>
+            <circle id="pr-arc" cx="90" cy="90" r="80" fill="none"
+                    stroke="#e8b34c" stroke-width="4" stroke-linecap="round"
+                    stroke-dasharray="502.65" stroke-dashoffset="0"
+                    transform="rotate(-90 90 90)"/>
+        </svg>
+        <div class="num" id="pr-num">3</div>
+    </div>
+    <div class="pre-run-tip" id="pr-tip">
+        💡 <span class="accent">Tilt</span> your device to steer · <span class="accent">Jump</span> to hop ledges
+    </div>
+</div>
+<!-- Mid-run toasts. -->
+<div id="toasts" class="toasts"></div>
 
 <div id="rotate-overlay" class="rotate-overlay hidden">
     <div>
@@ -249,12 +566,38 @@
     <button id="btn-jump"  class="jump-btn">Jump</button>
 </div>
 
-<div id="game-over" class="game-over hidden">
-    <div class="go-panel">
-        <h2>Climb over</h2>
-        <div class="score" id="go-score">Height 0 m</div>
-        <button id="btn-restart">Restart</button>
-        <a href="wefty-hub.html"><button>Back to Hub</button></a>
+<!-- Game-over Beat 1 — stats review sheet (no CTA). Tap advances. -->
+<div id="game-over" class="sheet-overlay hidden">
+    <div class="sheet accent-red">
+        <div class="sheet-eyebrow" style="color:#d8554a">CLIMB ENDED</div>
+        <h2 style="font-size:42px; margin-top:6px;">
+            <span id="go-height">0</span><span style="font-family:"Nunito", -apple-system,system-ui;font-size:20px;color:rgba(251,243,231,0.65);font-weight:800;margin-left:4px;">m</span>
+        </h2>
+        <p class="sub" id="go-cause" style="margin-bottom:18px">—</p>
+        <div class="sheet-stats" id="go-stats">
+            <div class="sheet-stat"><div class="l">Biome</div><div class="v" id="go-biome">GREEN</div></div>
+            <div class="sheet-stat"><div class="l">Best</div><div class="v gold" id="go-best">0m</div></div>
+            <div class="sheet-stat"><div class="l">Time</div><div class="v" id="go-time">0:00</div></div>
+        </div>
+        <div style="margin-top:14px; text-align:center; font-size:11px; color:rgba(251,243,231,0.55); letter-spacing:0.5px;">
+            ↓ Tap anywhere to continue
+        </div>
+    </div>
+</div>
+<!-- Game-over Beat 2 — final CTA. -->
+<div id="cta-screen" class="sheet-overlay hidden">
+    <div class="sheet accent-mint">
+        <div class="sheet-eyebrow" style="color:#8fd19e">NICE CLIMB</div>
+        <h2>Keep reaching.</h2>
+        <p class="sub">Your best stands at <span id="cta-best" style="color:#e8b34c;font-weight:800">0m</span>.</p>
+        <div class="sheet-buttons">
+            <button class="sheet-btn primary" id="cta-restart">CLIMB AGAIN</button>
+            <a class="sheet-btn" href="wefty-hub.html" style="text-decoration:none; text-align:center;">BACK TO HUB</a>
+            <button class="sheet-btn" id="cta-share">SHARE</button>
+        </div>
+        <div style="margin-top:8px; text-align:center; font-size:10px; color:rgba(251,243,231,0.40); letter-spacing:0.4px;">
+            Tap · Space · ↑
+        </div>
     </div>
 </div>
 
@@ -585,13 +928,19 @@
         document.getElementById('btn-lasso').addEventListener('click', (e) => {
             e.preventDefault(); fireLasso();
         });
-        document.getElementById('btn-restart').addEventListener('click', () => {
-            resetWorld();
+        // New CTA restart button (Beat 2 of the game-over 2-beat).
+        const ctaRestartBtn = document.getElementById('cta-restart');
+        if (ctaRestartBtn) ctaRestartBtn.addEventListener('click', () => {
+            document.getElementById('cta-screen').classList.add('hidden');
             document.getElementById('game-over').classList.add('hidden');
+            document.getElementById('game-over').dataset.populated = '';
+            resetWorld();
+            resetToastTriggers();
             if (musicStarted) {
                 try { musicLoop.currentTime = 0; musicLoop.play().catch(() => {}); }
                 catch (_) {}
             }
+            startPreRunCountdown();
         });
         // Help button re-opens tutorial anytime. Pauses gameplay.
         document.getElementById('btn-help').addEventListener('click', () => {
@@ -602,20 +951,38 @@
             document.getElementById('tutorial').classList.add('hidden');
             world.isPaused = false;
             localStorage.setItem('wefty_climb_tutorial_v1', '1');
+            startPreRunCountdown();
         });
-        // First-run: show tutorial until dismissed.
+        // First-run: show tutorial until dismissed. On subsequent
+        // loads, skip straight to the pre-run countdown so players
+        // always get a 3-2-1 beat before gameplay rolls.
         if (!localStorage.getItem('wefty_climb_tutorial_v1')) {
             world.isPaused = true;
             document.getElementById('tutorial').classList.remove('hidden');
+        } else {
+            startPreRunCountdown();
         }
 
         // Pause toggle — pause the sim, pause music, show overlay.
         const pauseOverlay = document.getElementById('pause-overlay');
         const pauseBtn = document.getElementById('btn-pause');
+        function refreshPauseStats() {
+            const cur = Math.round(world.heightClimbed * 10);
+            const biome = currentBiome(world.heightClimbed);
+            const e1 = document.getElementById('ps-height');
+            const e2 = document.getElementById('ps-h');
+            const e3 = document.getElementById('ps-biome');
+            const e4 = document.getElementById('ps-best');
+            if (e1) e1.textContent = cur + 'm';
+            if (e2) e2.textContent = cur + 'm';
+            if (e3) e3.textContent = biome;
+            if (e4) e4.textContent = bestHeight + 'm';
+        }
         function setPaused(p) {
             world.isPaused = p;
             pauseBtn.textContent = p ? '▶' : '‖';
             if (p) {
+                refreshPauseStats();
                 pauseOverlay.classList.remove('hidden');
                 try { musicLoop.pause(); } catch (_) {}
             } else {
@@ -627,7 +994,33 @@
             e.stopPropagation();
             setPaused(!world.isPaused);
         });
-        pauseOverlay.addEventListener('click', () => setPaused(false));
+        const psResume = document.getElementById('ps-resume');
+        if (psResume) psResume.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setPaused(false);
+        });
+        // Mute button (new; mirrors Run).
+        const muteBtn = document.getElementById('btn-mute');
+        let soundMuted = (localStorage.getItem('wefty_sound_muted') === '1');
+        function applyMuted(m) {
+            try { Sound && Sound.setMuted && Sound.setMuted(m); } catch (_) {}
+            try { musicLoop.muted = m; } catch (_) {}
+            try { heartLossSfx.muted = m; } catch (_) {}
+            if (muteBtn) muteBtn.textContent = m ? '🔈' : '🔊';
+        }
+        applyMuted(soundMuted);
+        if (muteBtn) muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            soundMuted = !soundMuted;
+            localStorage.setItem('wefty_sound_muted', soundMuted ? '1' : '0');
+            applyMuted(soundMuted);
+        });
+        // Press P to toggle pause.
+        window.addEventListener('keydown', (e) => {
+            if ((e.key === 'p' || e.key === 'P') && !world.gameOver) {
+                setPaused(!world.isPaused);
+            }
+        });
         // Fullscreen — portrait-lock on mobile if the browser allows.
         document.getElementById('btn-fs').addEventListener('click', async () => {
             const root = document.documentElement;
@@ -743,6 +1136,129 @@
     });
 
     // ── Reset ───────────────────────────────────────────────────────
+    // ── Pre-run 3-2-1 countdown (ported from Run) ────────────
+    const PR_DURATION_MS = 3000;
+    const CLIMB_TIPS = [
+        '💡 <span class="accent">Tilt</span> to steer · <span class="accent">Jump</span> to hop',
+        '💡 <span class="accent">Lasso</span> drops scissors from above',
+        '💡 Draw a <span class="accent">thread bridge</span> across gaps',
+        '💡 New biome every <span class="accent">150 m</span>',
+        '💡 Catch hearts to top up lives',
+    ];
+    let preRunUntil = 0;
+    function startPreRunCountdown() {
+        const el = document.getElementById('pre-run');
+        if (!el) return;
+        const tip = document.getElementById('pr-tip');
+        const pb = document.getElementById('pr-pb');
+        const next = document.getElementById('pr-next');
+        if (pb) pb.innerHTML = bestHeight + '<span class="gold">m</span>';
+        if (next) next.textContent = 'GREEN';
+        if (tip) tip.innerHTML = CLIMB_TIPS[Math.floor(Math.random() * CLIMB_TIPS.length)];
+        el.classList.remove('hidden');
+        preRunUntil = performance.now() + PR_DURATION_MS;
+        world.isPaused = true;
+    }
+    function updatePreRunCountdown() {
+        if (preRunUntil <= 0) return;
+        const remaining = preRunUntil - performance.now();
+        const el = document.getElementById('pre-run');
+        if (remaining <= 0) {
+            if (el) el.classList.add('hidden');
+            preRunUntil = 0;
+            world.isPaused = false;
+            return;
+        }
+        const frac = remaining / PR_DURATION_MS;
+        const arc = document.getElementById('pr-arc');
+        if (arc) arc.setAttribute('stroke-dashoffset', String(502.65 * (1 - frac)));
+        const num = document.getElementById('pr-num');
+        if (num) num.textContent = String(Math.ceil(remaining / 1000));
+    }
+
+    // ── Mid-run toasts (height milestones + biome changes) ───
+    const TOAST_TTL_MS = 2400;
+    const TOAST_MAX = 3;
+    function pushToast(html) {
+        const root = document.getElementById('toasts');
+        if (!root) return;
+        while (root.children.length >= TOAST_MAX) root.removeChild(root.firstChild);
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.innerHTML = html;
+        root.appendChild(el);
+        setTimeout(() => {
+            el.classList.add('fade-out');
+            setTimeout(() => { try { root.removeChild(el); } catch (_) {} }, 380);
+        }, TOAST_TTL_MS);
+    }
+    let toastLastMilestone = 0;
+    let toastLastBiome = '';
+    function resetToastTriggers() {
+        toastLastMilestone = 0;
+        toastLastBiome = '';
+        const root = document.getElementById('toasts');
+        if (root) root.innerHTML = '';
+    }
+    function tickMidRunToasts() {
+        if (world.gameOver || world.isPaused) return;
+        const cur = Math.round(world.heightClimbed * 10);
+        const mileBucket = Math.floor(cur / 50) * 50;
+        if (mileBucket > 0 && mileBucket > toastLastMilestone) {
+            toastLastMilestone = mileBucket;
+            pushToast(`<div class="label">HEIGHT · ${mileBucket}M</div><div class="body">Higher! 🏔️</div>`);
+        }
+        const biome = currentBiome(world.heightClimbed);
+        if (biome !== toastLastBiome) {
+            if (toastLastBiome !== '') {
+                pushToast(`<div class="label">BIOME · ${biome}</div><div class="body">Keep climbing</div>`);
+            }
+            toastLastBiome = biome;
+        }
+    }
+
+    // ── Game-over 2-beat flow ────────────────────────────────
+    const ctaScreen = document.getElementById('cta-screen');
+    function populateClimbBeat1(cur) {
+        const biome = currentBiome(world.heightClimbed);
+        const dist = document.getElementById('go-height');
+        if (dist) dist.textContent = String(cur);
+        const cause = document.getElementById('go-cause');
+        if (cause) cause.innerHTML = world.needles <= 0
+            ? `Scissors got through · best <span style="color:#e8b34c;font-weight:800">${bestHeight}m</span>`
+            : `Dropped off the bottom · best <span style="color:#e8b34c;font-weight:800">${bestHeight}m</span>`;
+        const b = document.getElementById('go-biome');
+        if (b) b.textContent = biome;
+        const bb = document.getElementById('go-best');
+        if (bb) bb.textContent = Math.max(bestHeight, cur) + 'm';
+        const start = (world.climbStartTimeMs || 0);
+        const elapsed = start > 0 ? Math.max(0, Math.floor((Date.now() - start) / 1000)) : 0;
+        const m = Math.floor(elapsed / 60);
+        const s = elapsed % 60;
+        const te = document.getElementById('go-time');
+        if (te) te.textContent = m + ':' + String(s).padStart(2, '0');
+    }
+    function showClimbBeat2() {
+        const go = document.getElementById('game-over');
+        if (go) go.classList.add('hidden');
+        ctaScreen.classList.remove('hidden');
+        const b = document.getElementById('cta-best');
+        if (b) b.textContent = bestHeight + 'm';
+    }
+    const go1 = document.getElementById('game-over');
+    if (go1) go1.addEventListener('click', () => {
+        if (world.gameOver) showClimbBeat2();
+    });
+    const ctaShare = document.getElementById('cta-share');
+    if (ctaShare) ctaShare.addEventListener('click', async () => {
+        const cur = Math.round(world.heightClimbed * 10);
+        const text = `Just climbed ${cur}m in Wefty Climb!`;
+        try {
+            if (navigator.share) await navigator.share({ text, url: location.href });
+            else if (navigator.clipboard) await navigator.clipboard.writeText(text + ' ' + location.href);
+        } catch (_) {}
+    });
+
     function resetWorld() {
         world.cameraY = START_CAMERA_Y;
         world.weftyX = 0.5; world.weftyY = 0.9; world.weftyVy = 0;
@@ -755,6 +1271,7 @@
         world.hazards.length = 0; world.hazardSpawnCdn = 2;
         world.lassoReadyAtTick = 0; world.lassoFlashUntilTick = 0;
         world._submitted = false;
+        world.climbStartTimeMs = Date.now();
         seed();
     }
 
@@ -774,7 +1291,10 @@
 
     // ── Music loop ─────────────────────────────────────────────────
     // Reuse Run's loop until we have Climb-specific music.
-    const musicLoop = new Audio('wefty_run_loop.mp3');
+    // Climb-specific music loop (Lyria-3 generated, cheerful
+    // cartoon-adventure flute + glockenspiel). Distinct from Run's
+    // loop so the mode switch reads immediately in the soundtrack.
+    const musicLoop = new Audio('wefty_climb_loop.mp3');
     musicLoop.loop = true; musicLoop.volume = 0.32;
     let musicStarted = false;
     function tryStartMusic() {
@@ -830,7 +1350,8 @@
 
     // ── Rendering ──────────────────────────────────────────────────
     const overlay = document.getElementById('game-over');
-    const goScore = document.getElementById('go-score');
+    // (go-score removed by the 2-beat game-over overhaul; no-op alias.)
+    const goScore = { textContent: '' };
     const lassoBtn = document.getElementById('btn-lasso');
     const hudEl = document.getElementById('hud');
     let bestHeight = parseInt(localStorage.getItem('wefty_climb_best') || '0', 10);
@@ -1031,12 +1552,43 @@
         // Lasso is on-demand — always visually ready.
         lassoBtn.classList.remove('cooldown');
 
-        // HUD — height + hearts.
+        // Pre-run countdown + mid-run toasts tick.
+        updatePreRunCountdown();
+        tickMidRunToasts();
+
+        // HUD — face-lift top bar (port of Wefty Run Part A).
         const cur = Math.round(world.heightClimbed * 10);
-        hudEl.textContent = `best ${bestHeight} m    ${cur} m`;
-        const needlesEl = document.getElementById('needles');
-        if (needlesEl) {
-            needlesEl.textContent = '❤'.repeat(Math.max(0, world.needles));
+        const tbCurEl = document.getElementById('tb-cur');
+        const tbPbEl = document.getElementById('tb-pb');
+        const tbHeartsEl = document.getElementById('tb-hearts');
+        const tbEyebrowEl = document.getElementById('tb-eyebrow');
+        const tbBiomeDotEl = document.getElementById('tb-biome-dot');
+        const tbBiomeLabelEl = document.getElementById('tb-biome-label');
+        if (tbCurEl) tbCurEl.textContent = String(cur);
+        if (tbPbEl) tbPbEl.textContent = 'BEST ' + bestHeight + 'm';
+        // Biome eyebrow + chip — matches the Run eyebrow pattern.
+        const biome = currentBiome(world.heightClimbed);
+        if (tbEyebrowEl) tbEyebrowEl.textContent = 'BIOME · ' + biome;
+        if (tbBiomeLabelEl) tbBiomeLabelEl.textContent = biome;
+        if (tbBiomeDotEl) {
+            tbBiomeDotEl.classList.remove('green','brown','snow');
+            tbBiomeDotEl.classList.add(biome.toLowerCase());
+        }
+        // Drawn hearts — 3 slots reflecting world.needles.
+        function heartSvg(filled) {
+            const fill = filled ? '#d8554a' : 'rgba(216,85,74,0.18)';
+            const stroke = filled ? '#8a2a22' : 'rgba(216,85,74,0.35)';
+            return `<span class="tb-heart"><svg viewBox="0 0 14 14">
+                <path d="M 7 12.5 Q -0.5 8 1.5 4.5 Q 3 1.8 5 3.8 Q 7 6 7 6 Q 7 6 9 3.8 Q 11 1.8 12.5 4.5 Q 14.5 8 7 12.5 Z"
+                      fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round"/>
+            </svg></span>`;
+        }
+        if (tbHeartsEl) {
+            const shown = 3;
+            const filled = Math.max(0, Math.min(shown, world.needles));
+            let html = '';
+            for (let i = 0; i < shown; i++) html += heartSvg(i < filled);
+            tbHeartsEl.innerHTML = html;
         }
         if (world.gameOver && !world._submitted) {
             world._submitted = true;
@@ -1058,20 +1610,9 @@
                     }
                 } catch (_) {}
             }
-            goScore.textContent = `Height ${cur} m${cur >= bestHeight ? ' (new best!)' : ''}`;
+            // Populate Beat 1 stats review sheet (new 2-beat flow).
+            populateClimbBeat1(cur);
             overlay.classList.remove('hidden');
-            // Anonymous nudge: reuse the same pattern as Run.
-            let nudge = document.getElementById('go-signin-nudge-climb');
-            if (!nudge) {
-                nudge = document.createElement('div');
-                nudge.id = 'go-signin-nudge-climb';
-                nudge.style.cssText = 'color:#FBBF24;font-size:12px;font-weight:500;margin:10px 0 6px 0;';
-                nudge.textContent = 'Sign in on the hub to appear on Top Climbs →';
-                const panel = overlay.querySelector('.go-panel');
-                if (panel) panel.insertBefore(nudge, panel.querySelector('#btn-restart'));
-            }
-            const anon = (typeof Auth === 'undefined') || !Auth.uid || Auth.isAnonymous;
-            nudge.style.display = anon ? 'block' : 'none';
         }
     }
 

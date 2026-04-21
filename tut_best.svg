@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <path d="M20 24 L100 24 L96 52 Q92 72 60 74 Q28 72 24 52 Z"
+        fill="#e8b34c" stroke="#2a1b22" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M20 30 Q10 30 10 42 Q10 54 24 56" stroke="#e8b34c" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M100 30 Q110 30 110 42 Q110 54 96 56" stroke="#e8b34c" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <rect x="44" y="74" width="32" height="8" fill="#2a1b22"/>
+  <rect x="34" y="82" width="52" height="12" rx="3" fill="#b8862a" stroke="#2a1b22" stroke-width="2"/>
+  <rect x="28" y="94" width="64" height="12" rx="3" fill="#b8862a" stroke="#2a1b22" stroke-width="2"/>
+  <path d="M44 38 L54 48 L76 34" stroke="#2a1b22" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <g font-family="Fraunces, Georgia, serif" font-weight="900" font-size="13" text-anchor="middle">
+    <text x="60" y="62" fill="#2a1b22">PB</text>
+  </g>
+</svg>

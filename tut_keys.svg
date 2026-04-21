@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <g font-family="JetBrains Mono, ui-monospace, Menlo, monospace" font-weight="900" font-size="14" text-anchor="middle">
+    <rect x="8" y="22" width="22" height="22" rx="4" fill="#2a2140" stroke="#fbf3e7" stroke-width="2"/>
+    <text x="19" y="38" fill="#fbf3e7">W</text>
+    <rect x="34" y="22" width="22" height="22" rx="4" fill="#2a2140" stroke="#fbf3e7" stroke-width="2"/>
+    <text x="45" y="38" fill="#fbf3e7">↑</text>
+    <rect x="60" y="22" width="22" height="22" rx="4" fill="#2a2140" stroke="#fbf3e7" stroke-width="2"/>
+    <text x="71" y="38" fill="#e8b34c">L</text>
+    <rect x="86" y="22" width="22" height="22" rx="4" fill="#2a2140" stroke="#fbf3e7" stroke-width="2"/>
+    <text x="97" y="38" fill="#e8b34c">F</text>
+    <rect x="8" y="52" width="66" height="22" rx="4" fill="#2a2140" stroke="#fbf3e7" stroke-width="2"/>
+    <text x="41" y="68" fill="#fbf3e7" font-size="11">SPACE</text>
+    <rect x="78" y="52" width="30" height="22" rx="4" fill="#2a2140" stroke="#fbf3e7" stroke-width="2"/>
+    <text x="93" y="68" fill="#fbf3e7">P</text>
+    <rect x="8" y="82" width="22" height="22" rx="4" fill="#2a2140" stroke="#8FD19E" stroke-width="2"/>
+    <text x="19" y="98" fill="#8FD19E">1</text>
+    <rect x="34" y="82" width="22" height="22" rx="4" fill="#2a2140" stroke="#8FD19E" stroke-width="2"/>
+    <text x="45" y="98" fill="#8FD19E">2</text>
+    <rect x="60" y="82" width="22" height="22" rx="4" fill="#2a2140" stroke="#8FD19E" stroke-width="2"/>
+    <text x="71" y="98" fill="#8FD19E">3</text>
+    <rect x="86" y="82" width="22" height="22" rx="4" fill="#2a2140" stroke="#8FD19E" stroke-width="2"/>
+    <text x="97" y="98" fill="#8FD19E">4</text>
+  </g>
+</svg>
