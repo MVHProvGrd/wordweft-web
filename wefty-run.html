@@ -20,16 +20,176 @@
         overflow: hidden;
         user-select: none;
     }
-    header {
+    /* ── Face-lift top bar ────────────────────────────────────────
+       Dense HUD row: back · title · distance card · WEFTY pills ·
+       hearts · level chip · mute/pause/help. Reads every frame from
+       world state via updateTopBar().  Width-adaptive: on narrow
+       viewports the center block wraps below the left block. */
+    header.top-bar {
         position: absolute;
         top: 0; left: 0; right: 0;
-        padding: 10px 14px;
-        display: flex; align-items: center; gap: 10px;
+        padding: 8px 10px;
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
         z-index: 5;
+        background: linear-gradient(180deg, rgba(26,14,20,0.55), rgba(26,14,20,0));
+        pointer-events: none;
     }
-    header a.back { color: var(--muted); text-decoration: none; font-size: 14px; }
-    header .title { font-weight: 700; font-size: 16px; }
-    header .dist { margin-left: auto; color: var(--muted); font-size: 13px; }
+    header.top-bar > * { pointer-events: auto; }
+    .tb-tile {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 30px; height: 30px;
+        border-radius: 8px;
+        border: 1px solid rgba(251,243,231,0.22);
+        background: rgba(251,243,231,0.12);
+        color: #fbf3e7;
+        font-weight: 700; font-size: 14px;
+        font-family: "Georgia", "Iowan Old Style", serif;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 0;
+        text-decoration: none;
+    }
+    .tb-tile:active { transform: scale(0.92); }
+    .tb-title {
+        display: flex; flex-direction: column; justify-content: center;
+        line-height: 1.1;
+    }
+    .tb-title-main {
+        font-family: "Georgia", "Iowan Old Style", serif;
+        font-weight: 900; font-size: 14px; letter-spacing: 0.3px;
+        color: #fbf3e7;
+    }
+    .tb-title-sub {
+        font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+        color: rgba(251,243,231,0.55);
+        text-transform: uppercase;
+    }
+    .tb-distance {
+        position: relative;
+        min-width: 180px; height: 48px;
+        padding: 6px 10px;
+        border-radius: 12px;
+        background: rgba(26,14,20,0.55);
+        border: 1px solid rgba(251,243,231,0.14);
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        column-gap: 8px;
+        align-items: start;
+    }
+    .tb-distance-label {
+        font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+        color: rgba(251,243,231,0.55);
+        grid-column: 1; grid-row: 1;
+    }
+    .tb-distance-value {
+        font-family: "Georgia", "Iowan Old Style", serif;
+        font-weight: 900; font-size: 22px;
+        color: #fbf3e7;
+        line-height: 1.0;
+        grid-column: 1; grid-row: 2;
+    }
+    .tb-distance-value .tb-m {
+        font-family: -apple-system, system-ui, sans-serif;
+        font-size: 12px; font-weight: 700;
+        color: rgba(251,243,231,0.65);
+        margin-left: 2px;
+    }
+    .tb-distance-pb {
+        font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+        color: rgba(232,179,76,0.80);
+        grid-column: 2; grid-row: 1;
+        justify-self: end;
+    }
+    .tb-distance-delta {
+        grid-column: 2; grid-row: 2;
+        justify-self: end;
+        align-self: center;
+        font-size: 11px; font-weight: 800;
+        padding: 2px 9px;
+        border-radius: 9px;
+        background: rgba(143,209,158,0.22);
+        border: 1px solid rgba(143,209,158,0.55);
+        color: #c4ebce;
+        white-space: nowrap;
+    }
+    .tb-distance-delta.behind {
+        background: rgba(251,243,231,0.08);
+        border-color: rgba(251,243,231,0.25);
+        color: rgba(251,243,231,0.65);
+    }
+    .tb-distance-delta.hidden { display: none; }
+    .tb-letters-wrap {
+        display: flex; flex-direction: column; align-items: stretch;
+        gap: 2px;
+    }
+    .tb-letters {
+        display: flex; gap: 4px;
+    }
+    .tb-letter {
+        width: 28px; height: 28px;
+        border-radius: 14px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-family: "Georgia", serif;
+        font-weight: 900; font-size: 13px;
+        background: rgba(232,179,76,0.13);
+        border: 2px solid rgba(232,179,76,0.45);
+        color: rgba(42,27,34,0.5);
+        transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .tb-letter.got {
+        background: #e8b34c;
+        border-color: #b8862a;
+        color: #2a1b22;
+    }
+    .tb-letter-track {
+        width: 100%; height: 4px;
+        border-radius: 2px;
+        background: rgba(251,243,231,0.20);
+        overflow: hidden;
+    }
+    .tb-letter-fill {
+        height: 100%;
+        background: #e8b34c;
+        width: 0%;
+        transition: width 0.3s;
+    }
+    .tb-hearts {
+        display: flex; gap: 2px;
+    }
+    .tb-heart {
+        width: 18px; height: 18px;
+        display: inline-block;
+    }
+    .tb-heart svg { width: 100%; height: 100%; display: block; }
+    .tb-level {
+        display: inline-flex; align-items: center;
+        height: 30px; padding: 0 4px 0 4px;
+        border-radius: 15px;
+        background: rgba(251,243,231,0.14);
+        border: 1px solid rgba(251,243,231,0.25);
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    .tb-level-num {
+        width: 18px; height: 18px;
+        border-radius: 9px;
+        background: #e8b34c;
+        color: #2a1b22;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-family: "Georgia", serif; font-weight: 900; font-size: 11px;
+    }
+    .tb-level-word {
+        font-size: 11px; font-weight: 700; color: #fbf3e7;
+        letter-spacing: 0.4px;
+    }
+    .tb-level-mult {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px; font-weight: 700;
+        color: rgba(251,243,231,0.7);
+        padding-right: 6px;
+    }
+    .tb-spacer { flex: 1 1 auto; }
     #stage {
         position: absolute;
         inset: 0;
@@ -37,79 +197,382 @@
     }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-    .jump-btn {
+    /* ── Mid-run toast stack (Part F) ─────────────────────────────
+       Top-right column of cards (max 3 visible). Each toast slides in
+       from the right, auto-dismisses after ~2.4s. Used for milestone
+       crossings, combo tiers, and near-PB callouts. */
+    .toasts {
         position: absolute;
-        right: 20px; bottom: 20px;
-        width: 76px; height: 76px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(16, 185, 129, 0.88);
-        color: #fff;
-        font-weight: 700;
-        font-size: 15px;
-        cursor: pointer;
-        z-index: 6;
-        touch-action: manipulation;
+        top: 80px; right: 16px;
+        display: flex; flex-direction: column; gap: 8px;
+        z-index: 7;
+        max-width: 320px;
+        pointer-events: none;
     }
-    .jump-btn:active { transform: scale(0.95); }
-    .lasso-btn {
-        position: absolute;
-        right: 108px; bottom: 24px;
-        width: 64px; height: 64px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(245, 158, 11, 0.88);
-        color: #fff;
-        font-weight: 700;
-        font-size: 13px;
-        cursor: pointer;
-        z-index: 6;
-        touch-action: manipulation;
-        transition: opacity 0.15s ease;
-    }
-    .lasso-btn.cooldown { opacity: 0.35; }
-    .lasso-btn:active { transform: scale(0.95); }
-    .inv-btn {
-        position: absolute;
-        bottom: 34px;
-        width: 58px; height: 58px;
-        border: none;
+    .toast {
+        background: rgba(232,179,76,0.95);
+        color: #2a1b22;
+        border: 2px solid #b8862a;
         border-radius: 14px;
-        color: #fff;
-        font-weight: 700;
-        font-size: 10px;
+        padding: 10px 14px;
+        font-family: -apple-system, system-ui, sans-serif;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        animation: toast-in 0.32s ease-out;
+        min-width: 240px;
+    }
+    .toast .label {
+        font-size: 9px; font-weight: 800;
+        letter-spacing: 1.5px;
+        opacity: 0.78;
+    }
+    .toast .body {
+        margin-top: 2px;
+        font: 900 16px "Georgia", "Iowan Old Style", serif;
+    }
+    .toast.combo { background: rgba(234,143,163,0.95); border-color: #8a3d51; }
+    .toast.combo .body { color: #2a1b22; }
+    .toast.combo .body .accent { color: #fbf3e7; }
+    .toast.pb {
+        background: rgba(143,209,158,0.22);
+        border-color: #8fd19e;
+        color: #c4ebce;
+    }
+    .toast.pb .body { color: #c4ebce; font-size: 13px; font-family: -apple-system, system-ui, sans-serif; font-weight: 800; }
+    .toast.fade-out { animation: toast-out 0.4s ease-in forwards; }
+    @keyframes toast-in {
+        from { opacity: 0; transform: translateX(20px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toast-out {
+        from { opacity: 1; transform: translateX(0); }
+        to   { opacity: 0; transform: translateX(20px); }
+    }
+
+    /* ── Pause sheet (Part J) ─────────────────────────────────────
+       Replaces the bare "Paused — tap to resume" overlay with a
+       teal-accent sheet showing the run-so-far stats and a 4-button
+       menu (Resume / Help / Settings / End Run). */
+    .sheet-overlay {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(10,10,25,0.65);
+        z-index: 12;
+    }
+    .sheet-overlay.hidden { display: none; }
+    .sheet {
+        position: relative;
+        background: #22161c;
+        border: 1px solid rgba(251,243,231,0.08);
+        border-radius: 22px;
+        padding: 24px 28px;
+        max-width: 460px; min-width: 320px;
+        box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 18px 40px -18px rgba(0,0,0,0.55);
+        color: #fbf3e7;
+    }
+    /* Yarn-thread accent arc along the top edge — accent class
+       picks the color (teal / red / mint). */
+    .sheet::before {
+        content: '';
+        position: absolute;
+        left: 22px; right: 22px; top: -2px;
+        height: 6px;
+        background: var(--sheet-accent, #6fb8a8);
+        clip-path: polygon(0 100%, 50% 0, 100% 100%);
+        opacity: 0.9;
+    }
+    .sheet.accent-teal { --sheet-accent: #6fb8a8; }
+    .sheet.accent-red  { --sheet-accent: #d8554a; }
+    .sheet.accent-mint { --sheet-accent: #8fd19e; }
+    .sheet.accent-pink { --sheet-accent: #ea8fa3; }
+    .sheet-eyebrow {
+        font-size: 10px; font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--sheet-accent, #6fb8a8);
+        text-transform: uppercase;
+    }
+    .sheet h2 {
+        margin: 6px 0 6px;
+        font: 900 28px "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+    }
+    .sheet .sub {
+        margin: 0 0 18px;
+        font-size: 13px; font-weight: 500;
+        color: rgba(251,243,231,0.65);
+    }
+    .sheet-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        background: rgba(251,243,231,0.05);
+        border: 1px solid rgba(251,243,231,0.10);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 18px;
+    }
+    .sheet-stat .l {
+        font-size: 8px; font-weight: 700;
+        letter-spacing: 1.5px;
+        color: rgba(251,243,231,0.5);
+        text-transform: uppercase;
+    }
+    .sheet-stat .v {
+        font: 900 18px "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+        margin-top: 2px;
+    }
+    .sheet-stat .v.gold { color: #e8b34c; }
+    .sheet-stat .v.pink { color: #ea8fa3; }
+    .sheet-buttons {
+        display: flex; flex-wrap: wrap; gap: 8px;
+        justify-content: stretch;
+    }
+    .sheet-btn {
+        flex: 1 1 auto;
+        min-width: 120px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(251,243,231,0.35);
+        background: rgba(251,243,231,0.08);
+        color: #fbf3e7;
+        font: 800 13px/1 -apple-system, system-ui, sans-serif;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+    }
+    .sheet-btn:active { transform: scale(0.96); }
+    .sheet-btn.primary {
+        background: #e8b34c;
+        border-color: #b8862a;
+        color: #2a1b22;
+        filter: drop-shadow(0 3px 0 #8a5d1a);
+        flex: 1 1 100%;
+        font-size: 14px;
+        padding: 12px 20px;
+    }
+    .sheet-btn.primary:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 #8a5d1a); }
+
+    /* ── Pre-run countdown (Part E) ───────────────────────────────
+       Big 3-2-1 ring shown after every reset. Holds the world frozen
+       so the player can settle their grip / read the PB chips before
+       the camera starts rolling. */
+    .pre-run {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 14;
+        pointer-events: none;
+        background: rgba(10,10,25,0.55);
+    }
+    .pre-run.hidden { display: none; }
+    .pre-run-ring {
+        position: relative;
+        width: 180px; height: 180px;
+    }
+    .pre-run-ring svg { width: 100%; height: 100%; display: block; }
+    .pre-run-ring .num {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font: 900 90px/1 "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+        text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .pre-run-chips {
+        position: absolute; top: 24px; left: 0; right: 0;
+        display: flex; justify-content: space-between;
+        padding: 0 24px; gap: 12px;
+        pointer-events: none;
+    }
+    .pre-run-chip {
+        background: rgba(26,14,20,0.65);
+        border: 1px solid rgba(251,243,231,0.18);
+        border-radius: 14px;
+        padding: 8px 12px;
+        min-width: 140px;
+    }
+    .pre-run-chip .label {
+        font-size: 9px; font-weight: 700;
+        color: rgba(251,243,231,0.55);
+        letter-spacing: 1.5px;
+    }
+    .pre-run-chip .value {
+        font: 900 16px "Georgia", "Iowan Old Style", serif;
+        color: #fbf3e7;
+        margin-top: 2px;
+    }
+    .pre-run-chip .value .gold { color: #e8b34c; }
+    .pre-run-tip {
+        position: absolute; bottom: 90px; left: 0; right: 0;
+        text-align: center;
+        font-size: 12px; font-weight: 600;
+        color: rgba(251,243,231,0.78);
+    }
+    .pre-run-tip .accent { color: #fbf3e7; font-weight: 800; }
+
+    /* ── Face-lift action buttons (Part C) ────────────────────────
+       Lasso (gold) + Jump (mint) — 60px circles with a chunky 3px
+       "stitched" drop-shadow matching the mockup. Text is centered
+       inside the circle (not under it). Lasso's cooldown is a pie-
+       slice mask overlay — not an opacity dim. */
+    .action-btn {
+        position: absolute;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        width: 60px; height: 60px;
+        border-radius: 50%;
+        border: 2px solid;
+        padding: 0;
         cursor: pointer;
         z-index: 6;
         touch-action: manipulation;
-        opacity: 0.32;
-        transition: opacity 0.15s ease, transform 0.1s ease;
-        background-size: 78%;
-        background-position: center 40%;
-        background-repeat: no-repeat;
-        padding-top: 40px;   /* push the label below the icon */
+        font: 800 10px/1 -apple-system, "Segoe UI", system-ui, sans-serif;
+        letter-spacing: 1px;
+        display: inline-flex; align-items: center; justify-content: center;
+        overflow: hidden;
     }
-    .inv-btn.inv-2x    { background-image: url('spring_pad.png'); }
-    .inv-btn.inv-slow  { background-image: url('slowmo_yarn.png'); }
-    .inv-btn.inv-glide { background-image: url('glider_kite.png'); }
-    .inv-btn.inv-shield{ background-image: url('yarn_shield.png'); }
-    .inv-btn.has { opacity: 0.9; }
-    .inv-btn.active { opacity: 1; box-shadow: 0 0 0 3px #fff inset; }
-    .inv-btn:active { transform: scale(0.95); }
-    .inv-btn .count {
+    .action-btn:active { transform: scale(0.94); }
+    .lasso-btn {
+        right: 92px;
+        background: #e8b34c;
+        border-color: #b8862a;
+        color: #2a1b22;
+        filter: drop-shadow(0 3px 0 #8a5d1a);
+        position: relative;
+    }
+    .jump-btn {
+        right: 20px;
+        background: #8fd19e;
+        border-color: #4e8a5e;
+        color: #1a3a22;
+        font-size: 13px;
+        filter: drop-shadow(0 3px 0 #36684a);
+    }
+    /* Pie-slice cooldown overlay — conic-gradient sweeps from the
+       top clockwise as the cooldown progresses. `--cooldown` is a
+       0-1 fraction of the cooldown still remaining, written by JS. */
+    .lasso-btn::after {
+        content: '';
         position: absolute;
-        top: 3px; right: 3px;
-        background: rgba(0,0,0,0.72);
-        color: #fff;
-        font-size: 10px;
-        padding: 1px 5px;
-        border-radius: 8px;
-        min-width: 14px;
-        text-align: center;
+        inset: 0;
+        border-radius: 50%;
+        background: conic-gradient(
+            from 0deg,
+            rgba(0,0,0,0.45) 0deg,
+            rgba(0,0,0,0.45) calc(var(--cooldown, 0) * 360deg),
+            transparent calc(var(--cooldown, 0) * 360deg)
+        );
+        pointer-events: none;
+        opacity: 1;
     }
-    .inv-2x    { background-color: #22C55E; left: 20px; }
-    .inv-slow  { background-color: #8B5CF6; left: 86px; }
-    .inv-glide { background-color: #0EA5E9; left: 152px; }
-    .inv-shield{ background-color: #FBBF24; left: 218px; }
+    .lasso-btn.cooldown { /* legacy class — no-op; ring handles it now */ }
+    /* ── Face-lift power-up dock (Part B) ─────────────────────────
+       4 rounded slots bottom-left with icon + name caption + count
+       badge + cooldown ring + numbered key pill. Swaps the four
+       colored-chip buttons for a unified dark dock. */
+    .dock {
+        position: absolute;
+        left: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        display: flex;
+        gap: 6px;
+        z-index: 6;
+    }
+    .dock-slot {
+        position: relative;
+        width: 64px; height: 64px;
+        border-radius: 14px;
+        background: rgba(26,14,20,0.55);
+        border: 1px solid rgba(251,243,231,0.22);
+        cursor: pointer;
+        touch-action: manipulation;
+        overflow: visible;
+        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .dock-slot.empty {
+        background: rgba(26,14,20,0.35);
+        border-color: rgba(251,243,231,0.10);
+        cursor: default;
+    }
+    .dock-slot.active {
+        background: rgba(232,179,76,0.28);
+        border-color: #e8b34c;
+        border-width: 2px;
+        box-shadow: 0 0 12px rgba(232,179,76,0.7);
+    }
+    .dock-slot:active:not(.empty) { transform: scale(0.94); }
+    .dock-icon {
+        position: absolute;
+        left: 50%; top: 42%;
+        transform: translate(-50%, -50%);
+        width: 36px; height: 36px;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        opacity: 1;
+        pointer-events: none;
+    }
+    .dock-slot.empty .dock-icon { opacity: 0.35; filter: grayscale(0.5); }
+    .dock-name {
+        position: absolute;
+        left: 0; right: 0; bottom: 5px;
+        text-align: center;
+        font-size: 8px; font-weight: 800;
+        letter-spacing: 0.8px;
+        color: #fbf3e7;
+        pointer-events: none;
+    }
+    .dock-slot.empty .dock-name { color: rgba(251,243,231,0.40); }
+    .dock-count {
+        position: absolute;
+        top: -6px; right: -6px;
+        width: 20px; height: 20px;
+        border-radius: 10px;
+        background: #2a1b22;
+        border: 1.5px solid #fbf3e7;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 800;
+        color: #fbf3e7;
+        pointer-events: none;
+    }
+    .dock-slot.active .dock-count { display: none; }
+    .dock-slot.empty .dock-count { display: none; }
+    .dock-key {
+        position: absolute;
+        top: -6px; left: -4px;
+        min-width: 16px; height: 14px;
+        border-radius: 3px;
+        padding: 0 3px;
+        background: #2a1b22;
+        border: 1px solid rgba(251,243,231,0.35);
+        display: none;
+        align-items: center; justify-content: center;
+        font: 700 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: #fbf3e7;
+        pointer-events: none;
+    }
+    /* Show key pill only on pointing devices (desktop); hide on
+       touch devices where keyboard hints aren't helpful. */
+    @media (hover: hover) and (pointer: fine) {
+        .dock-key { display: flex; }
+    }
+    .dock-ring {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+    .dock-ring svg { width: 100%; height: 100%; display: block; }
+    .dock-ring circle.track {
+        fill: none;
+        stroke: rgba(251,243,231,0.15);
+        stroke-width: 3;
+    }
+    .dock-ring circle.fill {
+        fill: none;
+        stroke: #e8b34c;
+        stroke-width: 3;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+        transition: stroke-dashoffset 0.1s linear;
+    }
     .active-chips {
         position: absolute;
         top: 72px; left: 16px;
@@ -152,19 +615,20 @@
         z-index: 12;
     }
     .unlock-toast.hidden { display: none; }
-    header .header-btn {
-        margin-left: 6px;
-        width: 32px; height: 32px;
-        border-radius: 50%;
-        border: 1px solid rgba(255,255,255,0.25);
-        background: rgba(30, 30, 54, 0.92);
-        color: #fff;
+    /* Legacy .header-btn class kept as an alias for any non-top-bar
+       header tiles (none currently, but safe to leave). */
+    .header-btn {
+        width: 30px; height: 30px;
+        border-radius: 8px;
+        border: 1px solid rgba(251,243,231,0.22);
+        background: rgba(251,243,231,0.12);
+        color: #fbf3e7;
         font-weight: 700;
         font-size: 14px;
         cursor: pointer;
         flex-shrink: 0;
     }
-    header .header-btn:active { transform: scale(0.92); }
+    .header-btn:active { transform: scale(0.92); }
     .help-btn {
         position: absolute;
         right: 12px; top: 40px;
@@ -331,36 +795,125 @@
 </style>
 </head>
 <body>
-<header>
-    <a class="back" href="wefty-hub.html">← Hub</a>
-    <div class="title">Wefty Run</div>
-    <div class="dist" id="dist">0 m</div>
-    <span style="flex:1 1 auto;"></span>
-    <button id="btn-fs"    class="header-btn" title="Fullscreen">⛶</button>
-    <button id="btn-pause" class="header-btn" title="Pause">‖</button>
-    <button id="btn-help"  class="header-btn" title="Help">?</button>
+<header class="top-bar">
+    <a class="tb-tile" href="wefty-hub.html" title="Back to hub">←</a>
+    <div class="tb-title">
+        <div class="tb-title-main">WEFTY RUN</div>
+        <div class="tb-title-sub" id="tb-eyebrow">LEVEL 1</div>
+    </div>
+    <div class="tb-distance">
+        <div class="tb-distance-label">DISTANCE</div>
+        <div class="tb-distance-value">
+            <span id="tb-cur">0</span><span class="tb-m">m</span>
+        </div>
+        <div class="tb-distance-pb" id="tb-pb">BEST 0m</div>
+        <div class="tb-distance-delta hidden" id="tb-delta"></div>
+    </div>
+    <div class="tb-letters-wrap">
+        <div class="tb-letters" id="tb-letters">
+            <span class="tb-letter" data-ch="W">W</span>
+            <span class="tb-letter" data-ch="E">E</span>
+            <span class="tb-letter" data-ch="F">F</span>
+            <span class="tb-letter" data-ch="T">T</span>
+            <span class="tb-letter" data-ch="Y">Y</span>
+        </div>
+        <div class="tb-letter-track"><div class="tb-letter-fill" id="tb-letter-fill"></div></div>
+    </div>
+    <div class="tb-hearts" id="tb-hearts"></div>
+    <span class="tb-spacer"></span>
+    <div class="tb-level">
+        <span class="tb-level-num" id="tb-level-num">1</span>
+        <span class="tb-level-word">LEVEL</span>
+        <span class="tb-level-mult" id="tb-level-mult">1.0×</span>
+    </div>
+    <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
+    <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
+    <button id="btn-pause" class="tb-tile" title="Pause">‖</button>
+    <button id="btn-help"  class="tb-tile" title="Help">?</button>
 </header>
 <div id="stage">
     <canvas id="bg"></canvas>
     <canvas id="fg"></canvas>
 </div>
-<button id="inv-double-jump" class="inv-btn inv-2x">2×<span class="count">0</span></button>
-<button id="inv-slow-mo"     class="inv-btn inv-slow">Slow<span class="count">0</span></button>
-<button id="inv-glider"      class="inv-btn inv-glide">Glide<span class="count">0</span></button>
-<button id="inv-shield"      class="inv-btn inv-shield">Shield<span class="count">0</span></button>
-<button id="btn-lasso" class="lasso-btn">Lasso</button>
-<button id="btn-jump" class="jump-btn">Jump</button>
+<div class="dock" id="dock">
+    <div class="dock-slot" id="slot-dj"    data-kind="djump">
+        <div class="dock-icon"  style="background-image:url('spring_pad.png')"></div>
+        <div class="dock-name">DOUBLE</div>
+        <div class="dock-count">0</div>
+        <div class="dock-key">1</div>
+        <div class="dock-ring"><svg viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="28"/><circle class="fill" cx="32" cy="32" r="28" stroke-dasharray="175.9" stroke-dashoffset="175.9"/></svg></div>
+    </div>
+    <div class="dock-slot" id="slot-sm"    data-kind="slowmo">
+        <div class="dock-icon"  style="background-image:url('slowmo_yarn.png')"></div>
+        <div class="dock-name">SLOW-MO</div>
+        <div class="dock-count">0</div>
+        <div class="dock-key">2</div>
+        <div class="dock-ring"><svg viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="28"/><circle class="fill" cx="32" cy="32" r="28" stroke-dasharray="175.9" stroke-dashoffset="175.9"/></svg></div>
+    </div>
+    <div class="dock-slot" id="slot-gl"    data-kind="glider">
+        <div class="dock-icon"  style="background-image:url('glider_kite.png')"></div>
+        <div class="dock-name">GLIDE</div>
+        <div class="dock-count">0</div>
+        <div class="dock-key">3</div>
+        <div class="dock-ring"><svg viewBox="0 0 64 64"><circle class="track" cx="32" cy="32" r="28"/><circle class="fill" cx="32" cy="32" r="28" stroke-dasharray="175.9" stroke-dashoffset="175.9"/></svg></div>
+    </div>
+    <div class="dock-slot" id="slot-sh"    data-kind="shield">
+        <div class="dock-icon"  style="background-image:url('yarn_shield.png')"></div>
+        <div class="dock-name">SHIELD</div>
+        <div class="dock-count">0</div>
+        <div class="dock-key">4</div>
+    </div>
+</div>
+<button id="btn-lasso" class="action-btn lasso-btn" style="--cooldown:0">LASSO</button>
+<button id="btn-jump"  class="action-btn jump-btn">JUMP</button>
 <div id="active-chips" class="active-chips"></div>
+<div id="toasts" class="toasts"></div>
 <div id="storm-banner" class="storm-banner hidden">
     <div class="title">⚡ SCISSORS STORM</div>
     <div class="sub">300 m — watch for knots on the ground.</div>
 </div>
 <div id="unlock-toast" class="unlock-toast hidden">✨ Level unlocked!</div>
-<div id="pause-overlay" class="rotate-overlay hidden">
-    <div>
-        <div class="icon" style="animation:none;">‖</div>
-        <h2>Paused</h2>
-        <p>Tap anywhere to resume.</p>
+<div id="pre-run" class="pre-run hidden">
+    <div class="pre-run-chips">
+        <div class="pre-run-chip">
+            <div class="label">YOUR BEST</div>
+            <div class="value" id="pr-pb">0<span class="gold">m</span></div>
+        </div>
+        <div class="pre-run-chip" style="text-align:right;">
+            <div class="label">LAST RUN</div>
+            <div class="value" id="pr-last">—</div>
+        </div>
+    </div>
+    <div class="pre-run-ring">
+        <svg viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="80" fill="rgba(26,14,20,0.5)" stroke="rgba(251,243,231,0.15)" stroke-width="3"/>
+            <circle id="pr-arc" cx="90" cy="90" r="80" fill="none"
+                    stroke="#e8b34c" stroke-width="4" stroke-linecap="round"
+                    stroke-dasharray="502.65" stroke-dashoffset="0"
+                    transform="rotate(-90 90 90)"/>
+        </svg>
+        <div class="num" id="pr-num">3</div>
+    </div>
+    <div class="pre-run-tip" id="pr-tip">
+        💡 Tip · <span class="accent">Hold Jump</span> in mid-air to glide
+    </div>
+</div>
+<div id="pause-overlay" class="sheet-overlay hidden">
+    <div class="sheet accent-teal">
+        <div class="sheet-eyebrow">PAUSED</div>
+        <h2>Take a breath</h2>
+        <p class="sub">You're at <span id="ps-dist">0m</span> · Wefty is waiting</p>
+        <div class="sheet-stats">
+            <div class="sheet-stat"><div class="l">Distance</div><div class="v" id="ps-distance">0m</div></div>
+            <div class="sheet-stat"><div class="l">Letters</div><div class="v gold" id="ps-letters">0/5</div></div>
+            <div class="sheet-stat"><div class="l">Combo</div><div class="v pink" id="ps-combo">×0</div></div>
+            <div class="sheet-stat"><div class="l">Level</div><div class="v" id="ps-level">1</div></div>
+        </div>
+        <div class="sheet-buttons">
+            <button class="sheet-btn primary" id="ps-resume">RESUME (P)</button>
+            <button class="sheet-btn" id="ps-help">HOW TO PLAY</button>
+            <button class="sheet-btn" id="ps-end">END RUN</button>
+        </div>
     </div>
 </div>
 <div id="rotate-overlay" class="rotate-overlay hidden">
@@ -386,14 +939,58 @@
         </div>
     </div>
 </div>
-<div id="game-over" class="game-over hidden">
-    <div class="go-panel">
-        <h2>Run over</h2>
-        <div class="score" id="go-score">Distance 0 m</div>
-        <div class="scoreboard" id="go-scoreboard"></div>
-        <div id="go-signin-nudge" class="go-signin hidden">Sign in on the hub to appear on Top Runs →</div>
-        <button id="btn-restart">Restart</button>
-        <a class="back-link" href="wefty-hub.html"><button>Back to Hub</button></a>
+<!-- Game-over Beat 1 — review sheet (no CTA buttons; tap-anywhere advances) -->
+<div id="game-over" class="sheet-overlay hidden">
+    <div class="sheet accent-red" style="max-width: 540px;">
+        <div class="sheet-eyebrow" style="color:#d8554a">RUN ENDED</div>
+        <h2 style="font-size:42px; margin-top:6px;">
+            <span id="go-distance">0</span><span style="font-family:-apple-system,system-ui;font-size:20px;color:rgba(251,243,231,0.65);font-weight:800;margin-left:4px;">m</span>
+            <span class="go-delta hidden" id="go-delta" style="display:inline-block;margin-left:12px;padding:4px 12px;border-radius:14px;background:rgba(143,209,158,0.22);border:1px solid #8fd19e;color:#c4ebce;font-size:14px;font-weight:800;font-family:-apple-system,system-ui;vertical-align:middle;">↑ +0m from last</span>
+        </h2>
+        <p class="sub" id="go-cause" style="margin-bottom:18px">Run ended.</p>
+        <div class="sheet-stats" id="go-stats">
+            <div class="sheet-stat"><div class="l">Letters</div><div class="v gold" id="go-letters">0/5</div></div>
+            <div class="sheet-stat"><div class="l">Max combo</div><div class="v pink" id="go-combo">×0</div></div>
+            <div class="sheet-stat"><div class="l">Power-ups</div><div class="v" id="go-pus">0</div></div>
+            <div class="sheet-stat"><div class="l">Time</div><div class="v" id="go-time">0:00</div></div>
+        </div>
+        <div id="go-top5" style="margin:6px 0 14px;"></div>
+        <div id="go-signin-nudge" class="go-signin hidden" style="margin:8px 0 0; color:#FBBF24; font-size:12px; text-align:center;">Sign in on the hub to appear on Top Runs →</div>
+        <div style="margin-top:14px; text-align:center; font-size:11px; color:rgba(251,243,231,0.55); letter-spacing:0.5px;">
+            ↓ Tap anywhere to continue
+        </div>
+    </div>
+</div>
+
+<!-- Game-over Beat 2 — final CTA (run again / back / share). Slides in
+     after the player taps through Beat 1. Rewards slot is empty for
+     now; future skins/trails sit between the headline and the CTAs. -->
+<div id="cta-screen" class="sheet-overlay hidden">
+    <div class="sheet accent-mint" style="max-width: 540px;">
+        <div class="sheet-eyebrow" style="color:#8fd19e">REWARDS</div>
+        <h2>Nice run.</h2>
+        <p class="sub" id="cta-sub">Up to <span class="gold" style="color:#e8b34c;font-weight:800" id="cta-best">0m</span> personal best.</p>
+        <div id="cta-rewards-slot" style="display:none;"></div>
+        <div id="cta-unlock" style="background:rgba(232,179,76,0.10); border:1px solid rgba(232,179,76,0.40); border-radius:12px; padding:12px 14px; margin-bottom:18px; display:flex; align-items:center; gap:10px;">
+            <div style="font-size:22px;">🏆</div>
+            <div style="flex:1 1 auto;">
+                <div style="font-size:13px; font-weight:800; color:#fbf3e7;">
+                    <span id="cta-unlock-headline">New mode in 750m</span>
+                </div>
+                <div style="font-size:11px; color:rgba(251,243,231,0.55);" id="cta-unlock-sub">Wefty Climb unlocks at 750m</div>
+                <div style="margin-top:6px; height:6px; background:rgba(232,179,76,0.15); border-radius:3px;">
+                    <div id="cta-unlock-bar" style="height:100%; background:#e8b34c; border-radius:3px; width:0%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="sheet-buttons">
+            <button class="sheet-btn primary" id="cta-restart">RUN AGAIN</button>
+            <a class="sheet-btn" href="wefty-hub.html" style="text-decoration:none; text-align:center;">BACK TO HUB</a>
+            <button class="sheet-btn" id="cta-share" title="Share">SHARE</button>
+        </div>
+        <div style="margin-top:8px; text-align:center; font-size:10px; color:rgba(251,243,231,0.40); letter-spacing:0.4px;">
+            Tap · Space · ↑
+        </div>
     </div>
 </div>
 
@@ -471,6 +1068,7 @@
         invincibleUntil: 0, // performance.now() while i-frames active
         isPaused: false,
         lassoReadyAtTick: 0,
+        lassoCooldownStartTick: 0,
         lassoLastHitX: 0,
         lassoLastHitY: 0,
         lassoFlashUntilTick: 0,
@@ -482,6 +1080,10 @@
 
     // Local best distance + personal top-5 scoreboard
     let bestDistance = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
+    // Last run's ended distance (0 = never played). Powers the top-bar
+    // delta pill ("+Xm from last") so the player sees live progress
+    // against their previous attempt, not just the PB ceiling.
+    let lastRunDistance = parseInt(localStorage.getItem('wefty_run_last') || '0', 10) || 0;
     function loadHistory() {
         try {
             const raw = localStorage.getItem('wefty_run_history');
@@ -507,20 +1109,10 @@
         const days = Math.floor(d / 86_400_000);
         return days + (days === 1 ? ' day ago' : ' days ago');
     }
-    function renderScoreboard(justScored) {
-        const el = document.getElementById('go-scoreboard');
-        if (!el) return;
-        const list = loadHistory();
-        if (list.length === 0) { el.innerHTML = ''; return; }
-        let html = '<div class="hdr">PERSONAL TOP 5</div>';
-        list.forEach((r, i) => {
-            const isNew = justScored && r.ts === justScored;
-            html += `<span class="rank">${i + 1}.</span>` +
-                    `<span class="dist${isNew ? ' new' : ''}">${r.score} m${isNew ? '  ★' : ''}</span>` +
-                    `<span class="when">${formatWhen(r.ts)}</span>`;
-        });
-        el.innerHTML = html;
-    }
+    // Old in-panel scoreboard renderer — replaced by Beat 1's
+    // populateGameOverBeat1(). Kept as a no-op so any external
+    // callers don't crash if they still invoke it.
+    function renderScoreboard(_justScored) { /* see populateGameOverBeat1 */ }
 
     // Tutorial pages — kept here so we add more panels alongside new features.
     const TUTORIAL = [
@@ -598,10 +1190,54 @@
             // Came from the demo mode — wipe and start a fresh run.
             world.tutorialMode = false;
             resetWorld();
+            startPreRunCountdown();
         }
         // If the tutorial was opened while paused (help mid-run), leave
         // the world alone. Player can unpause to resume where they were.
     }
+
+    // ── Pre-run countdown (Part E) ─────────────────────────────
+    // 3-2-1 hold after every reset. Freezes the world and shows a
+    // big countdown ring + PB/last-run chips so the player can
+    // settle their grip before camera scroll begins.
+    const PR_DURATION_MS = 3000;
+    const TIPS = [
+        '💡 Tip · <span class="accent">Hold Jump</span> in mid-air to glide',
+        '💡 Tip · <span class="accent">Lasso</span> snags scissors before they hit',
+        '💡 Tip · <span class="accent">Draw thread bridges</span> to span gaps',
+        '💡 Tip · Collect all <span class="accent">5 WEFTY letters</span> for shrink power',
+        '💡 Tip · <span class="accent">Storm</span> kicks in past 300m — speed ramps + knots',
+    ];
+    let preRunUntil = 0;
+    function startPreRunCountdown() {
+        const el = document.getElementById('pre-run');
+        const tip = document.getElementById('pr-tip');
+        document.getElementById('pr-pb').innerHTML = bestDistance + '<span class="gold">m</span>';
+        document.getElementById('pr-last').innerHTML = lastRunDistance > 0
+            ? lastRunDistance + '<span class="gold">m</span>'
+            : '—';
+        tip.innerHTML = TIPS[Math.floor(Math.random() * TIPS.length)];
+        el.classList.remove('hidden');
+        preRunUntil = performance.now() + PR_DURATION_MS;
+        world.isPaused = true;
+    }
+    function updatePreRunCountdown() {
+        if (preRunUntil <= 0) return;
+        const remaining = preRunUntil - performance.now();
+        const el = document.getElementById('pre-run');
+        if (remaining <= 0) {
+            el.classList.add('hidden');
+            preRunUntil = 0;
+            world.isPaused = false;
+            return;
+        }
+        const frac = remaining / PR_DURATION_MS;
+        // Ring sweeps from full → empty as countdown ticks.
+        document.getElementById('pr-arc')
+            .setAttribute('stroke-dashoffset', String(502.65 * (1 - frac)));
+        document.getElementById('pr-num').textContent = String(Math.ceil(remaining / 1000));
+    }
+    function isPreRunActive() { return preRunUntil > performance.now(); }
     function openTutorial(demo) {
         tutorialPage = 0;
         renderTutorial();
@@ -678,6 +1314,16 @@
         world.needles = 3;
         world.invincibleUntil = 0;
         world.events.length = 0;
+        // ── Wave-2 stats state ──
+        world.combo = 0;
+        world.maxCombo = 0;
+        world.powerUpsUsed = 0;
+        world.causeOfDeath = 'NONE';   // NONE | SCISSORS | KNOT | PIT
+        world.runStartTimeMs = Date.now();
+        world.currentSpeedMultiplier = 1;
+        world.lassoReadyAtTick = 0;
+        world.lassoCooldownStartTick = 0;
+        world.lassoFlashUntilTick = 0;
         seedPlatforms();
     }
 
@@ -865,7 +1511,7 @@
     function activateDoubleJump() {
         if (world.gameOver || world.invDoubleJump <= 0) return;
         if (world.doubleJumpUntil > performance.now()) return;
-        world.invDoubleJump--;
+        world.invDoubleJump--; world.powerUpsUsed++;
         world.doubleJumpUntil = performance.now() + 12000;
         world.doubleJumpAvailable = true;
         world.events.push('double-jump');
@@ -873,21 +1519,21 @@
     function activateSlowMo() {
         if (world.gameOver || world.invSlowMo <= 0) return;
         if (world.slowMoUntil > performance.now()) return;
-        world.invSlowMo--;
+        world.invSlowMo--; world.powerUpsUsed++;
         world.slowMoUntil = performance.now() + 5000;
         world.events.push('slow-mo');
     }
     function activateGlider() {
         if (world.gameOver || world.invGlider <= 0) return;
         if (world.gliderUntil > performance.now()) return;
-        world.invGlider--;
+        world.invGlider--; world.powerUpsUsed++;
         world.gliderUntil = performance.now() + 10000;
         world.events.push('glider');
     }
     function activateShield() {
         if (world.gameOver || world.invShield <= 0) return;
         if (world.shieldCharges > 0) return;
-        world.invShield--;
+        world.invShield--; world.powerUpsUsed++;
         world.shieldCharges = 1;
         world.events.push('shield');
     }
@@ -907,8 +1553,16 @@
             const d = Math.sqrt(dx * dx + dy * dy);
             if (d < LASSO_RANGE && d < bestD) { best = hz; bestD = d; }
         }
-        world.lassoReadyAtTick = (world.frameTick || 0) + LASSO_COOLDOWN_TICKS;
-        world.lassoFlashUntilTick = (world.frameTick || 0) + LASSO_FLASH_TICKS;
+        // Cooldown shrinks as the world speeds up so the lasso stays
+        // useful when scissors fly past faster. Storm 1.3× → ~69 ticks,
+        // L2 1.5× → 60 ticks. Floor at 36 ticks (0.6s) so it can't
+        // become spammable late-game.
+        const cdMult = Math.max(1, world.currentSpeedMultiplier || 1);
+        const cdScaled = Math.max(36, Math.floor(LASSO_COOLDOWN_TICKS / cdMult));
+        const ftNow = world.frameTick || 0;
+        world.lassoCooldownStartTick = ftNow;
+        world.lassoReadyAtTick = ftNow + cdScaled;
+        world.lassoFlashUntilTick = ftNow + LASSO_FLASH_TICKS;
         if (best) {
             world.lassoLastHitX = best.worldX;
             world.lassoLastHitY = best.y;
@@ -1033,6 +1687,7 @@
         else if (world.distance < 75) speedMult = Math.min(1.30, 1.20 + 0.10 * ((stormDist - 5) / 5));
         else if (world.distance < 85) speedMult = 1.30 + 0.20 * ((world.distance - 75) / 10);
         else                          speedMult = 1.50 + 0.01 * (world.distance - 85);
+        world.currentSpeedMultiplier = speedMult;
         world.cameraX += RUN_SPEED * speedMult * effDt;
         // Tutorial mode previews the game but shouldn't count distance
         // toward the best-score or trigger milestone/biome unlocks.
@@ -1054,11 +1709,32 @@
             addNextPlatform();
         }
 
-        // Rotate + reap hazards
+        // Rotate + reap hazards. A hazard drifting past the camera
+        // without ever colliding bumps the survival combo (player
+        // jumped/lassoed/out-paced it). Combo resets on hit below.
         for (let i = world.hazards.length - 1; i >= 0; i--) {
             const hz = world.hazards[i];
             hz.rot += dt * 2.4;
-            if (hz.worldX < world.cameraX - 0.5) world.hazards.splice(i, 1);
+            if (hz.worldX < world.cameraX - 0.5) {
+                world.hazards.splice(i, 1);
+                if (!world.tutorialMode) {
+                    world.combo++;
+                    if (world.combo > world.maxCombo) world.maxCombo = world.combo;
+                    world.events.push('combo-up');
+                }
+            }
+        }
+        // Knots reaped behind the camera also feed the combo.
+        for (let i = world.knots.length - 1; i >= 0; i--) {
+            const k = world.knots[i];
+            if (k.worldX < world.cameraX - 0.5) {
+                world.knots.splice(i, 1);
+                if (!world.tutorialMode) {
+                    world.combo++;
+                    if (world.combo > world.maxCombo) world.maxCombo = world.combo;
+                    world.events.push('combo-up');
+                }
+            }
         }
 
         // Hazard collision — circle vs circle. Shrink mode → smaller
@@ -1068,19 +1744,19 @@
         const now = performance.now();
         const bodyR = (world.shrinkUntil > now) ? 0.018 : 0.035;
         if (now > world.invincibleUntil) {
-            let hit = false;
+            let hitKind = 'NONE';
             for (const hz of world.hazards) {
                 const dx = hz.worldX - wcx, dy = hz.y - wcy;
-                if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + bodyR) { hit = true; break; }
+                if (Math.sqrt(dx * dx + dy * dy) < HAZARD_RADIUS + bodyR) { hitKind = 'SCISSORS'; break; }
             }
             // Floor knots — grounded collision only.
-            if (!hit && world.grounded) {
+            if (hitKind === 'NONE' && world.grounded) {
                 for (const k of world.knots) {
                     if (Math.abs(k.worldX - wcx) < 0.06 &&
-                        Math.abs(k.y - world.weftyY) < 0.06) { hit = true; break; }
+                        Math.abs(k.y - world.weftyY) < 0.06) { hitKind = 'KNOT'; break; }
                 }
             }
-            if (hit) {
+            if (hitKind !== 'NONE') {
                 if (world.tutorialMode) {
                     // Demo mode — cosmetic i-frames only, no damage.
                     world.invincibleUntil = now + 1400;
@@ -1090,8 +1766,10 @@
                     world.invincibleUntil = now + 1400;
                 } else {
                     world.needles--;
+                    world.combo = 0;  // hazard contact resets combo
                     world.events.push('hazard-hit');
                     if (world.needles <= 0) {
+                        world.causeOfDeath = hitKind;
                         world.gameOver = true;
                         world.events.push('game-over');
                     } else {
@@ -1273,6 +1951,7 @@
                 world.weftyVy = 0;
                 world.grounded = true;
             } else {
+                world.causeOfDeath = 'PIT';
                 world.gameOver = true;
                 world.events.push('game-over');
             }
@@ -1327,6 +2006,10 @@
                 musicOver.currentTime = 0;
                 musicOver.play().catch(() => {});
                 const score = Math.round(world.distance * 10);
+                // Persist last-run distance unconditionally so the
+                // top-bar delta pill can read it on the next attempt.
+                lastRunDistance = score;
+                try { localStorage.setItem('wefty_run_last', String(score)); } catch (_) {}
                 if (score > bestDistance) {
                     bestDistance = score;
                     localStorage.setItem('wefty_run_best', String(score));
@@ -1508,10 +2191,11 @@
     lassoBtn.addEventListener('click', (e) => { e.stopPropagation(); fireLasso(); });
 
     // Inventory buttons.
-    const invDJ = document.getElementById('inv-double-jump');
-    const invSL = document.getElementById('inv-slow-mo');
-    const invGL = document.getElementById('inv-glider');
-    const invSH = document.getElementById('inv-shield');
+    // Power-up dock slots — new face-lift shape (Part B).
+    const invDJ = document.getElementById('slot-dj');
+    const invSL = document.getElementById('slot-sm');
+    const invGL = document.getElementById('slot-gl');
+    const invSH = document.getElementById('slot-sh');
     invDJ.addEventListener('click', (e) => { e.stopPropagation(); activateDoubleJump(); });
     invSL.addEventListener('click', (e) => { e.stopPropagation(); activateSlowMo(); });
     invGL.addEventListener('click', (e) => { e.stopPropagation(); activateGlider(); });
@@ -1561,16 +2245,234 @@
     });
 
     // ── Rendering ──────────────────────────────────────────────────────
-    const distEl = document.getElementById('dist');
+    // New top-bar HUD refs (face-lift pass 1 — Part A). Each element
+    // is touched once per frame inside renderHud().
+    const tbEl = {
+        cur:      document.getElementById('tb-cur'),
+        pb:       document.getElementById('tb-pb'),
+        delta:    document.getElementById('tb-delta'),
+        eyebrow:  document.getElementById('tb-eyebrow'),
+        letters:  document.getElementById('tb-letters'),
+        fill:     document.getElementById('tb-letter-fill'),
+        hearts:   document.getElementById('tb-hearts'),
+        levelNum: document.getElementById('tb-level-num'),
+        levelMult:document.getElementById('tb-level-mult'),
+        mute:     document.getElementById('btn-mute'),
+    };
+    // Drawn heart SVG — one copy used N times via innerHTML.
+    function heartSvg(filled) {
+        const fill = filled ? '#d8554a' : 'rgba(216,85,74,0.18)';
+        const stroke = filled ? '#8a2a22' : 'rgba(216,85,74,0.35)';
+        return `<span class="tb-heart"><svg viewBox="0 0 14 14">
+            <path d="M 7 12.5 Q -0.5 8 1.5 4.5 Q 3 1.8 5 3.8 Q 7 6 7 6 Q 7 6 9 3.8 Q 11 1.8 12.5 4.5 Q 14.5 8 7 12.5 Z"
+                  fill="${fill}" stroke="${stroke}" stroke-width="1.1" stroke-linejoin="round"/>
+        </svg></span>`;
+    }
+    // Initial heart row — 3 slots. Refilled per-frame to reflect needles.
+    tbEl.hearts.innerHTML = heartSvg(true).repeat(3);
+    // Mute toggle — persists across sessions and switches speaker glyph.
+    function applyMuted(muted) {
+        try { Sound.setMuted(muted); } catch (_) {}
+        try {
+            musicLoop.muted = muted;
+            musicOver.muted = muted;
+            if (typeof musicPower !== 'undefined') musicPower.muted = muted;
+        } catch (_) {}
+        tbEl.mute.textContent = muted ? '🔈' : '🔊';
+    }
+    let soundMuted = (localStorage.getItem('wefty_sound_muted') === '1');
+    applyMuted(soundMuted);
+    tbEl.mute.addEventListener('click', (e) => {
+        e.stopPropagation();
+        soundMuted = !soundMuted;
+        localStorage.setItem('wefty_sound_muted', soundMuted ? '1' : '0');
+        applyMuted(soundMuted);
+    });
+
     const overlay = document.getElementById('game-over');
-    const goScore = document.getElementById('go-score');
-    document.getElementById('btn-restart').addEventListener('click', () => {
-        resetWorld();
+    // ── Mid-run toast stack (Wave 2 · Part F) ──────────────────
+    // Cards slide in top-right for milestone crossings, combo tiers
+    // and near-PB callouts. Cap 3 visible; auto-dismiss after 2.4s.
+    const TOAST_TTL_MS = 2400;
+    const TOAST_MAX = 3;
+    function pushToast(html, kind) {
+        const root = document.getElementById('toasts');
+        if (!root) return;
+        // Drop overflow oldest-first.
+        while (root.children.length >= TOAST_MAX) root.removeChild(root.firstChild);
+        const el = document.createElement('div');
+        el.className = 'toast' + (kind ? ' ' + kind : '');
+        el.innerHTML = html;
+        root.appendChild(el);
+        setTimeout(() => {
+            el.classList.add('fade-out');
+            setTimeout(() => { try { root.removeChild(el); } catch (_) {} }, 380);
+        }, TOAST_TTL_MS);
+    }
+    // Per-run trigger memo so we don't re-fire the same toast.
+    let toastLastMilestone = 0;
+    let toastLastComboTier = 0;
+    let toastNearPb500Fired = false;
+    let toastNearPb100Fired = false;
+    function resetToastTriggers() {
+        toastLastMilestone = 0;
+        toastLastComboTier = 0;
+        toastNearPb500Fired = false;
+        toastNearPb100Fired = false;
+        const root = document.getElementById('toasts');
+        if (root) root.innerHTML = '';
+    }
+    function tickMidRunToasts() {
+        if (world.gameOver || world.isPaused) return;
+        const cur = Math.round(world.distance * 10);
+        // Milestone every 100m.
+        const mileBucket = Math.floor(cur / 100) * 100;
+        if (mileBucket > 0 && mileBucket > toastLastMilestone) {
+            toastLastMilestone = mileBucket;
+            pushToast(
+                `<div class="label">MILESTONE · ${mileBucket}M</div>` +
+                `<div class="body">Keep going! 🎯</div>`
+            );
+        }
+        // Combo tiers — every 5 combos.
+        const tier = Math.floor((world.combo || 0) / 5) * 5;
+        if (tier > 0 && tier > toastLastComboTier) {
+            toastLastComboTier = tier;
+            pushToast(
+                `<div class="body">×${tier} combo — <span class="accent">on fire!</span></div>`,
+                'combo'
+            );
+        }
+        // Near-PB nudges — once each.
+        if (bestDistance > 0) {
+            const gap = bestDistance - cur;
+            if (!toastNearPb500Fired && gap > 100 && gap <= 500) {
+                toastNearPb500Fired = true;
+                pushToast(`<div class="body">${gap}m to beat your PB · keep going</div>`, 'pb');
+            }
+            if (!toastNearPb100Fired && gap > 0 && gap <= 100) {
+                toastNearPb100Fired = true;
+                pushToast(`<div class="body">${gap}m to your PB!</div>`, 'pb');
+            }
+        }
+    }
+
+    // ── Game-over 2-beat (Wave 2 · Part K) ─────────────────────
+    // Beat 1 = stats review (no CTA buttons). Tap anywhere advances.
+    // Beat 2 = "NICE RUN." with unlock teaser + RUN AGAIN / BACK / SHARE.
+    // Rewards slot in Beat 2 stays empty until Wave 5+ ships skins.
+    const ctaScreen = document.getElementById('cta-screen');
+    function populateGameOverBeat1(cur) {
+        document.getElementById('go-distance').textContent = String(cur);
+        const cause = world.causeOfDeath || 'NONE';
+        const causeWord = cause === 'SCISSORS' ? 'scissors'
+                       : cause === 'KNOT' ? 'a yarn knot'
+                       : cause === 'PIT'  ? 'the gap'
+                       : '—';
+        document.getElementById('go-cause').innerHTML =
+            `Hit <span style="color:#d8554a;font-weight:800">${causeWord}</span> at ${cur}m · personal best <span style="color:#e8b34c;font-weight:800">${bestDistance}m</span>`;
+        const dEl = document.getElementById('go-delta');
+        if (lastRunDistance > 0) {
+            const diff = cur - lastRunDistance;
+            if (diff >= 0) {
+                dEl.textContent = '↑ +' + diff + 'm from last';
+                dEl.style.display = 'inline-block';
+                dEl.classList.remove('hidden');
+            } else {
+                dEl.style.display = 'none';
+                dEl.classList.add('hidden');
+            }
+        } else {
+            dEl.style.display = 'none';
+            dEl.classList.add('hidden');
+        }
+        document.getElementById('go-letters').textContent =
+            world.collectedLetters.size + '/5';
+        document.getElementById('go-combo').textContent = '×' + (world.maxCombo || 0);
+        document.getElementById('go-pus').textContent = String(world.powerUpsUsed || 0);
+        const elapsedSec = world.runStartTimeMs > 0
+            ? Math.floor((Date.now() - world.runStartTimeMs) / 1000)
+            : 0;
+        const m = Math.floor(elapsedSec / 60);
+        const s = elapsedSec % 60;
+        document.getElementById('go-time').textContent =
+            m + ':' + String(s).padStart(2, '0');
+        const list = loadHistory()
+            .concat([{ score: cur, ts: Date.now() }])
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 5);
+        document.getElementById('go-top5').innerHTML =
+            '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:rgba(251,243,231,0.55);margin-bottom:6px;">PERSONAL TOP 5</div>'
+            + list.map((r, i) => {
+                const isPB = r.score === bestDistance;
+                const isNew = r.score === cur && r.ts >= Date.now() - 2000;
+                return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;">
+                    <span style="color:rgba(251,243,231,0.45);min-width:14px;">${i+1}</span>
+                    <span style="font-family:Georgia,serif;font-weight:900;color:${isPB?'#e8b34c':'#fbf3e7'};">${r.score} m</span>
+                    ${isPB?'<span style="font-size:9px;font-weight:800;letter-spacing:1px;color:#e8b34c;background:rgba(232,179,76,0.2);border:1px solid #e8b34c;border-radius:8px;padding:1px 6px;">PB</span>':''}
+                    ${isNew && !isPB?'<span style="font-size:9px;font-weight:800;letter-spacing:1px;color:#8fd19e;background:rgba(143,209,158,0.2);border:1px solid #8fd19e;border-radius:8px;padding:1px 6px;">NEW</span>':''}
+                </div>`;
+            }).join('');
+        const nudge = document.getElementById('go-signin-nudge');
+        if (nudge) {
+            const anon = (typeof Auth === 'undefined') || !Auth.uid || Auth.isAnonymous;
+            nudge.classList.toggle('hidden', !anon);
+        }
+    }
+    function showGameOverBeat2() {
         overlay.classList.add('hidden');
+        ctaScreen.classList.remove('hidden');
+        document.getElementById('cta-best').textContent = bestDistance + 'm';
+        const unlocked = !!localStorage.getItem('wefty_run_level3_unlocked');
+        const cur = Math.round(world.distance * 10);
+        const headline = unlocked
+            ? 'All modes unlocked'
+            : `New mode in ${Math.max(0, 750 - cur)}m`;
+        const sub = unlocked
+            ? 'Climb is live on the hub'
+            : 'Wefty Climb unlocks at 750m';
+        document.getElementById('cta-unlock-headline').textContent = headline;
+        document.getElementById('cta-unlock-sub').textContent = sub;
+        const pct = unlocked ? 100 : Math.min(100, (cur / 750) * 100);
+        document.getElementById('cta-unlock-bar').style.width = pct + '%';
+    }
+    overlay.addEventListener('click', () => {
+        if (!world.gameOver) return;
+        showGameOverBeat2();
+    });
+    function ctaRestart() {
+        ctaScreen.classList.add('hidden');
+        overlay.dataset.populated = '';
+        resetWorld();
+        resetToastTriggers();
         if (musicStarted) musicLoop.play().catch(() => {});
+        startPreRunCountdown();
+    }
+    document.getElementById('cta-restart').addEventListener('click', ctaRestart);
+    document.getElementById('cta-share').addEventListener('click', async () => {
+        const cur = Math.round(world.distance * 10);
+        const text = `I just ran ${cur}m in Wefty Run!`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ text, url: location.href });
+            } else if (navigator.clipboard) {
+                await navigator.clipboard.writeText(text + ' ' + location.href);
+            }
+        } catch (_) {}
+    });
+    window.addEventListener('keydown', (e) => {
+        if (ctaScreen.classList.contains('hidden')) return;
+        if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Enter') {
+            e.preventDefault();
+            ctaRestart();
+        }
     });
 
     function renderFrame() {
+        // Tick the pre-run countdown before anything else so the
+        // overlay updates and unpauses on its own once it hits zero.
+        updatePreRunCountdown();
+        tickMidRunToasts();
         const w = window.innerWidth;
         const h = window.innerHeight;
         const palette = currentBiome() === 'STORM'
@@ -2032,8 +2934,12 @@
             const fullDist = Math.hypot(ropeDx, ropeDy);
             if (fullDist > 2) {
                 const angle = Math.atan2(ropeDy, ropeDx);
-                const lassoSize = h * 0.21;            // loop outer diameter ≈ Wefty sprite (h*0.165)
-                const knotOffset = lassoSize * 0.28;   // sprite center → knot in the PNG
+                // Loop outer matches Wefty's visible yarn ball. Sprite
+                // has ~30% transparent padding (visible = sprite × 0.70)
+                // and loop outer is ~96% of lasso PNG width, so
+                // lassoSize = wSize × 0.73. With wSize=h*0.165 → 0.12h.
+                const lassoSize = h * 0.12;
+                const knotOffset = lassoSize * 0.13;   // row ~162/256 = 13% below sprite center
                 const ropeDist = Math.max(0, fullDist - knotOffset);
                 const ropeThickness = h * 0.008;
                 if (ropeDist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
@@ -2052,38 +2958,99 @@
                 }
             }
         }
-        // Cooldown visual on the lasso button
-        if ((world.frameTick || 0) < world.lassoReadyAtTick) {
-            lassoBtn.classList.add('cooldown');
-        } else {
-            lassoBtn.classList.remove('cooldown');
+        // Lasso cooldown — pie-slice overlay. `--cooldown` goes 1 → 0
+        // across the ACTUAL cooldown duration (which shrinks with the
+        // world speed multiplier). Reads cooldownStartTick so the wedge
+        // is always proportional, even when storm cuts cooldown short.
+        {
+            const ft = world.frameTick || 0;
+            const remaining = Math.max(0, world.lassoReadyAtTick - ft);
+            const total = Math.max(1, world.lassoReadyAtTick - (world.lassoCooldownStartTick || 0));
+            const frac = remaining > 0 ? remaining / total : 0;
+            lassoBtn.style.setProperty('--cooldown', String(frac));
         }
 
-        // HUD
+        // HUD — new face-lift top bar (Part A).
         const cur = Math.round(world.distance * 10);
-        distEl.textContent = `best ${bestDistance} m   ${cur} m`;
-        if (world.gameOver) {
+        tbEl.cur.textContent = String(cur);
+        tbEl.pb.textContent = 'BEST ' + bestDistance + 'm';
+        // Delta pill — compares current run to last completed run.
+        // "+Xm from last" in mint when ahead; "Xm to last" muted when
+        // behind; hidden when no prior run exists.
+        if (lastRunDistance <= 0) {
+            tbEl.delta.classList.add('hidden');
+        } else if (cur >= lastRunDistance) {
+            const d = cur - lastRunDistance;
+            tbEl.delta.textContent = '+' + d + 'm from last';
+            tbEl.delta.classList.remove('hidden', 'behind');
+        } else {
+            tbEl.delta.textContent = (lastRunDistance - cur) + 'm to last';
+            tbEl.delta.classList.remove('hidden');
+            tbEl.delta.classList.add('behind');
+        }
+        // Eyebrow + level chip: L1 → "LEVEL 1", storm ramp → "STORM",
+        // past 500m → "LEVEL 2 · THE TANGLE". Level chip number is
+        // the "real" level (1 or 2); the storm state is communicated
+        // only in the eyebrow so the chip doesn't flicker mid-ramp.
+        let eyebrow, levelNum;
+        if (cur < 300) { eyebrow = 'LEVEL 1'; levelNum = 1; }
+        else if (cur < 500) { eyebrow = '⚡ STORM · SPEED RAMPING'; levelNum = 1; }
+        else { eyebrow = 'LEVEL 2 · THE TANGLE'; levelNum = 2; }
+        tbEl.eyebrow.textContent = eyebrow;
+        tbEl.levelNum.textContent = String(levelNum);
+        const mult = world.currentSpeedMultiplier || 1;
+        tbEl.levelMult.textContent = mult.toFixed(1) + '×';
+        // Letters + progress bar.
+        const letterEls = tbEl.letters.querySelectorAll('.tb-letter');
+        let collectedCount = 0;
+        letterEls.forEach((el) => {
+            const got = world.collectedLetters.has(el.dataset.ch);
+            el.classList.toggle('got', got);
+            if (got) collectedCount++;
+        });
+        tbEl.fill.style.width = (collectedCount * 20) + '%';
+        // Hearts — up to 3 filled reflecting needles; the 4th/5th are
+        // tracked in world.needles but not shown in this row.
+        const shown = 3;
+        const n = Math.min(world.needles, shown);
+        let html = '';
+        for (let i = 0; i < shown; i++) html += heartSvg(i < n);
+        tbEl.hearts.innerHTML = html;
+        if (world.gameOver && !overlay.dataset.populated) {
+            populateGameOverBeat1(cur);
+            overlay.dataset.populated = '1';
             overlay.classList.remove('hidden');
-            goScore.textContent = `Distance ${cur} m${cur >= bestDistance ? ' (new best!)' : ''}`;
-            const nudge = document.getElementById('go-signin-nudge');
-            if (nudge) {
-                const anon = (typeof Auth === 'undefined') || !Auth.uid || Auth.isAnonymous;
-                nudge.classList.toggle('hidden', !anon);
-            }
         }
 
-        // Inventory badges — light up when there's stock, highlight when
-        // the effect is active.
+        // Dock slots — tile background state, count badge, active glow,
+        // and (for time-based powers) a cooldown ring that shrinks as
+        // the effect runs out. Ring circumference is 2πr = 2π·28 ≈ 175.93.
         const now = performance.now();
-        const updateInv = (btn, count, active) => {
-            btn.querySelector('.count').textContent = count;
-            btn.classList.toggle('has', count > 0);
-            btn.classList.toggle('active', active);
+        const RING_C = 175.93;
+        const updateDock = (btn, count, active, remainMs, totalMs) => {
+            const countEl = btn.querySelector('.dock-count');
+            countEl.textContent = count;
+            const empty = count <= 0 && !active;
+            btn.classList.toggle('empty',  empty);
+            btn.classList.toggle('active', !!active);
+            const ring = btn.querySelector('.dock-ring circle.fill');
+            if (!ring) return;
+            if (active && totalMs > 0) {
+                const frac = Math.max(0, Math.min(1, remainMs / totalMs));
+                // stroke-dashoffset goes FROM 0 (full arc) to circumference
+                // (no arc) as the effect expires.
+                ring.setAttribute('stroke-dashoffset', String(RING_C * (1 - frac)));
+            } else {
+                ring.setAttribute('stroke-dashoffset', String(RING_C));
+            }
         };
-        updateInv(invDJ, world.invDoubleJump, world.doubleJumpUntil > now);
-        updateInv(invSL, world.invSlowMo,     world.slowMoUntil     > now);
-        updateInv(invGL, world.invGlider,     world.gliderUntil     > now);
-        updateInv(invSH, world.invShield,     world.shieldCharges   > 0);
+        updateDock(invDJ, world.invDoubleJump, world.doubleJumpUntil > now,
+                   world.doubleJumpUntil - now, 12000);
+        updateDock(invSL, world.invSlowMo,     world.slowMoUntil     > now,
+                   world.slowMoUntil - now, 5000);
+        updateDock(invGL, world.invGlider,     world.gliderUntil     > now,
+                   world.gliderUntil - now, 10000);
+        updateDock(invSH, world.invShield,     world.shieldCharges   > 0, 0, 0);
 
         // Active chips
         const chips = [];
@@ -2120,13 +3087,25 @@
     window.addEventListener('resize', updateRotate);
     window.addEventListener('orientationchange', updateRotate);
     updateRotate();
-    // Pause button + overlay tap-to-resume.
+    // Pause sheet + dedicated buttons (Wave 2 · Part J). Stats inside
+    // the sheet are refreshed at open-time AND every frame while
+    // visible, so combo / letters / level stay current.
     const pauseOverlay = document.getElementById('pause-overlay');
     const pauseBtn = document.getElementById('btn-pause');
+    function refreshPauseStats() {
+        const cur = Math.round(world.distance * 10);
+        document.getElementById('ps-dist').textContent = cur + 'm';
+        document.getElementById('ps-distance').textContent = cur + 'm';
+        document.getElementById('ps-letters').textContent = world.collectedLetters.size + '/5';
+        document.getElementById('ps-combo').textContent = '×' + (world.combo || 0);
+        const levelNum = cur >= 500 ? 2 : 1;
+        document.getElementById('ps-level').textContent = String(levelNum);
+    }
     function setPaused(p) {
         world.isPaused = p;
         pauseBtn.textContent = p ? '▶' : '‖';
         if (p) {
+            refreshPauseStats();
             pauseOverlay.classList.remove('hidden');
             try { musicLoop.pause(); } catch (_) {}
         } else {
@@ -2138,7 +3117,30 @@
         e.stopPropagation();
         setPaused(!world.isPaused);
     });
-    pauseOverlay.addEventListener('click', () => setPaused(false));
+    document.getElementById('ps-resume').addEventListener('click', (e) => {
+        e.stopPropagation();
+        setPaused(false);
+    });
+    document.getElementById('ps-help').addEventListener('click', (e) => {
+        e.stopPropagation();
+        setPaused(false);
+        openTutorial(false);   // mid-run help — doesn't reset progress
+    });
+    document.getElementById('ps-end').addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Force game-over from inside the pause sheet so the player
+        // can bail out and see their stats / restart loop.
+        world.causeOfDeath = 'PIT';   // generic "ended early"
+        world.gameOver = true;
+        setPaused(false);
+        world.events.push('game-over');
+    });
+    // Keyboard P to toggle pause matches the "RESUME (P)" affordance.
+    window.addEventListener('keydown', (e) => {
+        if ((e.key === 'p' || e.key === 'P') && !world.gameOver) {
+            setPaused(!world.isPaused);
+        }
+    });
     async function toggleFullscreen() {
         const root = document.documentElement;
         try {

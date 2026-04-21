@@ -2,6 +2,15 @@ const Sound = (() => {
   let audioCtx = null;
   let musicTimeoutId = null;
   let musicOscillators = [];
+  let muted = false;
+  // Mute is a hard gate — when true, playTone returns immediately and
+  // startMusic is a no-op. Persistence lives at the caller layer (e.g.
+  // wefty-run.html uses localStorage.wefty_sound_muted).
+  function setMuted(m) {
+    muted = !!m;
+    if (muted) stopMusic();
+  }
+  function isMuted() { return muted; }
 
   function ensureContext() {
     if (audioCtx) {
@@ -22,6 +31,7 @@ const Sound = (() => {
   // 3-overtone synthesis matching Android's SoundManager
   function playTone(freq, durationMs, volume, overtone2, overtone3) {
     return new Promise((resolve) => {
+      if (muted) { resolve(); return; }
       try {
         const ctx = ensureContext();
         if (!ctx) { resolve(); return; }
@@ -174,6 +184,7 @@ const Sound = (() => {
   let currentMusicStyle = null;
 
   function startMusic(style, force) {
+    if (muted) return;
     // Don't restart if already playing the same style
     if (!force && currentMusicStyle === style && musicTimeoutId) return;
     stopMusic();
@@ -224,6 +235,8 @@ const Sound = (() => {
     playGameEnd,
     playTimerWarning,
     startMusic,
-    stopMusic
+    stopMusic,
+    setMuted,
+    isMuted
   };
 })();

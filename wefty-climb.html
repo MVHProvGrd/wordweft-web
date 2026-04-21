@@ -335,23 +335,22 @@
         const lastY = world.ledges.length
             ? world.ledges[world.ledges.length - 1].y
             : START_CAMERA_Y;
-        // Vertical spacing capped at 0.20 so a single jump always
-        // reaches the next ledge up. Lower bound keeps ledges close
-        // enough that misses are short falls, not catastrophic.
-        const newY = lastY - (0.13 + rng() * 0.07);
+        // Vertical gap 0.11-0.16 world units. Max jump height is
+        // v²/(2g) = 1.15²/6.4 ≈ 0.207, so 0.16 leaves a 22% margin —
+        // every jump is comfortably reachable, not pixel-perfect.
+        const newY = lastY - (0.11 + rng() * 0.05);
         spawnLedgeAt(newY);
     }
     function spawnLedgeAt(y) {
         const len = 0.28 + rng() * 0.22;
         const prev = world.ledges[world.ledges.length - 1];
         const prevCenter = prev ? (prev.xStart + prev.xEnd) / 2 : 0.5;
-        // Random-walk bias PLUS a 30% mean-reversion pull toward 0.5.
-        // Without the pull, the random walk drifts to a wall and the
-        // platforms cluster on one side. With it, the chain stays
-        // variable across the full width.
+        // Horizontal reach at full jump is ~0.30 world units. Cap the
+        // bias well inside that so even a wall-hugging chain stays
+        // reachable after the mean-reversion pull is applied.
         const pullToCenter = (0.5 - prevCenter) * 0.30;
         const sign = rng() < 0.5 ? 1 : -1;
-        const bias = sign * (0.12 + rng() * 0.18);
+        const bias = sign * (0.10 + rng() * 0.12);
         let center = prevCenter + bias + pullToCenter;
         const minC = len / 2;
         const maxC = 1 - len / 2;
@@ -920,7 +919,7 @@
             // xStart..xEnd. This keeps the PNG looking like the
             // preview we approved (no horizontal drag).
             const natAspect = sprite.naturalHeight / sprite.naturalWidth;
-            const maxH = h * 0.09;
+            const maxH = h * 0.07;
             const maxW = lw;
             const widthLimitedH = maxW * natAspect;
             let drawW, drawH;
@@ -968,7 +967,7 @@
         }
 
         // Wefty (plain rolling sprite for v1).
-        const wSize = h * 0.10;
+        const wSize = h * 0.08;
         const wx = world.weftyX * w;
         const wy = (world.weftyY - world.cameraY) * h;
         const sprite = world.weftyGrounded ? weftyRoll : weftyFall;
@@ -999,12 +998,15 @@
             if (dist < 2) return;
             const angle = Math.atan2(dy, dx);
             const uDx = dx / dist, uDy = dy / dist;
-            // Sprite size: loop OUTER diameter matches Wefty's sprite
-            // size (h * 0.10). Loop outer is ~78% of sprite width, so
-            // spriteSize ≈ 0.10 / 0.78 ≈ 0.128.
-            const lassoSize = h * 0.13;
-            // Knot sits ~28% below the sprite center in the PNG.
-            const knotOffset = lassoSize * 0.28;
+            // Sprite size: loop OUTER diameter matches Wefty's visible
+            // yarn ball. Wefty sprite has ~30% transparent padding, so
+            // visible body = wSize × 0.70. Loop outer is ~96% of the
+            // lasso PNG width, so lassoSize = (wSize × 0.70) / 0.96
+            // ≈ wSize × 0.73. With wSize = h*0.08 → lassoSize = h*0.06.
+            const lassoSize = h * 0.06;
+            // Knot sits ~13% below sprite center in the PNG (transition
+            // from loop to rope tail at ~row 162 of 256).
+            const knotOffset = lassoSize * 0.13;
             const ropeDist = Math.max(0, dist - knotOffset);
             const ropeThickness = h * 0.008;
             if (ropeDist > 2 && ropeImg.complete && ropeImg.naturalWidth) {
