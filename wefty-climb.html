@@ -1485,16 +1485,22 @@
                            : lb === 'BROWN' ? ledgeBrown : ledgeSnow;
             const sprite = sprites[Math.max(0, Math.min(sprites.length - 1, l.variant))];
             if (!sprite.complete || !sprite.naturalWidth) continue;
-            // Always scale the sprite to match the platform's HITBOX
-            // WIDTH and let natural aspect carry the height. Prior
-            // rule capped drawH at 7% of screen height, which squished
-            // tall (tree-bearing) variants down to miniatures while
-            // non-tree variants stayed full-width. Now every variant
-            // reads at the same deck scale — trees just extend taller
-            // upward above the walkable surface.
+            // Clamp the sprite to a reasonable visual SIZE while
+            // preserving aspect. drawW defaults to the hitbox width;
+            // if that would make the sprite exceed maxH, we scale
+            // down by height instead. maxH=0.10h (was 0.07 — too
+            // tight, shrank pines to miniatures; and no cap made
+            // pine ledges WAY taller than flat ones).
             const natAspect = sprite.naturalHeight / sprite.naturalWidth;
-            const drawW = lw;
-            const drawH = drawW * natAspect;
+            const maxH = h * 0.10;
+            const maxW = lw;
+            const widthLimitedH = maxW * natAspect;
+            let drawW, drawH;
+            if (widthLimitedH <= maxH) {
+                drawW = maxW; drawH = widthLimitedH;
+            } else {
+                drawH = maxH; drawW = drawH / natAspect;
+            }
             const centerX = ((l.xStart + l.xEnd) / 2) * w;
             const drawX = centerX - drawW / 2;
             // Per-(biome, variant) topOffset so the visible SURFACE

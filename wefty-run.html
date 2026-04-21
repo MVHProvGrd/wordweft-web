@@ -1540,17 +1540,26 @@
     // green fallback (prior bug: seed-created platforms had no
     // variant → renderer fell through to fallback for the leading
     // chunk of the run).
-    function buildPlatform(xStart, xEnd, top, crown = 0) {
+    function buildPlatform(xStart, xEnd, topHint, crown = 0) {
         const variant = pickRunIslandVariant();
-        const WATER_Y_WORLD = 0.98;
+        // Waterline Y matches the water-fill top (PLATFORM_Y + 0.10).
+        // Sprite bottom pins here so islands "touch the deck".
+        const WATER_Y_WORLD = PLATFORM_Y + 0.10;
         let spriteTopY, spriteHeight, spriteRenderW;
+        let top = topHint;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
             const aspect = s.h / s.w;
-            const maxRidge = Math.max.apply(null, s.surface);
-            spriteHeight = (WATER_Y_WORLD - top) / Math.max(0.15, 1 - maxRidge);
+            // Natural aspect: width tracks platform hitbox × 1.20 for
+            // decor overhang; height = width × aspect. Bottom pinned to
+            // the waterline.
+            spriteRenderW = Math.max(0.55, (xEnd - xStart) * 1.20);
+            spriteHeight = spriteRenderW * aspect;
             spriteTopY = WATER_Y_WORLD - spriteHeight;
-            spriteRenderW = spriteHeight / aspect;
+            // Derive top from the ridge at platform center so bridges
+            // and fx align with the visible grass Wefty actually stands on.
+            const center = s.surface[Math.floor(s.surface.length / 2)];
+            top = spriteTopY + center * spriteHeight;
         }
         return { xStart, xEnd, top, crown, variant, spriteTopY, spriteHeight, spriteRenderW };
     }
@@ -1601,42 +1610,10 @@
         const crownMax = 0.22 * Math.min(1, len / 1.10);
         const crown = 0.05 + Math.random() * crownMax;
 
-        // Sprite-backed platform (Phase 3). Pick a variant for this
-        // platform; if the surfaces JSON is loaded, compute the
-        // sprite's world-Y + height so platformSurfaceY can interpolate
-        // into the baked ridge. Until the JSON loads, leave the fields
-        // undefined — platformSurfaceY falls back to the sin-crown math.
-        const variant = pickRunIslandVariant();
-        // Sprite sizing & anchor (user-driven redesign):
-        //   • Scale proportionally — sprite height + width pinned to
-        //     natural aspect (no stretching).
-        //   • Anchor sprite BOTTOM at the waterline (no hovering).
-        //   • Target sprite HEIGHT driven by the baked max-ridge fraction
-        //     so Wefty's feet land at p.top regardless of which variant
-        //     got picked.
-        //   • Sprite WIDTH derived from height × aspect. May be narrower
-        //     or wider than the platform hitbox — that's fine; water
-        //     fills horizontal gaps, the hitbox stays xStart..xEnd.
-        const WATER_Y_WORLD = 0.98;   // sprite bottom pinned here
-        let spriteTopY, spriteHeight, spriteRenderW;
-        if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
-            const s = RUN_ISLAND_SURFACES[variant];
-            const aspect = s.h / s.w;    // H/W
-            const maxRidge = Math.max.apply(null, s.surface);
-            // We want: spriteTopY + maxRidge * spriteHeight = p.top (Wefty's feet).
-            // Also: spriteTopY + spriteHeight = WATER_Y_WORLD (bottom pinned).
-            // Solve → spriteHeight = (WATER_Y_WORLD - top) / (1 - maxRidge)
-            spriteHeight = (WATER_Y_WORLD - top) / Math.max(0.15, 1 - maxRidge);
-            spriteTopY = WATER_Y_WORLD - spriteHeight;
-            // Sprite width from aspect, then capped at 1.3× platform
-            // width so very-tall variants (pines) don't grow silly-wide.
-            spriteRenderW = spriteHeight / aspect;
-        }
-
-        const p = {
-            xStart: x, xEnd: x + len, top, crown,
-            variant, spriteTopY, spriteHeight, spriteRenderW,
-        };
+        // Sprite-backed platform via shared buildPlatform helper —
+        // natural aspect, bottom pinned to waterline, `top` recomputed
+        // from the ridge so bridges/fx align with visible grass.
+        const p = buildPlatform(x, x + len, top, crown);
         world.platforms.push(p);
 
         // First-gap wooden bridge: on the first real gap after spawn
@@ -1648,7 +1625,7 @@
             world.firstBridge = {
                 xStart: last.xEnd,
                 xEnd: x,
-                deckY: Math.min(last.top, top) + 0.02,
+                deckY: Math.min(last.top, p.top) + 0.02,
             };
         }
 
