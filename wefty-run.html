@@ -1560,11 +1560,11 @@
     // PLATFORM_Y; the plinth polygon (drawn AFTER the sprite) covers
     // any dirt/shading baked below the grass with solid green down to
     // the waterline — no brown underside visible.
-    // Higher PX_PER_UNIT = smaller islands relative to viewport so
-    // multiple land masses + water gaps fit on screen at once. 3000
-    // puts islands at ~55-60% of viewport width (was ~95%).
-    const PX_PER_UNIT = 3000;
-    const ISLAND_FALLBACK_W = 0.60;
+    // Sprite pixel density — back to 1800. Shrinking islands wasn't
+    // the problem; the problem was the floor-shadow band + plinth
+    // visually "covering" the art. Islands at natural feel again.
+    const PX_PER_UNIT = 1800;
+    const ISLAND_FALLBACK_W = 1.00;
 
     // Build a Platform with variant + sprite world coords attached.
     // Shared between seedPlatforms() and addNextPlatform() so every
@@ -1587,16 +1587,15 @@
         return { xStart, xEnd, top, crown: 0, variant, spriteTopY, spriteHeight, spriteRenderW };
     }
     function seedPlatforms() {
-        // Lay 5 islands back-to-back with variable water gaps. The
-        // first wooden bridge is pre-placed over the first gap so the
-        // player sees it immediately between island 0 and island 1.
-        let x = -0.5;
+        // First island starts at x = -1.2 so Wefty (spawns at world X
+        // ≈ WEFTY_SCREEN_X = 0.25) has a long runway on island 0
+        // before the pre-placed bridge at gap 0->1. Prior bug: with
+        // shorter starting x, Wefty spawned on or near the bridge at
+        // 1m depending on the random variant width.
+        let x = -1.2;
         for (let i = 0; i < 5; i++) {
             const p = buildPlatform(x);
             world.platforms.push(p);
-            // Gaps scale with the smaller islands (PX_PER_UNIT 3000
-            // made sprites ~0.55 wide). 0.22..0.42 gives a nice ratio
-            // of land-to-water across the camera view.
             const gap = 0.22 + Math.random() * 0.20;
             x = p.xEnd + gap;
         }
@@ -3080,10 +3079,43 @@
             bgCtx.stroke();
         }
 
-        // Floor shadow band
-        const bandTop = PLATFORM_Y * h + h * 0.04;
-        bgCtx.fillStyle = 'rgba(26, 22, 48, 0.45)';
-        bgCtx.fillRect(0, bandTop, w, h - bandTop);
+        // Floor shadow band removed — was tinting everything below
+        // the grass line dark and reading as an "ugly brown/indigo
+        // box" under the plinth. Water strip handles the below-
+        // waterline fill now.
+
+        // FULL-WIDTH WATER STRIP — rendered in SCREEN coords (not
+        // world-shifted) so one solid river fills everything below
+        // the waterline. Islands draw on top so their sprite sits on
+        // top of the water; gaps naturally show through as river.
+        const waterY = PLATFORM_Y + 0.10;
+        const wlPx = waterY * h;
+        const waterReady = WATER_BLOCK.complete && WATER_BLOCK.naturalWidth > 0;
+        const waterTick = world.frameTick || 0;
+        bgCtx.fillStyle = '#2C5F9E';
+        bgCtx.fillRect(0, wlPx, w, h - wlPx);
+        if (waterReady) {
+            const tileH = h * 0.33;
+            const tileW = tileH * (WATER_BLOCK.naturalWidth / WATER_BLOCK.naturalHeight);
+            const hOff = -((world.cameraX * 0.25 * w) % tileW);
+            let vOff = (waterTick * WATER_SCROLL_SPEED) % tileH;
+            if (vOff < 0) vOff += tileH;
+            for (let tx = hOff - tileW; tx < w + tileW; tx += tileW) {
+                for (let ty = wlPx - vOff; ty < h; ty += tileH) {
+                    const dY = Math.max(ty, wlPx);
+                    const dEndY = Math.min(ty + tileH, h);
+                    const tileDrawH = dEndY - dY;
+                    if (tileDrawH <= 0) continue;
+                    const srcY = (dY - ty) / tileH * WATER_BLOCK.naturalHeight;
+                    const srcH = (tileDrawH / tileH) * WATER_BLOCK.naturalHeight;
+                    bgCtx.drawImage(
+                        WATER_BLOCK,
+                        0, srcY, WATER_BLOCK.naturalWidth, srcH,
+                        tx, dY, tileW, tileDrawH,
+                    );
+                }
+            }
+        }
 
         // Platforms
         // Build platform paths in WORLD coordinates (multiplied by w/h)
@@ -3093,68 +3125,6 @@
         const camOffsetX = world.cameraX * w;
         bgCtx.save();
         bgCtx.translate(-camOffsetX, 0);
-        // WATER IN GAPS (Phase 5 redo). For each pair of adjacent
-        // platforms, fill the whole gap as a solid body of water
-        // tiled with the water_block sprite. Tile scrolls VERTICALLY
-        // at a slow speed to suggest flowing current; direction is
-        // stable per-gap (pseudo-random from xStart) so adjacent
-        // rivers vary in flow direction. No horizontal camera scroll
-        // — the water stays pinned to its gap.
-        const waterY = PLATFORM_Y + 0.10;
-        const wlPx = waterY * h;
-        const waterReady = WATER_BLOCK.complete && WATER_BLOCK.naturalWidth > 0;
-        const waterTick = world.frameTick || 0;
-        for (let i = 0; i < world.platforms.length - 1; i++) {
-            const p1 = world.platforms[i], p2 = world.platforms[i + 1];
-            const gapStart = p1.xEnd;
-            const gapEnd = p2.xStart;
-            if (gapEnd - gapStart < 0.01) continue;
-            if (gapEnd < world.cameraX - 0.2 || gapStart > world.cameraX + 1.2) continue;
-            const gx1 = gapStart * w;
-            const gx2 = gapEnd * w;
-            // Solid body fill — waterline down to screen bottom
-            bgCtx.fillStyle = '#2C5F9E';
-            bgCtx.fillRect(gx1, wlPx, gx2 - gx1, h - wlPx);
-            if (waterReady) {
-                // Stable per-gap direction + phase offset
-                const seed = Math.floor((gapStart + 100) * 73.3);
-                const dir = (seed & 1) === 0 ? 1 : -1;
-                const phase = Math.abs(seed * 31) % 97 / 97;
-                // Tile size: scale so the tile is ~1/3 of viewport
-                // height — gives noticeable ripple detail without
-                // overwhelming at small canvas sizes.
-                const tileH = h * 0.33;
-                const tileW = tileH * (WATER_BLOCK.naturalWidth / WATER_BLOCK.naturalHeight);
-                // Vertical scroll — frameTick × speed × dir
-                let vOff = (dir * waterTick * WATER_SCROLL_SPEED + phase * tileH) % tileH;
-                if (vOff < 0) vOff += tileH;
-                // Tile horizontally across the gap, vertically from
-                // waterline down to screen bottom.
-                for (let tx = gx1; tx < gx2; tx += tileW) {
-                    const drawX = tx;
-                    const drawEndX = Math.min(tx + tileW, gx2);
-                    const tileDrawW = drawEndX - drawX;
-                    // Vertical strip — top edge at wlPx - vOff (so the
-                    // tile appears to scroll through). Draw multiple
-                    // vertical copies until screen bottom.
-                    for (let ty = wlPx - vOff; ty < h; ty += tileH) {
-                        const drawY = Math.max(ty, wlPx);
-                        const drawEndY = Math.min(ty + tileH, h);
-                        const tileDrawH = drawEndY - drawY;
-                        if (tileDrawH <= 0) continue;
-                        const srcX = 0;
-                        const srcW = (tileDrawW / tileW) * WATER_BLOCK.naturalWidth;
-                        const srcY = (drawY - ty) / tileH * WATER_BLOCK.naturalHeight;
-                        const srcH = (tileDrawH / tileH) * WATER_BLOCK.naturalHeight;
-                        bgCtx.drawImage(
-                            WATER_BLOCK,
-                            srcX, srcY, srcW, srcH,
-                            drawX, drawY, tileDrawW, tileDrawH,
-                        );
-                    }
-                }
-            }
-        }
 
         // FIRST-GAP WOODEN BRIDGE · BG layer (deck + end posts).
         // Sits in the only bridge-marked gap per run so the tutorial
@@ -3193,35 +3163,23 @@
             const ready = bgImg && bgImg.complete && bgImg.naturalWidth > 0
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
-                // NATURAL-aspect render: height scales with `w` too so
-                // landscape viewports don't squish the sprite into a
-                // flat strip. Peak ridge (min surf) anchored at
-                // PLATFORM_Y pixel Y where Wefty walks. Sprite drawn
-                // first, then green plinth polygon follows the ridge
-                // DOWN to the waterline — covers baked dirt/shading,
-                // preserves decor above the ridge.
+                // NATURAL-aspect sprite render. No plinth polygon
+                // anymore — it painted a solid green rectangle under
+                // the ridge that visually "covered the island". The
+                // sprite's own baked bottom (dirt / shading) gives
+                // the island its organic shape; water underneath
+                // (full-width strip rendered below) hides any sprite
+                // bits that extend past the waterline.
                 const surf = RUN_ISLAND_SURFACES[p.variant].surface;
                 let minRidge = surf[0];
                 for (const v of surf) if (v < minRidge) minRidge = v;
                 const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
-                const drawH = p.spriteHeight * w;   // use w, not h
+                const drawH = p.spriteHeight * w;
                 const centerX = ((p.xStart + p.xEnd) / 2) * w;
                 const drawX = centerX - drawW / 2;
                 const peakPx = PLATFORM_Y * h;
                 const drawY = peakPx - minRidge * drawH;
-                const waterPx = (PLATFORM_Y + 0.10) * h;
                 bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
-                bgCtx.beginPath();
-                bgCtx.moveTo(drawX, waterPx);
-                for (let i = 0; i < surf.length; i++) {
-                    const cx = drawX + (i / (surf.length - 1)) * drawW;
-                    const cy = drawY + surf[i] * drawH;
-                    bgCtx.lineTo(cx, cy);
-                }
-                bgCtx.lineTo(drawX + drawW, waterPx);
-                bgCtx.closePath();
-                bgCtx.fillStyle = isStorm ? '#3A5A30' : '#4FAE63';
-                bgCtx.fill();
             } else {
                 // Loading fallback — simple grass-green path with sin crown
                 bgCtx.beginPath();
