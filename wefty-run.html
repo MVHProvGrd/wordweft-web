@@ -1560,8 +1560,11 @@
     // PLATFORM_Y; the plinth polygon (drawn AFTER the sprite) covers
     // any dirt/shading baked below the grass with solid green down to
     // the waterline — no brown underside visible.
-    const PX_PER_UNIT = 1800;
-    const ISLAND_FALLBACK_W = 1.00;
+    // Higher PX_PER_UNIT = smaller islands relative to viewport so
+    // multiple land masses + water gaps fit on screen at once. 3000
+    // puts islands at ~55-60% of viewport width (was ~95%).
+    const PX_PER_UNIT = 3000;
+    const ISLAND_FALLBACK_W = 0.60;
 
     // Build a Platform with variant + sprite world coords attached.
     // Shared between seedPlatforms() and addNextPlatform() so every
@@ -1591,9 +1594,10 @@
         for (let i = 0; i < 5; i++) {
             const p = buildPlatform(x);
             world.platforms.push(p);
-            // Wider water gap (0.35..0.65) so islands read as distinct
-            // land masses with clear water between, not one long strip.
-            const gap = 0.35 + Math.random() * 0.30;
+            // Gaps scale with the smaller islands (PX_PER_UNIT 3000
+            // made sprites ~0.55 wide). 0.22..0.42 gives a nice ratio
+            // of land-to-water across the camera view.
+            const gap = 0.22 + Math.random() * 0.20;
             x = p.xEnd + gap;
         }
         if (world.platforms.length >= 2) {
@@ -1621,10 +1625,9 @@
     function addNextPlatform() {
         const last = world.platforms[world.platforms.length - 1];
         const difficulty = Math.min(world.distance / 8, 1.5);
-        const stormFloor = world.distance >= 30 ? 0.05 : 0;
-        // Wider gaps so islands read as distinct land — min 0.35.
-        const gapMin = 0.35 + 0.10 * difficulty + stormFloor;
-        const gapMax = Math.max(0.50 + 0.25 * difficulty, gapMin + 0.05);
+        const stormFloor = world.distance >= 30 ? 0.03 : 0;
+        const gapMin = 0.22 + 0.08 * difficulty + stormFloor;
+        const gapMax = Math.max(0.35 + 0.18 * difficulty, gapMin + 0.05);
         const gap = Math.random() * (gapMax - gapMin) + gapMin;
         const x = last.xEnd + gap;
 
@@ -2422,12 +2425,23 @@
     const fgCtx = fg.getContext('2d');
 
     function fit() {
+        // Letterbox canvas at a 2:1 max aspect so ultra-wide desktop
+        // browsers don't stretch sprites to full window width (1 world
+        // unit == canvas width). Phones sit under the cap and fill
+        // normally; desktop gets centered canvas with dark margins.
+        // Mirrors the fit() pattern used in Wefty Climb.
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const h = window.innerHeight;
+        const maxW = Math.round(h * 2.0);
+        const gameW = Math.min(window.innerWidth, maxW);
+        const offsetX = Math.round((window.innerWidth - gameW) / 2);
         for (const c of [bg, fg]) {
-            c.width = Math.round(window.innerWidth * dpr);
-            c.height = Math.round(window.innerHeight * dpr);
-            c.style.width = window.innerWidth + 'px';
-            c.style.height = window.innerHeight + 'px';
+            c.width = Math.round(gameW * dpr);
+            c.height = Math.round(h * dpr);
+            c.style.width = gameW + 'px';
+            c.style.height = h + 'px';
+            c.style.left = offsetX + 'px';
+            c.style.right = 'auto';
             c.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
         }
     }
@@ -2566,7 +2580,12 @@
     let currentStroke = null; // screen-space pts
 
     function pxToWorld(px, py) {
-        return [world.cameraX + px / window.innerWidth, py / window.innerHeight];
+        // Canvas is letterboxed on wide screens — use its client size
+        // (plus offsetX) so stroke coords map into the game world.
+        const cw = bg.clientWidth || window.innerWidth;
+        const ch = bg.clientHeight || window.innerHeight;
+        const offX = parseFloat(bg.style.left) || 0;
+        return [world.cameraX + (px - offX) / cw, py / ch];
     }
     function pointFromEvent(e) {
         if (e.touches && e.touches[0]) return [e.touches[0].clientX, e.touches[0].clientY];
@@ -2967,8 +2986,11 @@
         updatePreRunCountdown();
         tickMidRunToasts();
         tickStormVfx();
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+        // Canvas dims (post-letterbox on wide screens). 1 world unit
+        // == canvas width. Read from the bg canvas's client size so
+        // the render matches whatever fit() sized it to.
+        const w = bg.clientWidth || window.innerWidth;
+        const h = bg.clientHeight || window.innerHeight;
         // Storm VFX run from 300m to 750m (Wave 3 · Part I). Past 750m
         // the L3 unlock fires and the world transitions SLOWLY to the
         // woodland biome — calm sky, green parallax forest — matching
@@ -3242,23 +3264,16 @@
                 // Anchor the sprite's grass line (~38% from its top)
                 // to fpy so Wefty stands on the visible grass.
                 const spriteTop = fpy - sh * 0.38;
-                // Gold halo behind the sprite
-                bgCtx.fillStyle = 'rgba(251, 191, 36, 0.22)';
-                bgCtx.beginPath();
-                if (bgCtx.roundRect) bgCtx.roundRect(fpx - 6, spriteTop - 4, fpw + 12, sh + 8, sh * 0.25);
-                else bgCtx.rect(fpx - 6, spriteTop - 4, fpw + 12, sh + 8);
-                bgCtx.fill();
+                // Halo removed — read as a yellow box behind the ledge,
+                // not as a reward indicator. Consider a pickup sparkle
+                // tied to the ledge's reward instead.
                 bgCtx.drawImage(sprite, fpx, spriteTop, fpw, sh);
             } else {
                 // Fallback cushion (sprite not yet loaded): soft halo +
                 // solid biome fill + grass-stroke top edge. Matches the
                 // pre-Wave-5 look.
                 const fph = h * 0.035;
-                bgCtx.fillStyle = 'rgba(251, 191, 36, 0.22)';
-                bgCtx.beginPath();
-                if (bgCtx.roundRect) bgCtx.roundRect(fpx - 6, fpy - 8, fpw + 12, fph + 16, fph);
-                else bgCtx.rect(fpx - 6, fpy - 8, fpw + 12, fph + 16);
-                bgCtx.fill();
+                // (halo removed — looked like a yellow box.)
                 bgCtx.fillStyle = isStorm ? 'rgba(127, 29, 29, 0.55)' : 'rgba(47, 107, 58, 0.55)';
                 bgCtx.beginPath();
                 if (bgCtx.roundRect) bgCtx.roundRect(fpx, fpy, fpw, fph, fph / 2);
