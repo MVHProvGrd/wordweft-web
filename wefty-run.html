@@ -1551,19 +1551,16 @@
     // seedPlatforms → buildPlatform) doesn't TDZ on the `let`.
     let RUN_ISLAND_SURFACES = null;
 
-    // Islands render at a FIXED PIXEL DENSITY (sprite.w / PX_PER_UNIT
-    // world units wide, sprite.h / PX_PER_UNIT tall) so the flowers,
-    // mushrooms, and trees baked into every sprite read at the same
-    // physical size on screen regardless of which variant is shown.
-    // Some sprites are therefore longer, some shorter, some taller —
-    // natural silhouette variance. Ridge peak anchors Wefty's feet at
-    // PLATFORM_Y; the plinth polygon (drawn AFTER the sprite) covers
-    // any dirt/shading baked below the grass with solid green down to
-    // the waterline — no brown underside visible.
-    // Sprite pixel density — back to 1800. Shrinking islands wasn't
-    // the problem; the problem was the floor-shadow band + plinth
-    // visually "covering" the art. Islands at natural feel again.
-    const PX_PER_UNIT = 1800;
+    // Every island renders at a FIXED WORLD HEIGHT — width follows
+    // sprite aspect. This keeps trees (the dominant visual decor
+    // element) at a consistent on-screen size across variants so
+    // adjacent islands feel proportional to each other. Flowers
+    // will vary a bit (the artist drew them at inconsistent %-of-
+    // canvas sizes across sprites) — accepted trade-off: regen
+    // later if needed. Canvas height range: 310-576 px, tree height
+    // range: 34-50% of canvas, so tree on-screen spread collapses
+    // from 2.3x (flower-anchor) down to ~1.5x.
+    const ISLAND_WORLD_H = 0.30;   // world units — ~30% of viewport height
     const ISLAND_FALLBACK_W = 1.00;
 
     // Build a Platform with variant + sprite world coords attached.
@@ -1575,8 +1572,8 @@
         let spriteTopY, spriteHeight, spriteRenderW, xEnd;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
-            spriteRenderW = s.w / PX_PER_UNIT;
-            spriteHeight  = s.h / PX_PER_UNIT;
+            spriteHeight  = ISLAND_WORLD_H;
+            spriteRenderW = ISLAND_WORLD_H * (s.w / s.h);
             let minRidge = s.surface[0];
             for (const v of s.surface) if (v < minRidge) minRidge = v;
             spriteTopY = top - minRidge * spriteHeight;
@@ -3095,25 +3092,18 @@
         bgCtx.fillStyle = '#2C5F9E';
         bgCtx.fillRect(0, wlPx, w, h - wlPx);
         if (waterReady) {
-            const tileH = h * 0.33;
-            const tileW = tileH * (WATER_BLOCK.naturalWidth / WATER_BLOCK.naturalHeight);
-            const hOff = -((world.cameraX * 0.25 * w) % tileW);
-            let vOff = (waterTick * WATER_SCROLL_SPEED) % tileH;
-            if (vOff < 0) vOff += tileH;
-            for (let tx = hOff - tileW; tx < w + tileW; tx += tileW) {
-                for (let ty = wlPx - vOff; ty < h; ty += tileH) {
-                    const dY = Math.max(ty, wlPx);
-                    const dEndY = Math.min(ty + tileH, h);
-                    const tileDrawH = dEndY - dY;
-                    if (tileDrawH <= 0) continue;
-                    const srcY = (dY - ty) / tileH * WATER_BLOCK.naturalHeight;
-                    const srcH = (tileDrawH / tileH) * WATER_BLOCK.naturalHeight;
-                    bgCtx.drawImage(
-                        WATER_BLOCK,
-                        0, srcY, WATER_BLOCK.naturalWidth, srcH,
-                        tx, dY, tileW, tileDrawH,
-                    );
-                }
+            // Wide tile (2048x512, 4:1). Waves on top ~40%, deep
+            // water below. Draw ONE tile-height spanning waterline
+            // to screen bottom (tile stretched vertically), tiled
+            // horizontally only, scrolling left with camera. Single
+            // wide tile covers the biggest possible water gap with
+            // zero seams per frame.
+            const tileDrawH = h - wlPx;
+            const tileW = tileDrawH * (WATER_BLOCK.naturalWidth / WATER_BLOCK.naturalHeight);
+            let hOff = -((world.cameraX * 0.25 * w) % tileW);
+            if (hOff > 0) hOff -= tileW;
+            for (let tx = hOff; tx < w + tileW; tx += tileW) {
+                bgCtx.drawImage(WATER_BLOCK, tx, wlPx, tileW, tileDrawH);
             }
         }
 
