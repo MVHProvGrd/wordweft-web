@@ -447,23 +447,27 @@
        inside the circle (not under it). Lasso's cooldown is a pie-
        slice mask overlay — not an opacity dim. */
     .action-btn {
+        /* Both buttons same size and larger (76px) for easier thumb
+           hit-boxes on mobile. */
         position: absolute;
         bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-        width: 60px; height: 60px;
+        width: 76px; height: 76px;
         border-radius: 50%;
         border: 2px solid;
         padding: 0;
         cursor: pointer;
         z-index: 6;
         touch-action: manipulation;
-        font: 800 10px/1 "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
+        font: 800 12px/1 "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
         letter-spacing: 1px;
         display: inline-flex; align-items: center; justify-content: center;
         overflow: hidden;
     }
     .action-btn:active { transform: scale(0.94); }
     .lasso-btn {
-        right: 92px;
+        /* Left side for two-thumb play on mobile: left thumb lassos,
+           right thumb jumps. Dock is moved up so it doesn't collide. */
+        left: 20px;
         background: #e8b34c;
         border-color: #b8862a;
         color: #2a1b22;
@@ -474,7 +478,7 @@
         background: #8fd19e;
         border-color: #4e8a5e;
         color: #1a3a22;
-        font-size: 13px;
+        font-size: 15px;
         filter: drop-shadow(0 3px 0 #36684a);
     }
     /* Pie-slice cooldown overlay — conic-gradient sweeps from the
@@ -501,26 +505,33 @@
        colored-chip buttons for a unified dark dock. */
     .dock {
         position: absolute;
-        left: 16px;
+        /* Centered bottom — Lasso now occupies bottom-left, Jump
+           bottom-right, dock sits between them. */
+        left: 50%;
+        transform: translateX(-50%);
         bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         display: flex;
         gap: 6px;
         z-index: 6;
     }
     .dock-slot {
+        /* Nearly transparent — the dock sits over the island body
+           and previously read as dark "brown/green boxes" covering
+           the art. Just the icon + count badge float now; the tile
+           is a faint dimming for stocked slots, nothing for empty. */
         position: relative;
         width: 64px; height: 64px;
         border-radius: 14px;
-        background: rgba(26,14,20,0.55);
-        border: 1px solid rgba(251,243,231,0.22);
+        background: rgba(26,14,20,0.20);
+        border: 1px solid rgba(251,243,231,0.14);
         cursor: pointer;
         touch-action: manipulation;
         overflow: visible;
         transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
     .dock-slot.empty {
-        background: rgba(26,14,20,0.35);
-        border-color: rgba(251,243,231,0.10);
+        background: transparent;
+        border-color: transparent;
         cursor: default;
     }
     .dock-slot.active {
@@ -1540,46 +1551,59 @@
     // seedPlatforms → buildPlatform) doesn't TDZ on the `let`.
     let RUN_ISLAND_SURFACES = null;
 
+    // Islands render at a FIXED PIXEL DENSITY (sprite.w / PX_PER_UNIT
+    // world units wide, sprite.h / PX_PER_UNIT tall) so the flowers,
+    // mushrooms, and trees baked into every sprite read at the same
+    // physical size on screen regardless of which variant is shown.
+    // Some sprites are therefore longer, some shorter, some taller —
+    // natural silhouette variance. Ridge peak anchors Wefty's feet at
+    // PLATFORM_Y; the plinth polygon (drawn AFTER the sprite) covers
+    // any dirt/shading baked below the grass with solid green down to
+    // the waterline — no brown underside visible.
+    const PX_PER_UNIT = 1800;
+    const ISLAND_FALLBACK_W = 1.00;
+
     // Build a Platform with variant + sprite world coords attached.
-    // Shared between seedPlatforms() and addNextPlatform() so the
-    // initial buffer renders with real island sprites instead of the
-    // green fallback (prior bug: seed-created platforms had no
-    // variant → renderer fell through to fallback for the leading
-    // chunk of the run).
-    function buildPlatform(xStart, xEnd, topHint, crown = 0) {
+    // Shared between seedPlatforms() and addNextPlatform() so every
+    // platform in world.platforms has consistent sprite placement.
+    function buildPlatform(xStart) {
         const variant = pickRunIslandVariant();
-        // Sprite width = platform hitbox (no horizontal overhang into
-        // adjacent water gaps). Height follows natural aspect. Sprite
-        // is anchored so the peak of the baked ridge (the highest
-        // grass point) lands at topHint — Wefty walks on that peak.
-        // Wherever the sprite's natural bottom edge lands, the
-        // renderer backfills a matching-green rect down to the
-        // waterline so the island visibly touches the deck. `top`
-        // stays at the caller's topHint so bridges/fx align with
-        // Wefty's actual walking Y instead of shifting per variant.
-        let spriteTopY, spriteHeight, spriteRenderW;
-        const top = topHint;
+        const top = PLATFORM_Y;
+        let spriteTopY, spriteHeight, spriteRenderW, xEnd;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
-            const aspect = s.h / s.w;
-            spriteRenderW = xEnd - xStart;
-            spriteHeight = spriteRenderW * aspect;
+            spriteRenderW = s.w / PX_PER_UNIT;
+            spriteHeight  = s.h / PX_PER_UNIT;
             let minRidge = s.surface[0];
             for (const v of s.surface) if (v < minRidge) minRidge = v;
-            spriteTopY = topHint - minRidge * spriteHeight;
+            spriteTopY = top - minRidge * spriteHeight;
+            xEnd = xStart + spriteRenderW;
+        } else {
+            xEnd = xStart + ISLAND_FALLBACK_W;
         }
-        return { xStart, xEnd, top, crown, variant, spriteTopY, spriteHeight, spriteRenderW };
+        return { xStart, xEnd, top, crown: 0, variant, spriteTopY, spriteHeight, spriteRenderW };
     }
     function seedPlatforms() {
-        // Short flat runway so height variance starts kicking in quickly.
-        world.platforms.push(buildPlatform(-0.5, 1.4, PLATFORM_Y));
-        let x = 1.4;
-        for (let i = 0; i < 3; i++) {
-            const gap = Math.random() * 0.12 + 0.12;
-            x += gap;
-            const len = Math.random() * 0.5 + 0.55;
-            world.platforms.push(buildPlatform(x, x + len, PLATFORM_Y));
-            x += len;
+        // Lay 5 islands back-to-back with variable water gaps. The
+        // first wooden bridge is pre-placed over the first gap so the
+        // player sees it immediately between island 0 and island 1.
+        let x = -0.5;
+        for (let i = 0; i < 5; i++) {
+            const p = buildPlatform(x);
+            world.platforms.push(p);
+            // Wider water gap (0.35..0.65) so islands read as distinct
+            // land masses with clear water between, not one long strip.
+            const gap = 0.35 + Math.random() * 0.30;
+            x = p.xEnd + gap;
+        }
+        if (world.platforms.length >= 2) {
+            const p0 = world.platforms[0];
+            const p1 = world.platforms[1];
+            world.firstBridge = {
+                xStart: p0.xEnd,
+                xEnd: p1.xStart,
+                deckY: PLATFORM_Y + 0.02,
+            };
         }
     }
     seedPlatforms();
@@ -1597,46 +1621,19 @@
     function addNextPlatform() {
         const last = world.platforms[world.platforms.length - 1];
         const difficulty = Math.min(world.distance / 8, 1.5);
-        // Raised floor so gaps start in "needs a bridge OR a jump"
-        // territory, and the widest (~0.50) force a bridge + jump
-        // combo. Storm biome nudges the floor further.
         const stormFloor = world.distance >= 30 ? 0.05 : 0;
-        const gapMin = 0.22 + 0.08 * difficulty + stormFloor;
-        const gapMax = Math.max(0.30 + 0.20 * difficulty, gapMin + 0.02);
+        // Wider gaps so islands read as distinct land — min 0.35.
+        const gapMin = 0.35 + 0.10 * difficulty + stormFloor;
+        const gapMax = Math.max(0.50 + 0.25 * difficulty, gapMin + 0.05);
         const gap = Math.random() * (gapMax - gapMin) + gapMin;
         const x = last.xEnd + gap;
-        const len = Math.random() * 0.75 + 0.35;
 
-        // Wider height swing so the terrain actually reads as rolling
-        // hills rather than near-flat with a nudge.
-        const sampled = PLATFORM_Y + (Math.random() * 0.54 - 0.32);
-        const blended = last.top + (sampled - last.top) * 0.70;
-        const top = Math.max(PLATFORM_Y - 0.36, Math.min(PLATFORM_Y + 0.24, blended));
-
-        // Taller crown — up to 0.22 units so hills read as hills.
-        const crownMax = 0.22 * Math.min(1, len / 1.10);
-        const crown = 0.05 + Math.random() * crownMax;
-
-        // Sprite-backed platform via shared buildPlatform helper —
-        // natural aspect, bottom pinned to waterline, `top` recomputed
-        // from the ridge so bridges/fx align with visible grass.
-        const p = buildPlatform(x, x + len, top, crown);
+        const p = buildPlatform(x);
         world.platforms.push(p);
 
-        // First-gap wooden bridge: on the first real gap after spawn
-        // (last.xEnd < p.xStart), drop a pre-placed wooden bridge so
-        // the player sees what a bridge looks like before they need
-        // to draw one. The scripted tutorial demo uses the same
-        // world.platforms chain, so this shows up there too.
-        if (!world.firstBridge && last.xEnd < x) {
-            world.firstBridge = {
-                xStart: last.xEnd,
-                xEnd: x,
-                deckY: Math.min(last.top, p.top) + 0.02,
-            };
-        }
-
         // Scissors — storm biome bumps base rate + cap.
+        const len = p.xEnd - p.xStart;
+        const top = p.top;
         const biome = currentBiome();
         const since = x - world.lastHazardAtX;
         const stormBoost = biome === 'STORM' ? 0.25 : 0;
@@ -2512,7 +2509,18 @@
     // TDZ.
     fetch('run_island_surfaces.json')
         .then(r => r.ok ? r.json() : null)
-        .then(data => { RUN_ISLAND_SURFACES = data; })
+        .then(data => {
+            RUN_ISLAND_SURFACES = data;
+            // If we seeded with the fallback width (before the JSON
+            // arrived) and the run hasn't meaningfully advanced yet,
+            // rebuild the initial buffer so the opening platforms use
+            // real per-variant sprite aspects.
+            if (data && world.cameraX < 1.0 && world.platforms.length <= 8) {
+                world.platforms.length = 0;
+                world.firstBridge = null;
+                seedPlatforms();
+            }
+        })
         .catch(() => { /* offline — legacy collision keeps running */ });
 
     // Solid water block tile (Phase 5 redo). One vertically +
@@ -3163,21 +3171,24 @@
             const ready = bgImg && bgImg.complete && bgImg.naturalWidth > 0
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
-                // Proportional render — natural aspect, no stretching.
-                // Sprite width = platform hitbox. Ridge peak anchors
-                // Wefty's feet. Under the sprite, draw a ridge-shaped
-                // green plinth that traces the baked grass silhouette
-                // from the peak down to the waterline. Sprite renders
-                // on top, so the visible result is: sprite grass detail
-                // up top, smooth green extending the grass body down to
-                // the water — no flat-bench seam.
+                // NATURAL-aspect render: height scales with `w` too so
+                // landscape viewports don't squish the sprite into a
+                // flat strip. Peak ridge (min surf) anchored at
+                // PLATFORM_Y pixel Y where Wefty walks. Sprite drawn
+                // first, then green plinth polygon follows the ridge
+                // DOWN to the waterline — covers baked dirt/shading,
+                // preserves decor above the ridge.
+                const surf = RUN_ISLAND_SURFACES[p.variant].surface;
+                let minRidge = surf[0];
+                for (const v of surf) if (v < minRidge) minRidge = v;
                 const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
-                const drawH = p.spriteHeight * h;
+                const drawH = p.spriteHeight * w;   // use w, not h
                 const centerX = ((p.xStart + p.xEnd) / 2) * w;
                 const drawX = centerX - drawW / 2;
-                const drawY = p.spriteTopY * h;
+                const peakPx = PLATFORM_Y * h;
+                const drawY = peakPx - minRidge * drawH;
                 const waterPx = (PLATFORM_Y + 0.10) * h;
-                const surf = RUN_ISLAND_SURFACES[p.variant].surface;
+                bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
                 bgCtx.beginPath();
                 bgCtx.moveTo(drawX, waterPx);
                 for (let i = 0; i < surf.length; i++) {
@@ -3189,7 +3200,6 @@
                 bgCtx.closePath();
                 bgCtx.fillStyle = isStorm ? '#3A5A30' : '#4FAE63';
                 bgCtx.fill();
-                bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
             } else {
                 // Loading fallback — simple grass-green path with sin crown
                 bgCtx.beginPath();
@@ -3545,31 +3555,62 @@
         // FRONT of trunks but BEHIND canopies.
         fgCtx.save();
         fgCtx.translate(-world.cameraX * w, 0);
-        // First-gap wooden bridge · FG layer (yarn rope rail) — draws
-        // IN FRONT of Wefty so the rope visually occludes her as she
-        // rolls across.
-        if (world.firstBridge && FIRST_BRIDGE_FG.complete && FIRST_BRIDGE_FG.naturalWidth > 0) {
-            const fb = world.firstBridge;
-            if (fb.xEnd >= world.cameraX - 0.3 && fb.xStart <= world.cameraX + 1.3) {
-                const bx = fb.xStart * w;
-                const bw = (fb.xEnd - fb.xStart) * w;
-                const aspect = FIRST_BRIDGE_FG.naturalHeight / FIRST_BRIDGE_FG.naturalWidth;
-                const bh = bw * aspect;
-                const by = fb.deckY * h - bh * 0.60;
-                fgCtx.drawImage(FIRST_BRIDGE_FG, bx, by, bw, bh);
-            }
-        }
+        // First-gap wooden bridge · FG layer intentionally dropped —
+        // the current sprite asset has the full bridge (planks +
+        // posts + rope) baked into BOTH the BG and the FG files, so
+        // drawing FG over BG rendered as "two overlapping bridges"
+        // with Wefty sandwiched behind the second. Rendering only the
+        // BG (before Wefty) makes Wefty walk on a single wooden deck.
+        // Future: regenerate FG as rope-railing only and re-enable.
         for (const p of world.platforms) {
             if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
             const fgImg = p.variant ? RUN_ISLAND_FG[p.variant] : null;
             if (!fgImg || !fgImg.complete || !fgImg.naturalWidth) continue;
             if (p.spriteTopY === undefined) continue;
+            const surfFg = RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[p.variant]
+                ? RUN_ISLAND_SURFACES[p.variant].surface : null;
+            let minRidgeFg = 0;
+            if (surfFg) {
+                minRidgeFg = surfFg[0];
+                for (const v of surfFg) if (v < minRidgeFg) minRidgeFg = v;
+            }
             const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
-            const drawH = p.spriteHeight * h;
+            const drawH = p.spriteHeight * w;   // use w for natural aspect
             const centerX = ((p.xStart + p.xEnd) / 2) * w;
             const drawX = centerX - drawW / 2;
-            const drawY = p.spriteTopY * h;
+            const drawY = PLATFORM_Y * h - minRidgeFg * drawH;
             fgCtx.drawImage(fgImg, drawX, drawY, drawW, drawH);
+        }
+        // First-gap wooden bridge · synthesized yarn-rope rails drawn
+        // AFTER Wefty so she reads as walking UNDER the rope. Two
+        // gently-dipping ropes (upper + middle) spanning post-to-post.
+        // Using code instead of the FG sprite because the PNG has the
+        // full bridge baked in — we only want the ROPE on top of Wefty.
+        if (world.firstBridge) {
+            const fb = world.firstBridge;
+            if (fb.xEnd >= world.cameraX - 0.3 && fb.xStart <= world.cameraX + 1.3) {
+                const bx1 = fb.xStart * w;
+                const bx2 = fb.xEnd * w;
+                const deckPx = fb.deckY * h;
+                const span = bx2 - bx1;
+                const postTop = deckPx - span * 0.42;
+                const mid = (bx1 + bx2) / 2;
+                const strokeW = Math.max(3, h * 0.01);
+                fgCtx.lineCap = 'round';
+                const drawRope = (y0, dip) => {
+                    fgCtx.beginPath();
+                    fgCtx.moveTo(bx1 + span * 0.05, y0);
+                    fgCtx.quadraticCurveTo(mid, y0 + dip, bx2 - span * 0.05, y0);
+                    fgCtx.lineWidth = strokeW + 2;
+                    fgCtx.strokeStyle = '#B38C5A';
+                    fgCtx.stroke();
+                    fgCtx.lineWidth = strokeW;
+                    fgCtx.strokeStyle = '#E4C89A';
+                    fgCtx.stroke();
+                };
+                drawRope(postTop, span * 0.05);
+                drawRope((postTop + deckPx) / 2, span * 0.03);
+            }
         }
         fgCtx.restore();
 
@@ -3865,12 +3906,19 @@
             }
         }
         // Draw a bridge across the next gap as soon as it comes into
-        // view, but only if we haven't already covered it.
+        // view, but only if we haven't already covered it. Skip the
+        // pre-placed wooden bridge gap so we don't stack a yarn bridge
+        // on top of it.
         for (let i = 0; i < world.platforms.length - 1; i++) {
             const p1 = world.platforms[i];
             const p2 = world.platforms[i + 1];
             if (p2.xStart < wx) continue;               // already passed
             if (p1.xEnd > wx + 0.9) break;              // too far ahead
+            if (world.firstBridge &&
+                p1.xEnd >= world.firstBridge.xStart - 0.005 &&
+                p2.xStart <= world.firstBridge.xEnd + 0.005) {
+                continue;
+            }
             const covered = world.bridges.some(b =>
                 b.pts.some(([bx]) => bx >= p1.xEnd - 0.02 && bx <= p2.xStart + 0.02)
             );

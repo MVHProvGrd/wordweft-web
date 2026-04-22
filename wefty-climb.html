@@ -363,21 +363,25 @@
     /* Match Wefty Run's bottom-right action buttons (lasso + jump):
        same silhouette, borders, drop shadows, palette. */
     .jump-btn, .lasso-btn {
+        /* Both buttons are the SAME size and larger (76px) so each
+           thumb has a forgiving hit box on mobile. */
         position: absolute;
         bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-        width: 60px; height: 60px;
+        width: 76px; height: 76px;
         border-radius: 50%;
         border: 2px solid;
         padding: 0;
         cursor: pointer;
         z-index: 6;
         touch-action: manipulation;
-        font: 800 10px/1 "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
+        font: 800 12px/1 "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
         letter-spacing: 1px;
         display: inline-flex; align-items: center; justify-content: center;
     }
     .lasso-btn {
-        right: 92px;
+        /* Bottom-LEFT on Climb too (parity with Run) so two thumbs
+           can play: left thumb lassos, right thumb jumps. */
+        left: 20px;
         background: #e8b34c;
         border-color: #b8862a;
         color: #2a1b22;
@@ -501,10 +505,8 @@
     <span class="tb-spacer"></span>
     <div class="tb-hearts" id="tb-hearts"></div>
     <span class="tb-spacer"></span>
-    <div class="tb-biome">
-        <span class="tb-biome-dot green" id="tb-biome-dot"></span>
-        <span class="tb-biome-label" id="tb-biome-label">GREEN</span>
-    </div>
+    <!-- Biome chip removed — already shown in the subtitle under the
+         title, and it was clipping into the tile row on narrow phones. -->
     <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
     <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
     <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
@@ -589,11 +591,8 @@
     <canvas id="bg"></canvas>
     <canvas id="fg"></canvas>
 
-    <div class="dpad">
-        <button id="btn-left" aria-label="left">◀</button>
-        <button id="btn-down" aria-label="drop">▼</button>
-        <button id="btn-right" aria-label="right">▶</button>
-    </div>
+    <!-- D-pad / drop-through removed: tilt steers, jumping down never
+         helps. Only Lasso (left) + Jump (right) remain. -->
     <button id="btn-tilt" class="tilt-prompt hidden">Tap to enable tilt</button>
     <button id="btn-lasso" class="lasso-btn">LASSO</button>
     <button id="btn-jump"  class="jump-btn">JUMP</button>
@@ -946,15 +945,9 @@
         btn.addEventListener('mouseleave', end);
     }
     document.addEventListener('DOMContentLoaded', () => {
-        bindHold(document.getElementById('btn-left'),
-            () => { world.horizontalInput = -1; },
-            () => { if (world.horizontalInput === -1) world.horizontalInput = 0; });
-        bindHold(document.getElementById('btn-right'),
-            () => { world.horizontalInput = 1; },
-            () => { if (world.horizontalInput === 1) world.horizontalInput = 0; });
-        document.getElementById('btn-down').addEventListener('click', (e) => {
-            e.preventDefault(); dropThrough();
-        });
+        // D-pad / drop-through touch buttons removed from the DOM —
+        // mobile uses the accelerometer (tilt), desktop uses the
+        // keyboard arrow keys / WASD. Nothing to bind here.
         document.getElementById('btn-jump').addEventListener('click', (e) => {
             e.preventDefault(); jump();
         });
@@ -1112,8 +1105,6 @@
         // on a near-level hold. iOS requires a user-gesture permission
         // grant; Android fires events freely. If no tilt events arrive
         // within 2 seconds, keep the D-pad visible as a fallback.
-        const btnLeft = document.getElementById('btn-left');
-        const btnRight = document.getElementById('btn-right');
         const tiltBtn = document.getElementById('btn-tilt');
         let tiltActive = false;
 
@@ -1121,13 +1112,13 @@
             if (e.gamma == null) return;
             if (!tiltActive) {
                 tiltActive = true;
-                btnLeft.classList.add('hidden');
-                btnRight.classList.add('hidden');
                 tiltBtn.classList.add('hidden');
             }
             const deg = e.gamma;
             const dead = 3;
-            const maxTilt = 22;  // full deflection at 22° of roll
+            // 2x responsiveness: ~11° of device roll hits full input
+            // (was 22°). User wants tilt to feel snappier.
+            const maxTilt = 11;
             let centered = 0;
             if (deg > dead) centered = deg - dead;
             else if (deg < -dead) centered = deg + dead;
