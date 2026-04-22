@@ -2497,20 +2497,18 @@
         storm: [loadImg('run_ledge_storm_v0.png')],
     };
     // Main-ground island sprites (Phase 3 · replaces the legacy path+
-    // gradient render for world.platforms). Each variant has a BG
-    // layer (grass body + tree trunks) and a FG layer (grass tufts,
-    // mushrooms, flowers, tree canopies). BG renders behind Wefty,
-    // FG renders after her for parallax depth.
+    // gradient render for world.platforms). Single flat PNG per
+    // variant; the bg/fg split was dropped 2026-04-22 because the
+    // split art looked wrong. Islands now render as one sprite behind
+    // Wefty; no parallax-over-player effect.
     const RUN_ISLAND_VARIANTS = [
         'v0','v1','v2','v3','v4','v5','v6','v7','v8','v9',
         'storm_v0','storm_v1','storm_v2','storm_v3','storm_v4',
         'storm_v5','storm_v6','storm_v7','storm_v8','storm_v9',
     ];
-    const RUN_ISLAND_BG = {};
-    const RUN_ISLAND_FG = {};
+    const RUN_ISLAND = {};
     for (const v of RUN_ISLAND_VARIANTS) {
-        RUN_ISLAND_BG[v] = loadImg(`run_island_${v}_bg.png`);
-        RUN_ISLAND_FG[v] = loadImg(`run_island_${v}_fg.png`);
+        RUN_ISLAND[v] = loadImg(`run_island_${v}.png`);
     }
     // Per-variant walkable surface (256 normalized Y samples).
     // Populated asynchronously; until loaded, surfaceYAt falls back
@@ -3139,9 +3137,8 @@
 
         // MAIN PLATFORMS · sprite-backed (Phase 3).
         // Each platform renders its BG layer (grass body + trunks)
-        // here, BEFORE Wefty. The FG layer (tufts + mushrooms +
-        // flowers + canopies) renders AFTER Wefty so it occludes her
-        // as she rolls past — see drawRunIslandsFG below.
+        // here, BEFORE Wefty. Islands are flat now (single PNG per
+        // variant); the old bg/fg split was dropped 2026-04-22.
         // Fallback: if the sprite isn't loaded yet OR the surfaces
         // JSON hasn't fetched, draw a simple grass-green fill under
         // the legacy sin-crown curve so the first frames aren't a
@@ -3149,8 +3146,8 @@
         const samples = 24;
         for (const p of world.platforms) {
             if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
-            const bgImg = p.variant ? RUN_ISLAND_BG[p.variant] : null;
-            const ready = bgImg && bgImg.complete && bgImg.naturalWidth > 0
+            const islandImg = p.variant ? RUN_ISLAND[p.variant] : null;
+            const ready = islandImg && islandImg.complete && islandImg.naturalWidth > 0
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
                 // NATURAL-aspect sprite render. No plinth polygon
@@ -3169,7 +3166,7 @@
                 const drawX = centerX - drawW / 2;
                 const peakPx = PLATFORM_Y * h;
                 const drawY = peakPx - minRidge * drawH;
-                bgCtx.drawImage(bgImg, drawX, drawY, drawW, drawH);
+                bgCtx.drawImage(islandImg, drawX, drawY, drawW, drawH);
             } else {
                 // Loading fallback — simple grass-green path with sin crown
                 bgCtx.beginPath();
@@ -3511,39 +3508,13 @@
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
         }
 
-        // MAIN PLATFORMS · FG layer (Phase 3). Renders grass tufts,
-        // mushrooms, flowers, tree canopies over Wefty so she appears
-        // to roll behind them for parallax depth. Tree trunks are
-        // already in the BG layer, so Wefty correctly reads as in
-        // FRONT of trunks but BEHIND canopies.
+        // Post-Wefty FG pass. Islands are flat single PNGs drawn in
+        // the BG pass now — no per-platform FG sprite anymore. The
+        // only things left in this pass are the first-gap bridge
+        // rope rails (synthesized) so Wefty reads as walking UNDER
+        // the rope.
         fgCtx.save();
         fgCtx.translate(-world.cameraX * w, 0);
-        // First-gap wooden bridge · FG layer intentionally dropped —
-        // the current sprite asset has the full bridge (planks +
-        // posts + rope) baked into BOTH the BG and the FG files, so
-        // drawing FG over BG rendered as "two overlapping bridges"
-        // with Wefty sandwiched behind the second. Rendering only the
-        // BG (before Wefty) makes Wefty walk on a single wooden deck.
-        // Future: regenerate FG as rope-railing only and re-enable.
-        for (const p of world.platforms) {
-            if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
-            const fgImg = p.variant ? RUN_ISLAND_FG[p.variant] : null;
-            if (!fgImg || !fgImg.complete || !fgImg.naturalWidth) continue;
-            if (p.spriteTopY === undefined) continue;
-            const surfFg = RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[p.variant]
-                ? RUN_ISLAND_SURFACES[p.variant].surface : null;
-            let minRidgeFg = 0;
-            if (surfFg) {
-                minRidgeFg = surfFg[0];
-                for (const v of surfFg) if (v < minRidgeFg) minRidgeFg = v;
-            }
-            const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
-            const drawH = p.spriteHeight * w;   // use w for natural aspect
-            const centerX = ((p.xStart + p.xEnd) / 2) * w;
-            const drawX = centerX - drawW / 2;
-            const drawY = PLATFORM_Y * h - minRidgeFg * drawH;
-            fgCtx.drawImage(fgImg, drawX, drawY, drawW, drawH);
-        }
         // First-gap wooden bridge · synthesized yarn-rope rails drawn
         // AFTER Wefty so she reads as walking UNDER the rope. Two
         // gently-dipping ropes (upper + middle) spanning post-to-post.
