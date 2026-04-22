@@ -953,6 +953,35 @@ const App = (() => {
             loadProfile(); // refresh
         };
 
+        const deleteBtn = document.getElementById('btn-profile-delete');
+        if (deleteBtn) {
+            deleteBtn.onclick = async () => {
+                const ok = confirm(
+                    "Delete your account?\n\n" +
+                    "This permanently deletes your profile, progress, leaderboard " +
+                    "entries, and friends list. Stories you co-authored with others " +
+                    "remain visible to those players but lose your attribution.\n\n" +
+                    "This cannot be undone."
+                );
+                if (!ok) return;
+                const result = await Auth.deleteAccount();
+                if (result === 'success') {
+                    alert('Account deleted.');
+                    loadProfile();
+                } else if (result === 'requires-reauth') {
+                    alert(
+                        "For your security, Google requires a recent sign-in before " +
+                        "a permanent account can be deleted. Sign out, sign back in " +
+                        "with Google, then try Delete again."
+                    );
+                } else if (result === 'no-user') {
+                    alert('Not signed in.');
+                } else {
+                    alert('Delete failed — try again or email wordweftgame@gmail.com.');
+                }
+            };
+        }
+
         if (!Auth.uid) return;
         try {
             const snap = await db.ref('users/' + Auth.uid + '/stats').once('value');

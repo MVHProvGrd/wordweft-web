@@ -468,11 +468,45 @@ const Auth = (() => {
         }
     }
 
+    /**
+     * Delete the current Firebase Auth account. Fires the server-side
+     * onUserDelete Cloud Function which scrubs the user's RTDB nodes.
+     * Returns one of 'success' | 'requires-reauth' | 'no-user' | 'failed'.
+     * Anonymous accounts delete immediately; Google-linked accounts may
+     * throw auth/requires-recent-login.
+     */
+    async function deleteAccount() {
+        if (!auth.currentUser) return 'no-user';
+        try {
+            await auth.currentUser.delete();
+            // Clear local mirror of the profile.
+            localStorage.removeItem('wordweft_name');
+            localStorage.removeItem('wordweft_avatar');
+            localStorage.removeItem('wordweft_color');
+            localStorage.removeItem('wefty_run_history');
+            playerName = '';
+            playerAvatar = '';
+            currentUser = null;
+            updateUI();
+            // Re-sign in anonymously so a subsequent session has an identity.
+            await ensureSignedIn();
+            return 'success';
+        } catch (e) {
+            if (e && e.code === 'auth/requires-recent-login') {
+                console.warn('deleteAccount: requires recent re-auth');
+                return 'requires-reauth';
+            }
+            console.error('deleteAccount failed:', e);
+            return 'failed';
+        }
+    }
+
     return {
         init,
         ensureSignedIn,
         signInWithGoogle,
         signOut,
+        deleteAccount,
         saveLocalProfile,
         saveProfileToFirebase,
         updateUI,
