@@ -1539,6 +1539,7 @@
         world.causeOfDeath = 'NONE';   // NONE | SCISSORS | KNOT | PIT
         world.runStartTimeMs = Date.now();
         world.runElapsedMs = 0;
+        world.transitionFreezeUntil = 0;
         world.currentSpeedMultiplier = 1;
         world.lassoReadyAtTick = 0;
         world.lassoCooldownStartTick = 0;
@@ -2032,6 +2033,10 @@
 
     function step(dt) {
         if (world.gameOver || world.isPaused) return;
+        // Freeze gameplay while a transition banner is on-screen so the
+        // banner doesn't cover moving hazards / water gaps the player
+        // can't see. The banner's own setTimeout re-opens the world.
+        if ((world.transitionFreezeUntil || 0) > performance.now()) return;
         // Real-time stopwatch, accumulated only during active play.
         // Using dt (not effDt) so slow-mo / drawing-slow don't shrink
         // the clock. Freezes automatically on pause / gameOver via the
@@ -2366,6 +2371,9 @@
                 banner.classList.remove('hidden');
                 // First flash to punch the title card in.
                 triggerStormFlash();
+                // Freeze the world for the banner's lifetime so hazards /
+                // water gaps aren't occluded while Wefty keeps moving.
+                world.transitionFreezeUntil = performance.now() + 3000;
                 setTimeout(() => banner.classList.add('hidden'), 3000);
             }
             else if (e === 'milestone-1500') {

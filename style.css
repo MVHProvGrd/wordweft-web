@@ -2083,6 +2083,21 @@ html, body {
     margin-top: 20px;
     font-style: italic;
 }
+.settings-legal {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.settings-legal-link {
+    color: var(--text-muted);
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.2);
+}
+.settings-legal-link:hover { color: var(--accent-indigo); }
+.settings-legal-sep { margin: 0 6px; opacity: 0.5; }
 
 /* Leaderboard Screen */
 .leaderboard-container {
