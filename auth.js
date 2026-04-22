@@ -468,6 +468,56 @@ const Auth = (() => {
         }
     }
 
+    /* ── Moderation ─────────────────────────────────────────────── */
+
+    async function blockUser(blockedUid) {
+        if (!auth.currentUser || !blockedUid) return false;
+        try {
+            await db.ref(`users/${auth.currentUser.uid}/blocked/${blockedUid}`).set(true);
+            return true;
+        } catch (e) { console.error('blockUser failed:', e); return false; }
+    }
+    async function unblockUser(blockedUid) {
+        if (!auth.currentUser || !blockedUid) return false;
+        try {
+            await db.ref(`users/${auth.currentUser.uid}/blocked/${blockedUid}`).remove();
+            return true;
+        } catch (e) { console.error('unblockUser failed:', e); return false; }
+    }
+    async function getBlockedUids() {
+        if (!auth.currentUser) return [];
+        try {
+            const snap = await db.ref(`users/${auth.currentUser.uid}/blocked`).once('value');
+            const val = snap.val() || {};
+            return Object.keys(val);
+        } catch (e) { return []; }
+    }
+    /** Attach a live listener. Returns a teardown function. */
+    function observeBlockedUids(onChange) {
+        if (!auth.currentUser) return () => {};
+        const ref = db.ref(`users/${auth.currentUser.uid}/blocked`);
+        const cb = ref.on('value', (snap) => {
+            onChange(Object.keys(snap.val() || {}));
+        });
+        return () => { ref.off('value', cb); };
+    }
+    async function fileReport({ reportedUid, roomId, content, reason = 'other', details }) {
+        if (!auth.currentUser || !reportedUid) return false;
+        try {
+            const payload = {
+                reporter: auth.currentUser.uid,
+                reportedUser: reportedUid,
+                reason,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+            };
+            if (roomId) payload.roomId = roomId;
+            if (content) payload.content = String(content).slice(0, 500);
+            if (details) payload.details = String(details).slice(0, 1000);
+            await db.ref('reports').push().set(payload);
+            return true;
+        } catch (e) { console.error('fileReport failed:', e); return false; }
+    }
+
     /**
      * Delete the current Firebase Auth account. Fires the server-side
      * onUserDelete Cloud Function which scrubs the user's RTDB nodes.
@@ -507,6 +557,11 @@ const Auth = (() => {
         signInWithGoogle,
         signOut,
         deleteAccount,
+        blockUser,
+        unblockUser,
+        getBlockedUids,
+        observeBlockedUids,
+        fileReport,
         saveLocalProfile,
         saveProfileToFirebase,
         updateUI,

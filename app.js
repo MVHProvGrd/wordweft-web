@@ -953,6 +953,56 @@ const App = (() => {
             loadProfile(); // refresh
         };
 
+        // Blocked-users list — renders whenever the settings modal is
+        // opened with a non-empty blocked set. Each row shows the
+        // resolved display name (fetched from users/{uid}/profile) or a
+        // UID snippet fallback. Teardown attaches on next settings open.
+        const blockedListEl = document.getElementById('blocked-users-list');
+        const blockedHeading = document.getElementById('blocked-users-heading');
+        if (blockedListEl && blockedHeading) {
+            const renderBlocked = async (uids) => {
+                if (!uids || uids.length === 0) {
+                    blockedListEl.classList.add('hidden');
+                    blockedHeading.classList.add('hidden');
+                    blockedListEl.innerHTML = '';
+                    return;
+                }
+                blockedListEl.classList.remove('hidden');
+                blockedHeading.classList.remove('hidden');
+                const rows = await Promise.all(uids.map(async (uid) => {
+                    let name = '…' + uid.slice(0, 6);
+                    try {
+                        const snap = await db.ref('users/' + uid + '/profile').once('value');
+                        const v = snap.val();
+                        if (v && v.displayName) name = v.displayName;
+                    } catch (_) { /* use fallback */ }
+                    return { uid, name };
+                }));
+                const esc = (s) => String(s)
+                    .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+                blockedListEl.innerHTML = rows.map(r =>
+                    `<div class="row"><span>${esc(r.name)}</span>` +
+                    `<button data-uid="${esc(r.uid)}">Unblock</button></div>`
+                ).join('');
+                blockedListEl.querySelectorAll('button[data-uid]').forEach((btn) => {
+                    btn.onclick = async () => {
+                        const uid = btn.getAttribute('data-uid');
+                        await Auth.unblockUser(uid);
+                        // list re-renders via observer
+                    };
+                });
+            };
+            const teardown = Auth.observeBlockedUids(renderBlocked);
+            // re-fire once in case the listener attached after any
+            // initial data arrived.
+            Auth.getBlockedUids().then(renderBlocked);
+            // Keep the teardown reference on window so we don't leak
+            // listeners across settings-open cycles.
+            if (window.__blockedUsersTeardown) window.__blockedUsersTeardown();
+            window.__blockedUsersTeardown = teardown;
+        }
+
         const deleteBtn = document.getElementById('btn-profile-delete');
         if (deleteBtn) {
             deleteBtn.onclick = async () => {

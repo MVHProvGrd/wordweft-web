@@ -2083,6 +2083,32 @@ html, body {
     margin-top: 20px;
     font-style: italic;
 }
+.blocked-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.blocked-users-list .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #e6e6f0;
+}
+.blocked-users-list .row button {
+    background: transparent;
+    border: none;
+    color: var(--accent-red);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+.blocked-users-list .row button:hover { text-decoration: underline; }
 .settings-legal {
     text-align: center;
     font-size: 11px;
