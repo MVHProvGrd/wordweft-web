@@ -1,5 +1,5 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v96';
+const CACHE_NAME = 'wordweft-v97';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -122,10 +122,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Don't cache Firebase or Google API requests
-    if (url.hostname.includes('firebase') ||
-        url.hostname.includes('google') ||
-        url.hostname.includes('gstatic')) {
+    // Skip ALL non-same-origin requests — Firebase, Google APIs, Cloud
+    // Functions, CDNs, etc. The SW should only handle this app's own
+    // static assets. Wrapping cross-origin fetches was mangling CORS
+    // responses (gradeStory in particular: the SW would re-fetch the
+    // preflight, cache.put() would throw on the POST, and the client
+    // would see ERR_FAILED + "Failed to convert value to 'Response'").
+    if (url.origin !== self.location.origin) {
+        return;
+    }
+
+    // Never cache non-GET (POST/PUT/DELETE can't live in CacheStorage).
+    if (event.request.method !== 'GET') {
         return;
     }
 
@@ -133,7 +141,7 @@ self.addEventListener('fetch', (event) => {
         fetch(event.request)
             .then((response) => {
                 // Cache successful responses
-                if (response.ok && event.request.method === 'GET') {
+                if (response.ok) {
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                 }
