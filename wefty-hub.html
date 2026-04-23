@@ -105,6 +105,14 @@
         margin-top: 6px;
         margin-left: 24px;
     }
+    .signin-status {
+        text-align: center;
+        margin-top: 32px;
+        font-size: 12px;
+        color: var(--muted);
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+    }
+    .signin-status.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -137,7 +145,23 @@
         <div class="tile-title"><span class="dot amber"></span>Top Runs 🏆</div>
         <div class="tile-sub">Global Wefty Run leaderboard — personal bests worldwide.</div>
     </a>
+    <p id="signin-status" class="signin-status hidden"></p>
 </div>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+    // Show "Signed in as <email>" for the current Firebase user, if any.
+    firebase.auth().onAuthStateChanged((user) => {
+        const el = document.getElementById('signin-status');
+        if (user && !user.isAnonymous && user.email) {
+            el.textContent = 'Signed in as ' + user.email;
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
+    });
+</script>
 <script>
     // Reflect Level 2 / Level 3 progress in the tile copy.
     if (localStorage.getItem('wefty_run_level2_unlocked')) {

@@ -1721,10 +1721,11 @@
             if (cur > bestHeight) {
                 bestHeight = cur;
                 localStorage.setItem('wefty_climb_best', String(cur));
-                const tokenForSubmit = climbToken;
-                climbToken = null;
-                submitClimbScore(tokenForSubmit, cur);
             }
+            // Submit every run — see wefty-run.html for the rationale.
+            const tokenForSubmit = climbToken;
+            climbToken = null;
+            submitClimbScore(tokenForSubmit, cur);
             // Populate Beat 1 stats review sheet (new 2-beat flow).
             populateClimbBeat1(cur);
             overlay.classList.remove('hidden');
