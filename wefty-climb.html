@@ -636,6 +636,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="auth.js"></script>
 <script src="sound.js"></script>
@@ -1296,12 +1297,46 @@
         } catch (_) {}
     });
 
+    // ── Anti-cheat: server-minted climb token + HMAC handshake ──────
+    // See wefty-run.html for the full rationale.
+    const LOOMWORD = '23a1f7f020d6affacdd0e373f622834088de0c2a4513625407ce380b48c20c3a';
+    let climbToken = null;
+    async function weftyHandshake(runId, nonce, score) {
+        const enc = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+            'raw', enc.encode(LOOMWORD),
+            { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const sig = await crypto.subtle.sign('HMAC', key,
+            enc.encode(runId + ':' + nonce + ':' + score));
+        return Array.from(new Uint8Array(sig))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    async function mintClimbToken() {
+        if (typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return null;
+        try {
+            const res = await firebase.functions().httpsCallable('weftyClimbStart')();
+            return res.data || null;
+        } catch (e) { console.warn('weftyClimbStart failed', e); return null; }
+    }
+    async function submitClimbScore(token, score) {
+        if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return;
+        if (!Auth.name || Auth.name === 'Player') return;
+        try {
+            const handshake = await weftyHandshake(token.runId, token.nonce, score);
+            await firebase.functions().httpsCallable('weftyClimbSubmit')({
+                runId: token.runId, score, handshake,
+                displayName: Auth.name, avatar: Auth.avatar || '',
+            });
+        } catch (e) { console.warn('weftyClimbSubmit failed', e); }
+    }
+
     function resetWorld() {
         world.cameraY = START_CAMERA_Y;
         world.weftyX = 0.5; world.weftyY = 0.9; world.weftyVy = 0;
         world.weftyGrounded = true;
         world.heightClimbed = 0; world.frameTick = 0;
         world.gameOver = false; world.isPaused = false;
+        mintClimbToken().then(t => { climbToken = t; });
         world.needles = 3;
         world.horizontalInput = 0; world.jumpHeld = false;
         world.dropThroughUntilY = -Infinity; world.offscreenSince = -1;
@@ -1639,22 +1674,9 @@
             if (cur > bestHeight) {
                 bestHeight = cur;
                 localStorage.setItem('wefty_climb_best', String(cur));
-                try {
-                    if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous
-                        && Auth.name && Auth.name !== 'Player') {
-                        firebase.database().ref('wefty_climb_leaderboard/' + Auth.uid)
-                            .transaction(existing => {
-                                if (existing && (existing.bestHeight || 0) >= cur) return;
-                                return {
-                                    uid: Auth.uid,
-                                    displayName: Auth.name,
-                                    avatar: Auth.avatar || '',
-                                    bestHeight: cur,
-                                    updatedAt: firebase.database.ServerValue.TIMESTAMP,
-                                };
-                            });
-                    }
-                } catch (_) {}
+                const tokenForSubmit = climbToken;
+                climbToken = null;
+                submitClimbScore(tokenForSubmit, cur);
             }
             // Populate Beat 1 stats review sheet (new 2-beat flow).
             populateClimbBeat1(cur);

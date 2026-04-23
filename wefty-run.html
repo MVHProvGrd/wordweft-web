@@ -1174,6 +1174,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="auth.js"></script>
 <script src="sound.js"></script>
@@ -1507,6 +1508,42 @@
         startPreRunCountdown();
     }
 
+    // ── Anti-cheat: server-minted run token + HMAC handshake ─────────
+    // Shared secret must match LOOMWORD on the Cloud Functions runtime.
+    // Hardcoded here because the client needs to compute the HMAC; a
+    // determined attacker can extract it. The real fence is the
+    // server's time-of-flight plausibility check in weftyRunSubmit.
+    const LOOMWORD = '23a1f7f020d6affacdd0e373f622834088de0c2a4513625407ce380b48c20c3a';
+    let runToken = null;
+    async function weftyHandshake(runId, nonce, score) {
+        const enc = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+            'raw', enc.encode(LOOMWORD),
+            { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const sig = await crypto.subtle.sign('HMAC', key,
+            enc.encode(runId + ':' + nonce + ':' + score));
+        return Array.from(new Uint8Array(sig))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    async function mintRunToken() {
+        if (typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return null;
+        try {
+            const res = await firebase.functions().httpsCallable('weftyRunStart')();
+            return res.data || null;
+        } catch (e) { console.warn('weftyRunStart failed', e); return null; }
+    }
+    async function submitRunScore(token, score) {
+        if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return;
+        if (!Auth.name || Auth.name === 'Player') return;
+        try {
+            const handshake = await weftyHandshake(token.runId, token.nonce, score);
+            await firebase.functions().httpsCallable('weftyRunSubmit')({
+                runId: token.runId, score, handshake,
+                displayName: Auth.name, avatar: Auth.avatar || '',
+            });
+        } catch (e) { console.warn('weftyRunSubmit failed', e); }
+    }
+
     function resetWorld() {
         world.cameraX = 0;
         world.weftyY = PLATFORM_Y;
@@ -1514,6 +1551,10 @@
         world.grounded = true;
         world.distance = 0;
         world.gameOver = false;
+        // Mint a fresh server-side run token each attempt. Fires
+        // async — by the time a run lasts long enough to reach game
+        // over, the token will be ready. No-op for anonymous users.
+        mintRunToken().then(t => { runToken = t; });
         world.biomeIndex = 0;
         world.lastMilestone = 0;
         world.isDrawing = false;
@@ -2423,28 +2464,12 @@
                 if (score > bestDistance) {
                     bestDistance = score;
                     localStorage.setItem('wefty_run_best', String(score));
-                    // Publish the new personal best to the global
-                    // Wefty Run leaderboard. Transaction only overwrites
-                    // when the new score actually beats the server entry —
-                    // local 'best' is unreliable (resets on cache clear /
-                    // reinstall / different device) and used to clobber
-                    // real top scores.
-                    try {
-                        if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous
-                            && Auth.name && Auth.name !== 'Player') {
-                            firebase.database().ref('wefty_run_leaderboard/' + Auth.uid)
-                                .transaction(current => {
-                                    if (current && (current.bestDistance || 0) >= score) return;
-                                    return {
-                                        uid: Auth.uid,
-                                        displayName: Auth.name,
-                                        avatar: Auth.avatar || '',
-                                        bestDistance: score,
-                                        updatedAt: firebase.database.ServerValue.TIMESTAMP,
-                                    };
-                                });
-                        }
-                    } catch (_) {}
+                    // Publish via the Cloud Function (weftyRunSubmit).
+                    // Server validates HMAC handshake + time-of-flight
+                    // plausibility before writing the leaderboard.
+                    const tokenForSubmit = runToken;
+                    runToken = null;
+                    submitRunScore(tokenForSubmit, score);
                 }
                 const runTs = recordRun(score);
                 renderScoreboard(runTs);
