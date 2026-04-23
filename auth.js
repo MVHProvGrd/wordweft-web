@@ -283,10 +283,10 @@ const Auth = (() => {
             document.getElementById('user-avatar').textContent = playerAvatar || '\u{1F60A}';
             document.getElementById('user-name').textContent = playerName;
             loadUserLevel();
-            showDailyChallenge();
         } else {
             if (userBar) userBar.classList.add('hidden');
         }
+        showDailyChallenge();
     }
 
     // YYYY-MM-DD in the user's local timezone.
