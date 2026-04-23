@@ -1642,15 +1642,14 @@
     // later if needed. Canvas height range: 310-576 px, tree height
     // range: 34-50% of canvas, so tree on-screen spread collapses
     // from 2.3x (flower-anchor) down to ~1.5x.
-    // Width-anchored sizing (was height-anchored, which let widths
-    // swing 0.93-1.60 across variants; flat aspect-5.3 islands looked
-    // 70% wider than the flower-bearing aspect-3.1 ones). Now every
-    // island renders at the same world width — flowery variants are
-    // the visual reference. Height follows natural aspect with a floor
-    // so short islands still reach the waterline (ISLAND_MIN_H >
-    // waterline offset 0.10 + a margin).
-    const ISLAND_WORLD_W = 1.05;
-    const ISLAND_MIN_H   = 0.32;
+    // SCALE-anchored sizing — every island renders at the same
+    // pixels-per-world-unit so flowers (and any other decoration)
+    // stay visually consistent across variants. Widths AND heights
+    // both vary naturally based on the PNG's source dimensions:
+    // a 1700×500 sprite stays wider than a 1400×320 one, but their
+    // flowers look the same size. Anchored at 1400 px/world-unit so
+    // the median variant lands around the previous 0.30 world height.
+    const ISLAND_PX_PER_WORLD = 1400;
     const ISLAND_FALLBACK_W = 1.00;
 
     // Build a Platform with variant + sprite world coords attached.
@@ -1662,12 +1661,8 @@
         let spriteTopY, spriteHeight, spriteRenderW, xEnd;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
-            spriteRenderW = ISLAND_WORLD_W;
-            // Natural-aspect height, but never shorter than the
-            // waterline depth so the bottom always sinks into the
-            // water rather than floating above it.
-            const naturalH = ISLAND_WORLD_W * (s.h / s.w);
-            spriteHeight  = Math.max(naturalH, ISLAND_MIN_H);
+            spriteRenderW = s.w / ISLAND_PX_PER_WORLD;
+            spriteHeight  = s.h / ISLAND_PX_PER_WORLD;
             let minRidge = s.surface[0];
             for (const v of s.surface) if (v < minRidge) minRidge = v;
             spriteTopY = top - minRidge * spriteHeight;
@@ -1675,7 +1670,8 @@
         } else {
             xEnd = xStart + ISLAND_FALLBACK_W;
         }
-        return { xStart, xEnd, top, crown: 0, variant, spriteTopY, spriteHeight, spriteRenderW };
+        const waterDir = Math.random() < 0.5 ? -1 : 1;
+        return { xStart, xEnd, top, crown: 0, variant, spriteTopY, spriteHeight, spriteRenderW, waterDir };
     }
     function seedPlatforms() {
         // First island starts at x = -1.2 so Wefty (spawns at world X
@@ -3191,33 +3187,70 @@
         // world-shifted) so one solid river fills everything below
         // the waterline. Islands draw on top so their sprite sits on
         // top of the water; gaps naturally show through as river.
-        const waterY = PLATFORM_Y + 0.10;
+        // Lowered from 0.10 → 0.22: was cutting through the middle of
+        // every island. Now sits just below the average island bottom
+        // so water laps at the edges instead of submerging the rocks.
+        const waterY = PLATFORM_Y + 0.22;
         const wlPx = waterY * h;
         const waterTick = world.frameTick || 0;
         bgCtx.fillStyle = '#1A3D6B';   // deep navy backing for the chevron tile
         bgCtx.fillRect(0, wlPx, w, h - wlPx);
-        // Chevron water: square seamless tile, sized to waterline-band
-        // height. Tiled horizontally, scrolled vertically (alternating
-        // band direction creates a subtle ripple effect — top half
-        // drifts up, bottom half drifts down).
+        // Chevron water — per-gap vertical scroll. Each gap (between
+        // adjacent platforms) gets a stable ±1 direction from the
+        // platform on its left, so the surface reads as patches of
+        // water flowing different ways. ctx clip masks each chevron
+        // pass to its gap so adjacent directions don't bleed.
         const chevronReady = WATER_CHEVRON.complete && WATER_CHEVRON.naturalWidth > 0;
-        if (chevronReady) {
+        if (chevronReady && world.platforms.length > 0) {
             const bandH = h - wlPx;
-            // Square tile sized so 2 tiles span the band height (gives
-            // the ripple two distinct rows). Width follows aspect.
             const tileH = bandH;
             const tileW = tileH * (WATER_CHEVRON.naturalWidth / WATER_CHEVRON.naturalHeight);
-            const scrollPx = (waterTick * 0.6) % tileH;
-            let hOff = -((world.cameraX * 0.18 * w) % tileW);
-            if (hOff > 0) hOff -= tileW;
-            for (let tx = hOff; tx < w + tileW; tx += tileW) {
-                // Vertical wrap so the tile loops seamlessly as it
-                // drifts. Two draws cover the wrap seam.
-                const yA = wlPx + (-scrollPx);
-                const yB = wlPx + (-scrollPx + tileH);
-                bgCtx.drawImage(WATER_CHEVRON, tx, yA, tileW, tileH);
-                if (yB < h) bgCtx.drawImage(WATER_CHEVRON, tx, yB, tileW, tileH);
+            const baseScroll = (waterTick * 0.6) % tileH;
+
+            const renderChevronInRange = (xLeft, xRight, dir) => {
+                if (xRight <= 0 || xLeft >= w) return;
+                const clippedLeft = Math.max(0, xLeft);
+                const clippedRight = Math.min(w, xRight);
+                bgCtx.save();
+                bgCtx.beginPath();
+                bgCtx.rect(clippedLeft, wlPx, clippedRight - clippedLeft, h - wlPx);
+                bgCtx.clip();
+                const scrollPx = dir > 0 ? baseScroll : (tileH - baseScroll);
+                let hOff = -((world.cameraX * 0.18 * w) % tileW);
+                if (hOff > 0) hOff -= tileW;
+                for (let tx = hOff; tx < w + tileW; tx += tileW) {
+                    const yA = wlPx - scrollPx;
+                    bgCtx.drawImage(WATER_CHEVRON, tx, yA, tileW, tileH);
+                    const yB = yA + tileH;
+                    if (yB < h) bgCtx.drawImage(WATER_CHEVRON, tx, yB, tileW, tileH);
+                }
+                bgCtx.restore();
+            };
+
+            // Left edge → first platform: use first platform's dir
+            const firstP = world.platforms[0];
+            renderChevronInRange(
+                -tileW * 2,
+                (firstP.xStart - world.cameraX) * w,
+                firstP.waterDir
+            );
+            // Inter-platform gaps
+            for (let i = 0; i < world.platforms.length - 1; i++) {
+                const a = world.platforms[i];
+                const b = world.platforms[i + 1];
+                renderChevronInRange(
+                    (a.xEnd - world.cameraX) * w,
+                    (b.xStart - world.cameraX) * w,
+                    a.waterDir
+                );
             }
+            // Last platform → right edge
+            const lastP = world.platforms[world.platforms.length - 1];
+            renderChevronInRange(
+                (lastP.xEnd - world.cameraX) * w,
+                w + tileW * 2,
+                lastP.waterDir
+            );
         } else if (WATER_BLOCK.complete && WATER_BLOCK.naturalWidth > 0) {
             // Fallback: legacy block water until the chevron tile loads
             const tileDrawH = h - wlPx;
