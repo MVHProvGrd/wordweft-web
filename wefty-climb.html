@@ -1571,11 +1571,15 @@
         const wy = (world.weftyY - world.cameraY) * h;
         const sprite = world.weftyGrounded ? weftyRoll : weftyFall;
         if (sprite.complete && sprite.naturalWidth) {
-            // Anchor so Wefty's visible bottom is slightly INSIDE the
-            // grass. Yarn-ball roll: degrees = travel / circumference
-            // * 360. weftyX is [0,1] in world units → pixels = wx.
+            // Reset rotation origin every time she lands so she plants
+            // upright. rollOriginWorldX lives outside this draw block
+            // (declared below) and is updated on the air→ground edge.
+            if (world.weftyGrounded && !world._wasGrounded) {
+                world.rollOriginWorldX = world.weftyX;
+            }
+            world._wasGrounded = world.weftyGrounded;
             const rollDeg = (sprite === weftyRoll)
-                ? (wx / (wSize * Math.PI)) * 360
+                ? ((world.weftyX - (world.rollOriginWorldX || 0)) * w / (wSize * Math.PI)) * 360
                 : 0;
             fgCtx.save();
             fgCtx.translate(wx, wy - wSize * 0.30);

@@ -563,39 +563,39 @@
         pointer-events: none;
     }
     .dock-slot.empty .dock-name { color: rgba(251,243,231,0.40); }
+    /* Count badge — rounded square anchored just inside the top-right
+       corner (was floating fully outside). */
     .dock-count {
         position: absolute;
-        top: -6px; right: -6px;
+        top: -4px; right: -4px;
         width: 20px; height: 20px;
-        border-radius: 10px;
-        background: #2a1b22;
-        border: 1.5px solid #fbf3e7;
+        border-radius: 6px;
+        background: rgba(26,14,20,0.92);
+        border: 1.5px solid rgba(251,243,231,0.85);
         display: flex; align-items: center; justify-content: center;
-        font-size: 10px; font-weight: 800;
+        font-size: 11px; font-weight: 800;
         color: #fbf3e7;
         pointer-events: none;
     }
     .dock-slot.active .dock-count { display: none; }
     .dock-slot.empty .dock-count { display: none; }
+    /* Slot-number chip top-left — always visible (mobile + desktop)
+       since the number doubles as a visual slot identifier, not just a
+       keyboard hint. Rounded square to match the count badge. */
     .dock-key {
         position: absolute;
-        top: -6px; left: -4px;
-        min-width: 16px; height: 14px;
-        border-radius: 3px;
-        padding: 0 3px;
-        background: #2a1b22;
-        border: 1px solid rgba(251,243,231,0.35);
-        display: none;
+        top: -4px; left: -4px;
+        width: 20px; height: 20px;
+        border-radius: 6px;
+        background: rgba(26,14,20,0.92);
+        border: 1.5px solid rgba(251,243,231,0.85);
+        display: flex;
         align-items: center; justify-content: center;
-        font: 700 9px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        font: 800 11px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: #fbf3e7;
         pointer-events: none;
     }
-    /* Show key pill only on pointing devices (desktop); hide on
-       touch devices where keyboard hints aren't helpful. */
-    @media (hover: hover) and (pointer: fine) {
-        .dock-key { display: flex; }
-    }
+    .dock-slot.empty .dock-key { opacity: 0.35; }
     .dock-ring {
         position: absolute;
         inset: 0;
