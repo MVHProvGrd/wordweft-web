@@ -1,5 +1,10 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v97';
+const CACHE_NAME = 'wordweft-v98';
+// 2026-04-23 22:02Z is replaced by the sync-wordweft-web workflow
+// at deploy time with the UTC timestamp of the sync (e.g.
+// "2026-04-23 21:45Z"). When running from source it stays as the
+// placeholder and the page shows "(dev)" instead.
+const BUILD_TIMESTAMP = '2026-04-23 22:02Z';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -103,11 +108,22 @@ self.addEventListener('install', (event) => {
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
-    } else if (event.data && event.data.type === 'GET_VERSION' && event.source) {
+    } else if (event.data && event.data.type === 'GET_VERSION') {
         // Respond to page's version query so the home-screen badge can
-        // show what SW is actually active (after a stale cache gets
-        // replaced, users can glance at the home screen to confirm).
-        event.source.postMessage({ type: 'VERSION', version: CACHE_NAME });
+        // show what SW is actually active + when it was deployed.
+        // Client sends a MessageChannel port in event.ports[0]; reply
+        // through that so the client's chan.port1.onmessage fires.
+        const ts = BUILD_TIMESTAMP.startsWith('__BUILD') ? '(dev)' : BUILD_TIMESTAMP;
+        const reply = {
+            type: 'VERSION',
+            version: CACHE_NAME,
+            buildTimestamp: ts,
+        };
+        if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage(reply);
+        } else if (event.source) {
+            event.source.postMessage(reply);
+        }
     }
 });
 

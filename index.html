@@ -704,7 +704,10 @@
                 const chan = new MessageChannel();
                 chan.port1.onmessage = (e) => {
                     if (e.data && e.data.version) {
-                        el.textContent = e.data.version;
+                        const ts = e.data.buildTimestamp || '';
+                        el.textContent = ts
+                            ? `${e.data.version} · ${ts}`
+                            : e.data.version;
                     }
                 };
                 navigator.serviceWorker.controller.postMessage(
