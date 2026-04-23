@@ -5,7 +5,7 @@ const Screens = (() => {
     function gradeColor(grade) {
         const g = (grade || '').charAt(0);
         if (g === 'A') return '#10B981';
-        if (g === 'B') return '#6366F1';
+        if (g === 'B') return '#7C6FE8';
         if (g === 'C') return '#F59E0B';
         return '#EF4444';
     }
@@ -72,13 +72,13 @@ const Screens = (() => {
         ctx.fillRect(0, 0, 1080, 1920);
 
         // Subtle border
-        ctx.strokeStyle = 'rgba(99,102,241,0.3)';
+        ctx.strokeStyle = 'rgba(124,111,232,0.3)';
         ctx.lineWidth = 4;
         ctx.roundRect(20, 20, 1040, 1880, 40);
         ctx.stroke();
 
         // Title
-        ctx.fillStyle = '#8B5CF6';
+        ctx.fillStyle = '#9A87F2';
         ctx.font = 'bold 48px system-ui';
         ctx.textAlign = 'center';
         ctx.fillText('WordWeft', 540, 100);
@@ -104,7 +104,7 @@ const Screens = (() => {
         const tags = entry.tags || [];
         if (tags.length > 0) {
             ctx.font = '28px system-ui';
-            ctx.fillStyle = '#6366F1';
+            ctx.fillStyle = '#7C6FE8';
             ctx.fillText(tags.join('  \u2022  '), 540, entry.illustration ? 540 : 460);
         }
 

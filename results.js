@@ -47,7 +47,7 @@ const Results = (() => {
         App.showScreen('results');
 
         const gradeChar = (data.storyGrade || 'C').charAt(0);
-        const gradeColors = { A: '#10B981', B: '#6366F1', C: '#F59E0B', D: '#EF4444', F: '#EF4444' };
+        const gradeColors = { A: '#10B981', B: '#7C6FE8', C: '#F59E0B', D: '#EF4444', F: '#EF4444' };
         const gradeColor = gradeColors[gradeChar] || '#F59E0B';
 
         const illustrationEl = document.getElementById('result-illustration');
@@ -287,9 +287,9 @@ const Results = (() => {
     // Maps Android's WordRarityAnalyzer.LanguageLevel to web (used in level guide).
     const LANGUAGE_LEVELS = [
         { code: 'A1', name: 'Rookie',     color: '#10B981', desc: 'Common everyday words' },
-        { code: 'A2', name: 'Explorer',   color: '#6366F1', desc: 'Familiar but varied vocabulary' },
+        { code: 'A2', name: 'Explorer',   color: '#7C6FE8', desc: 'Familiar but varied vocabulary' },
         { code: 'B1', name: 'Adventurer', color: '#F59E0B', desc: 'Intermediate word choices' },
-        { code: 'B2', name: 'Wordsmith',  color: '#8B5CF6', desc: 'Upper-intermediate vocabulary' },
+        { code: 'B2', name: 'Wordsmith',  color: '#9A87F2', desc: 'Upper-intermediate vocabulary' },
         { code: 'C1', name: 'Sage',       color: '#EC4899', desc: 'Advanced and impressive' },
         { code: 'C2', name: 'Legendary',  color: '#FBBF24', desc: 'Rare and literary mastery' }
     ];
@@ -672,7 +672,7 @@ const Results = (() => {
         const container = document.createElement('div');
         container.className = 'confetti-container';
         document.body.appendChild(container);
-        const colors = ['#FFD700','#6366F1','#10B981','#EF4444','#8B5CF6','#F59E0B','#EC4899','#06B6D4'];
+        const colors = ['#FFD700','#7C6FE8','#10B981','#EF4444','#9A87F2','#F59E0B','#EC4899','#06B6D4'];
         for (let i = 0; i < 30; i++) {
             const particle = document.createElement('div');
             particle.className = 'confetti-particle';

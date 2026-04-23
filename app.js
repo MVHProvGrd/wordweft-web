@@ -417,7 +417,7 @@ const App = (() => {
             darkTheme = themeToggle.checked;
             document.body.classList.toggle('light-theme', !darkTheme);
             localStorage.setItem('wordweft_theme', darkTheme ? 'dark' : 'light');
-            document.querySelector('meta[name="theme-color"]').content = darkTheme ? '#0F0F23' : '#F5F5FA';
+            document.querySelector('meta[name="theme-color"]').content = darkTheme ? '#160B2E' : '#F0E8FF';
         });
 
         // Font size slider

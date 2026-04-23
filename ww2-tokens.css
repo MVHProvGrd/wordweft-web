@@ -1,0 +1,123 @@
+/* ─────────────────────────────────────────────────────────────
+   WordWeft v2 · design tokens
+   Purple-primary, Lavender Evening default. Dark / light support.
+   Layered after the legacy tokens in style.css to remap them.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Lavender Evening — softer, dustier purple everywhere (default) */
+  --ww-bg-0: #160B2E;
+  --ww-bg-1: #1E1238;
+  --ww-bg-2: #291847;
+  --ww-bg-3: #362259;
+
+  --ww-ink-0: #EEE6FF;
+  --ww-ink-1: #C7B8E8;
+  --ww-ink-2: #8D7FAE;
+  --ww-ink-3: #5A4F75;
+  --ww-hair:  rgba(238,230,255,0.09);
+  --ww-hair-2: rgba(238,230,255,0.16);
+
+  --ww-violet-50:  #EEEAFF;
+  --ww-violet-100: #D8CFFF;
+  --ww-violet-200: #B8A8FF;
+  --ww-violet-300: #9A87F2;
+  --ww-violet-400: #7C6FE8;   /* primary */
+  --ww-violet-500: #5B4FCC;
+  --ww-violet-600: #3F34A0;
+
+  --ww-gold:      #E8A63E;
+  --ww-gold-soft: #F5C26A;
+  --ww-fuchsia:   #E85A8A;
+  --ww-teal:      #6BB8E8;
+  --ww-emerald:   #4AC29A;
+  --ww-coral:     #E86F5A;
+  --ww-violet-glow: rgba(124,111,232,0.40);
+
+  --ww-display: "Plus Jakarta Sans", "Inter Tight", system-ui, -apple-system, sans-serif;
+  --ww-body:    "Inter", -apple-system, system-ui, sans-serif;
+  --ww-serif:   "Source Serif 4", "Lora", Georgia, serif;
+  --ww-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  --ww-shadow-card:   0 6px 24px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --ww-shadow-raised: 0 10px 40px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.06) inset;
+  --ww-shadow-violet: 0 8px 28px rgba(124,111,232,0.40);
+
+  --ww-surface-glow: radial-gradient(ellipse at top, rgba(154,135,242,0.14), transparent 60%);
+
+  /* ── Remap legacy tokens to the new palette so existing CSS picks it up ── */
+  --bg-primary:     var(--ww-bg-0);
+  --bg-secondary:   var(--ww-bg-1);
+  --bg-card:        var(--ww-bg-2);
+  --bg-input:       var(--ww-bg-3);
+  --accent-indigo:  var(--ww-violet-400);
+  --accent-purple:  var(--ww-violet-300);
+  --accent-green:   var(--ww-emerald);
+  --accent-red:     var(--ww-coral);
+  --accent-amber:   var(--ww-gold);
+  --text-primary:   var(--ww-ink-0);
+  --text-secondary: var(--ww-ink-1);
+  --text-muted:     var(--ww-ink-2);
+  --text-dim:       var(--ww-ink-3);
+  --border:         var(--ww-hair-2);
+}
+
+/* ── LIGHT MODE — parchment-purple ─────────────────────────── */
+body.light-theme {
+  --ww-bg-0: #F0E8FF;
+  --ww-bg-1: #FFFFFF;
+  --ww-bg-2: #F6EEFF;
+  --ww-bg-3: #E4D7FA;
+  --ww-ink-0: #1A0E36;
+  --ww-ink-1: #4A3A6B;
+  --ww-ink-2: #6E5E8E;
+  --ww-ink-3: #A696BD;
+  --ww-hair: rgba(26,14,54,0.10);
+  --ww-hair-2: rgba(26,14,54,0.16);
+  --ww-shadow-card:   0 4px 20px rgba(61,45,107,0.10);
+  --ww-shadow-raised: 0 8px 32px rgba(61,45,107,0.14);
+  --ww-surface-glow: radial-gradient(ellipse at top, rgba(124,111,232,0.10), transparent 60%);
+
+  --bg-primary:     var(--ww-bg-0);
+  --bg-secondary:   var(--ww-bg-1);
+  --bg-card:        var(--ww-bg-2);
+  --bg-input:       var(--ww-bg-3);
+  --text-primary:   var(--ww-ink-0);
+  --text-secondary: var(--ww-ink-1);
+  --text-muted:     var(--ww-ink-2);
+  --text-dim:       var(--ww-ink-3);
+  --border:         var(--ww-hair-2);
+}
+
+/* ── Base typography ──────────────────────────────────────── */
+html, body {
+  font-family: var(--ww-body);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--ww-display);
+  letter-spacing: -0.01em;
+  color: var(--ww-ink-0);
+}
+h1 { font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-weight: 800; }
+
+/* ── Utility classes available app-wide ───────────────────── */
+.ww-display { font-family: var(--ww-display); font-weight: 800; color: var(--ww-ink-0); letter-spacing: -0.02em; }
+.ww-serif   { font-family: var(--ww-serif); font-style: italic; color: var(--ww-ink-1); }
+.ww-mono    { font-family: var(--ww-mono); font-weight: 500; color: var(--ww-ink-2); letter-spacing: 0.04em; }
+.ww-eyebrow { font-family: var(--ww-body); font-weight: 700; color: var(--ww-violet-200); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+
+/* WordWeft wordmark — "Word" upright + "Weft" italic violet */
+.ww-wordmark {
+  font-family: var(--ww-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ww-ink-0);
+  display: inline-block;
+}
+.ww-wordmark .weft {
+  font-style: italic;
+  color: var(--ww-violet-300);
+  font-weight: 700;
+}

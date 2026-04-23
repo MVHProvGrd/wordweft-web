@@ -11,8 +11,8 @@
     --bg-secondary: #1A1A2E;
     --bg-card: #1E1E36;
     --bg-input: #16213E;
-    --accent-indigo: #6366F1;
-    --accent-purple: #8B5CF6;
+    --accent-indigo: #7C6FE8;
+    --accent-purple: #9A87F2;
     --accent-green: #10B981;
     --accent-red: #EF4444;
     --accent-amber: #F59E0B;
@@ -133,7 +133,7 @@ html, body {
     cursor: pointer;
 }
 .btn-mode.active {
-    background: rgba(99, 102, 241, 0.2);
+    background: rgba(124,111,232, 0.2);
     color: var(--accent-indigo);
     border-color: var(--accent-indigo);
 }
@@ -252,7 +252,7 @@ html, body {
     font-weight: 600;
 }
 #sw-update-reload {
-    background: #6366F1;
+    background: #7C6FE8;
     color: #fff;
 }
 #sw-update-dismiss {
@@ -439,10 +439,10 @@ html, body {
     transition: background 0.15s;
 }
 .avatar-option:hover {
-    background: rgba(99,102,241,0.15);
+    background: rgba(124,111,232,0.15);
 }
 .avatar-option.selected {
-    background: rgba(99,102,241,0.25);
+    background: rgba(124,111,232,0.25);
     border-color: var(--accent-indigo);
 }
 
@@ -589,8 +589,8 @@ html, body {
 /* Daily challenge */
 .daily-challenge {
     width: 100%;
-    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15));
-    border: 1px solid rgba(99,102,241,0.3);
+    background: linear-gradient(135deg, rgba(124,111,232,0.15), rgba(154,135,242,0.15));
+    border: 1px solid rgba(124,111,232,0.3);
     border-radius: var(--radius);
     padding: 16px;
     margin-top: 16px;
@@ -671,7 +671,7 @@ html, body {
     align-items: center;
     gap: 12px;
     margin-bottom: 16px;
-    border: 1px solid rgba(139,92,246,0.25);
+    border: 1px solid rgba(154,135,242,0.25);
 }
 .room-code-label {
     font-size: 11px;
@@ -738,8 +738,8 @@ html, body {
 }
 .btn-lobby-music {
     float: right;
-    background: rgba(99,102,241,0.15);
-    border: 1px solid rgba(99,102,241,0.3);
+    background: rgba(124,111,232,0.15);
+    border: 1px solid rgba(124,111,232,0.3);
     border-radius: 50%;
     width: 36px;
     height: 36px;
@@ -869,7 +869,7 @@ html, body {
     position: fixed;
     inset: 0;
     z-index: 100000;
-    background: linear-gradient(180deg, #0F0F23 0%, #1A1A2E 100%);
+    background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -909,7 +909,7 @@ html, body {
     font-weight: 800;
     color: #fff;
     letter-spacing: 0.5px;
-    text-shadow: 0 2px 16px rgba(99, 102, 241, 0.6);
+    text-shadow: 0 2px 16px rgba(124,111,232, 0.6);
 }
 @keyframes splash-body-bob {
     0%, 100% { transform: translateY(0); }
@@ -1025,7 +1025,7 @@ html, body {
     font-size: 13px;
     font-weight: 700;
     color: var(--accent-indigo);
-    background: rgba(99,102,241,0.15);
+    background: rgba(124,111,232,0.15);
     padding: 4px 10px;
     border-radius: 6px;
 }
@@ -1285,7 +1285,7 @@ html, body {
     font-size: 12px;
     padding: 3px 10px;
     border-radius: 10px;
-    background: rgba(99,102,241,0.15);
+    background: rgba(124,111,232,0.15);
     color: var(--accent-indigo);
 }
 .result-objectives {
@@ -1563,7 +1563,7 @@ html, body {
     font-size: 22px;
     font-weight: 800;
     color: var(--accent-indigo);
-    background: rgba(99,102,241,0.12);
+    background: rgba(124,111,232,0.12);
     border-radius: var(--radius-xs);
     padding: 4px 10px;
 }
@@ -1796,7 +1796,7 @@ html, body {
 }
 .auth-prompt-card {
     background: var(--bg-card);
-    border: 1px solid rgba(99,102,241,0.3);
+    border: 1px solid rgba(124,111,232,0.3);
     border-radius: var(--radius);
     padding: 20px;
     text-align: center;
@@ -1839,8 +1839,8 @@ html, body {
 .color-7 { color: #F7DC6F; }
 
 /* Score bar colors */
-.score-coherence { background: #6366F1; }
-.score-creativity { background: #8B5CF6; }
+.score-coherence { background: #7C6FE8; }
+.score-creativity { background: #9A87F2; }
 .score-humor { background: #F59E0B; }
 .score-vocabulary { background: #10B981; }
 .score-flow { background: #3B82F6; }
@@ -1892,7 +1892,7 @@ html, body {
 }
 .report-breakdown .bd-bar-fill {
     height: 100%;
-    background: #6366F1;
+    background: #7C6FE8;
     border-radius: 3px;
     transition: width 0.4s ease;
 }
@@ -1911,15 +1911,15 @@ html, body {
 }
 .report-breakdown .bd-type {
     font-size: 11px;
-    background: rgba(99,102,241,0.12);
-    color: var(--accent-indigo, #6366F1);
+    background: rgba(124,111,232,0.12);
+    color: var(--accent-indigo, #7C6FE8);
     padding: 2px 8px;
     border-radius: 8px;
 }
 
 /* Word Level Guide (above player cards) */
 .word-level-guide {
-    background: rgba(99,102,241,0.06);
+    background: rgba(124,111,232,0.06);
     border-radius: 12px;
     padding: 12px;
     margin-bottom: 12px;
@@ -1934,7 +1934,7 @@ html, body {
 .word-level-guide .wlg-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--accent-indigo, #6366F1);
+    color: var(--accent-indigo, #7C6FE8);
 }
 .word-level-guide .wlg-toggle {
     font-size: 11px;
@@ -2279,7 +2279,7 @@ html, body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(99,102,241,0.15);
+    background: rgba(124,111,232,0.15);
     border-radius: var(--radius-xs);
     margin-bottom: 6px;
 }
@@ -2323,7 +2323,7 @@ html, body {
     font-weight: 600;
     z-index: 200;
     animation: toastSlideIn 0.4s ease, toastSlideOut 0.4s ease 2.6s forwards;
-    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    box-shadow: 0 4px 20px rgba(124,111,232,0.4);
     white-space: nowrap;
 }
 @keyframes toastSlideIn {
@@ -2386,7 +2386,7 @@ html, body {
     font-size: 11px;
     padding: 2px 8px;
     border-radius: 10px;
-    background: rgba(99,102,241,0.15);
+    background: rgba(124,111,232,0.15);
     color: var(--accent-indigo);
 }
 .history-actions {
@@ -2411,7 +2411,7 @@ html, body {
     padding: 16px;
     margin-bottom: 16px;
     text-align: center;
-    border: 1px solid rgba(139,92,246,0.25);
+    border: 1px solid rgba(154,135,242,0.25);
 }
 .my-level-avatar { font-size: 32px; }
 .my-level-name { font-weight: 700; font-size: 16px; margin: 4px 0 2px; }
