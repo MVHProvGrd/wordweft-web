@@ -1928,9 +1928,11 @@
         if ((world.frameTick || 0) < world.lassoReadyAtTick) return false;
         const wx = world.cameraX + WEFTY_SCREEN_X;
         const wy = world.weftyY - 0.05;
+        // Omnidirectional pick (matches Climb). Forward-only gate
+        // regressed defensive use against scissors descending straight
+        // onto Wefty — now any in-range hazard can be snagged.
         let best = null, bestD = Infinity;
         for (const hz of world.hazards) {
-            if (hz.worldX < wx - 0.05) continue;
             const dx = hz.worldX - wx, dy = hz.y - wy;
             const d = Math.sqrt(dx * dx + dy * dy);
             if (d < LASSO_RANGE && d < bestD) { best = hz; bestD = d; }
@@ -1954,10 +1956,10 @@
             world.events.push('lasso');
             return true;
         }
-        // Miss: still show the rope flying forward so the player sees
-        // the attack animation.
-        world.lassoLastHitX = wx + LASSO_RANGE * 0.9;
-        world.lassoLastHitY = wy - 0.05;
+        // Miss: flick the rope upward at strike range so the visual
+        // reach matches the snag range and reads as defensive.
+        world.lassoLastHitX = wx;
+        world.lassoLastHitY = wy - LASSO_RANGE * 0.9;
         world.lassoHit = false;
         return false;
     }

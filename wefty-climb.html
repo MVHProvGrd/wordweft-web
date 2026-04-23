@@ -669,7 +669,7 @@
         frameTick: 0,
         gameOver: false,
         isPaused: false,
-        needles: 3,
+        hearts: 3,
         horizontalInput: 0,     // -1, 0, +1
         jumpHeld: false,
         dropThroughUntilY: -Infinity,
@@ -684,6 +684,10 @@
         lassoFlashUntilTick: 0,
         lassoLastHitX: 0,
         lassoLastHitY: 0,
+        // Tutorial autoplay flag — when true, the demo driver steers
+        // Wefty around behind the tutorial overlay and damage is muted
+        // so she can't game-over while the player is reading.
+        tutorialMode: false,
     };
     function lassoReady() { return world.frameTick >= world.lassoReadyAtTick; }
 
@@ -905,18 +909,21 @@
             world.dropThroughUntilY = -Infinity;
         }
 
-        // Hazard collision.
+        // Hazard collision. Skip damage entirely while the demo is
+        // running behind the tutorial overlay — a player reading the
+        // controls shouldn't game-over on the third hit.
         for (const hz of world.hazards) {
             const dx = hz.x - world.weftyX;
             const dy = hz.y - world.weftyY + 0.04;
             if (Math.sqrt(dx*dx + dy*dy) < HAZARD_RADIUS + 0.035) {
-                world.needles--;
-                playHeartLoss();
-                if (world.needles <= 0) {
-                    world.gameOver = true;
-                    try { musicLoop.pause(); } catch (_) {}
+                if (!world.tutorialMode) {
+                    world.hearts--;
+                    playHeartLoss();
+                    if (world.hearts <= 0) {
+                        world.gameOver = true;
+                        try { musicLoop.pause(); } catch (_) {}
+                    }
                 }
-                // Remove the hazard we hit so it can't chain-damage.
                 const idx = world.hazards.indexOf(hz);
                 if (idx >= 0) world.hazards.splice(idx, 1);
                 break;
@@ -926,7 +933,7 @@
         // Fall-off-bottom death: Wefty below camera for > 0.8s ends.
         if (world.weftyY > world.cameraY + VIEWPORT_H + 0.1) {
             if (world.offscreenSince < 0) world.offscreenSince = performance.now();
-            if (performance.now() - world.offscreenSince > 800) {
+            if (performance.now() - world.offscreenSince > 800 && !world.tutorialMode) {
                 world.gameOver = true;
             }
         } else {
@@ -984,20 +991,33 @@
             if (world._pausedBeforeTutorial) {
                 // Restore paused state — player taps RESUME when ready.
                 world._pausedBeforeTutorial = false;
+                world.tutorialMode = false;
                 world.isPaused = true;
                 refreshPauseStats();
                 pauseOverlay.classList.remove('hidden');
                 pauseBtn.classList.add('is-paused');
                 return;
             }
+            if (world.tutorialMode) {
+                // Coming from the first-load demo — wipe the world and
+                // start a fresh playable run with the 3-2-1 countdown.
+                world.tutorialMode = false;
+                resetWorld();
+                startPreRunCountdown();
+                return;
+            }
+            // Mid-run help dismissed while game was active — unpause
+            // (help button set isPaused=true to freeze the run while
+            // reading) and let the existing world keep going.
             world.isPaused = false;
-            startPreRunCountdown();
         });
-        // First-run: show tutorial until dismissed. On subsequent
-        // loads, skip straight to the pre-run countdown so players
-        // always get a 3-2-1 beat before gameplay rolls.
+        // First-run: drop straight into a LIVE demo playthrough with
+        // the tutorial overlaid. Mirrors Wefty Run — the world keeps
+        // updating and a heuristic autoplay drives Wefty around so
+        // players see actual gameplay behind the instructions. On
+        // tutorial dismiss → reset + countdown for a fresh real run.
         if (!localStorage.getItem('wefty_climb_tutorial_v1')) {
-            world.isPaused = true;
+            world.tutorialMode = true;
             document.getElementById('tutorial').classList.remove('hidden');
         } else {
             startPreRunCountdown();
@@ -1262,7 +1282,7 @@
         const dist = document.getElementById('go-height');
         if (dist) dist.textContent = String(cur);
         const cause = document.getElementById('go-cause');
-        if (cause) cause.innerHTML = world.needles <= 0
+        if (cause) cause.innerHTML = world.hearts <= 0
             ? `Scissors got through · best <span style="color:#e8b34c;font-weight:800">${bestHeight}m</span>`
             : `Dropped off the bottom · best <span style="color:#e8b34c;font-weight:800">${bestHeight}m</span>`;
         const b = document.getElementById('go-biome');
@@ -1354,7 +1374,7 @@
         world.heightClimbed = 0; world.frameTick = 0;
         world.gameOver = false; world.isPaused = false;
         mintClimbToken().then(t => { climbToken = t; });
-        world.needles = 3;
+        world.hearts = 3;
         world.horizontalInput = 0; world.jumpHeld = false;
         world.dropThroughUntilY = -Infinity; world.offscreenSince = -1;
         world.hazards.length = 0; world.hazardSpawnCdn = 2;
@@ -1702,7 +1722,7 @@
             tbBiomeDotEl.classList.remove('green','brown','snow');
             tbBiomeDotEl.classList.add(biome.toLowerCase());
         }
-        // Drawn hearts — 3 slots reflecting world.needles.
+        // Drawn hearts — 3 slots reflecting world.hearts.
         function heartSvg(filled) {
             const fill = filled ? '#d8554a' : 'rgba(216,85,74,0.18)';
             const stroke = filled ? '#8a2a22' : 'rgba(216,85,74,0.35)';
@@ -1713,7 +1733,7 @@
         }
         if (tbHeartsEl) {
             const shown = 3;
-            const filled = Math.max(0, Math.min(shown, world.needles));
+            const filled = Math.max(0, Math.min(shown, world.hearts));
             let html = '';
             for (let i = 0; i < shown; i++) html += heartSvg(i < filled);
             tbHeartsEl.innerHTML = html;
@@ -1734,11 +1754,53 @@
         }
     }
 
+    // ── Tutorial autoplay ──────────────────────────────────────────
+    // Heuristic that drives Wefty around behind the tutorial overlay
+    // so first-time players see the game in motion. Picks the nearest
+    // reachable ledge above and walks/jumps toward its center; lassos
+    // any incoming scissor that would hit her. Damage is muted in
+    // tutorialMode (see step()) so failure doesn't game-over the demo.
+    function tutorialAutoplay() {
+        if (!world.tutorialMode || world.gameOver || world.isPaused) return;
+        // Defensive lasso — fire if a hazard is within range and not
+        // on cooldown.
+        if (lassoReady()) {
+            for (const hz of world.hazards) {
+                const dx = hz.x - world.weftyX;
+                const dy = hz.y - world.weftyY;
+                if (Math.sqrt(dx*dx + dy*dy) < 0.25) {
+                    fireLasso();
+                    break;
+                }
+            }
+        }
+        // Pick the nearest ledge above us as the target.
+        let target = null, bestDy = Infinity;
+        for (const l of world.ledges) {
+            const dyL = world.weftyY - l.y;
+            if (dyL > 0.04 && dyL < bestDy) { target = l; bestDy = dyL; }
+        }
+        if (!target) return;
+        const targetX = (target.xStart + target.xEnd) / 2;
+        // Steer left/right toward the target's center.
+        const dx = targetX - world.weftyX;
+        if (Math.abs(dx) > 0.04) {
+            world.horizontalInput = dx > 0 ? 1 : -1;
+        } else {
+            world.horizontalInput = 0;
+        }
+        // Jump when roughly under the target, grounded, and aligned.
+        if (world.weftyGrounded && Math.abs(dx) < 0.18 && bestDy > 0.06 && bestDy < 0.20) {
+            jump();
+        }
+    }
+
     // ── Main loop ──────────────────────────────────────────────────
     let lastT = performance.now();
     function loop(now) {
         const dt = Math.min(0.05, (now - lastT) / 1000);
         lastT = now;
+        if (world.tutorialMode) tutorialAutoplay();
         step(dt);
         render();
         requestAnimationFrame(loop);
