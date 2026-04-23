@@ -518,9 +518,12 @@
         /* Nearly transparent — the dock sits over the island body
            and previously read as dark "brown/green boxes" covering
            the art. Just the icon + count badge float now; the tile
-           is a faint dimming for stocked slots, nothing for empty. */
+           is a faint dimming for stocked slots, nothing for empty.
+           Sized to match the 76px Lasso/Jump action buttons so the
+           three HUD elements share a clean baseline AND a matching
+           top edge. */
         position: relative;
-        width: 64px; height: 64px;
+        width: 72px; height: 76px;
         border-radius: 14px;
         background: rgba(26,14,20,0.20);
         border: 1px solid rgba(251,243,231,0.14);
@@ -1639,7 +1642,15 @@
     // later if needed. Canvas height range: 310-576 px, tree height
     // range: 34-50% of canvas, so tree on-screen spread collapses
     // from 2.3x (flower-anchor) down to ~1.5x.
-    const ISLAND_WORLD_H = 0.30;   // world units — ~30% of viewport height
+    // Width-anchored sizing (was height-anchored, which let widths
+    // swing 0.93-1.60 across variants; flat aspect-5.3 islands looked
+    // 70% wider than the flower-bearing aspect-3.1 ones). Now every
+    // island renders at the same world width — flowery variants are
+    // the visual reference. Height follows natural aspect with a floor
+    // so short islands still reach the waterline (ISLAND_MIN_H >
+    // waterline offset 0.10 + a margin).
+    const ISLAND_WORLD_W = 1.05;
+    const ISLAND_MIN_H   = 0.32;
     const ISLAND_FALLBACK_W = 1.00;
 
     // Build a Platform with variant + sprite world coords attached.
@@ -1651,8 +1662,12 @@
         let spriteTopY, spriteHeight, spriteRenderW, xEnd;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
-            spriteHeight  = ISLAND_WORLD_H;
-            spriteRenderW = ISLAND_WORLD_H * (s.w / s.h);
+            spriteRenderW = ISLAND_WORLD_W;
+            // Natural-aspect height, but never shorter than the
+            // waterline depth so the bottom always sinks into the
+            // water rather than floating above it.
+            const naturalH = ISLAND_WORLD_W * (s.h / s.w);
+            spriteHeight  = Math.max(naturalH, ISLAND_MIN_H);
             let minRidge = s.surface[0];
             for (const v of s.surface) if (v < minRidge) minRidge = v;
             spriteTopY = top - minRidge * spriteHeight;
@@ -2625,6 +2640,7 @@
     // current. Direction (up/down) is assigned per-gap at spawn so
     // adjacent rivers vary.
     const WATER_BLOCK = loadImg('water_block.png');
+    const WATER_CHEVRON = loadImg('water_chevron_blue.png');
     const WATER_SCROLL_SPEED = 0.15;   // slow; full tile every ~7s
 
     // First-gap wooden bridge — rope-railing + plank-deck sprites.
@@ -3177,17 +3193,33 @@
         // top of the water; gaps naturally show through as river.
         const waterY = PLATFORM_Y + 0.10;
         const wlPx = waterY * h;
-        const waterReady = WATER_BLOCK.complete && WATER_BLOCK.naturalWidth > 0;
         const waterTick = world.frameTick || 0;
-        bgCtx.fillStyle = '#2C5F9E';
+        bgCtx.fillStyle = '#1A3D6B';   // deep navy backing for the chevron tile
         bgCtx.fillRect(0, wlPx, w, h - wlPx);
-        if (waterReady) {
-            // Wide tile (2048x512, 4:1). Waves on top ~40%, deep
-            // water below. Draw ONE tile-height spanning waterline
-            // to screen bottom (tile stretched vertically), tiled
-            // horizontally only, scrolling left with camera. Single
-            // wide tile covers the biggest possible water gap with
-            // zero seams per frame.
+        // Chevron water: square seamless tile, sized to waterline-band
+        // height. Tiled horizontally, scrolled vertically (alternating
+        // band direction creates a subtle ripple effect — top half
+        // drifts up, bottom half drifts down).
+        const chevronReady = WATER_CHEVRON.complete && WATER_CHEVRON.naturalWidth > 0;
+        if (chevronReady) {
+            const bandH = h - wlPx;
+            // Square tile sized so 2 tiles span the band height (gives
+            // the ripple two distinct rows). Width follows aspect.
+            const tileH = bandH;
+            const tileW = tileH * (WATER_CHEVRON.naturalWidth / WATER_CHEVRON.naturalHeight);
+            const scrollPx = (waterTick * 0.6) % tileH;
+            let hOff = -((world.cameraX * 0.18 * w) % tileW);
+            if (hOff > 0) hOff -= tileW;
+            for (let tx = hOff; tx < w + tileW; tx += tileW) {
+                // Vertical wrap so the tile loops seamlessly as it
+                // drifts. Two draws cover the wrap seam.
+                const yA = wlPx + (-scrollPx);
+                const yB = wlPx + (-scrollPx + tileH);
+                bgCtx.drawImage(WATER_CHEVRON, tx, yA, tileW, tileH);
+                if (yB < h) bgCtx.drawImage(WATER_CHEVRON, tx, yB, tileW, tileH);
+            }
+        } else if (WATER_BLOCK.complete && WATER_BLOCK.naturalWidth > 0) {
+            // Fallback: legacy block water until the chevron tile loads
             const tileDrawH = h - wlPx;
             const tileW = tileDrawH * (WATER_BLOCK.naturalWidth / WATER_BLOCK.naturalHeight);
             let hOff = -((world.cameraX * 0.25 * w) % tileW);
