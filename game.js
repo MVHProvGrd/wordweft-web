@@ -585,6 +585,14 @@ const Game = (() => {
             textEl.appendChild(span);
         });
 
+        if (currentPlayerIndex === Room.myIndex) {
+            const cursor = document.createElement('span');
+            cursor.className = 'story-cursor';
+            const myPlayer = players[Room.myIndex];
+            if (myPlayer) cursor.style.background = getPlayerColor(myPlayer.color);
+            textEl.appendChild(cursor);
+        }
+
         // Auto-scroll story area to bottom, restore viewport
         const storyArea = document.getElementById('story-area');
         if (storyArea) {

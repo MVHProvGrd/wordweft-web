@@ -646,9 +646,10 @@ const App = (() => {
                 '<div class="public-room-avatar">' + (r.hostAvatar || '\uD83D\uDE0A') + '</div>' +
                 '<div class="public-room-info">' +
                     '<div class="public-room-host">' + (r.hostName || 'Player') + '</div>' +
-                    '<div class="public-room-meta">' +
-                        modeLabelFor(r.gameMode) + ' \u2022 ' + timerLabel + ' \u2022 ' +
-                        starterLabelFor(r.storyStarter) +
+                    '<div class="public-room-chips">' +
+                        '<span class="public-room-chip chip-mode">' + modeLabelFor(r.gameMode) + '</span>' +
+                        '<span class="public-room-chip chip-starter">' + starterLabelFor(r.storyStarter) + '</span>' +
+                        '<span class="public-room-chip chip-timer">' + timerLabel + '</span>' +
                     '</div>' +
                     (r.hiddenObjectivesEnabled
                         ? '<div class="public-room-objectives">Hidden Objectives</div>'
