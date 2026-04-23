@@ -700,7 +700,15 @@
         function updateVersionBadge() {
             const el = document.getElementById('app-version');
             if (!el) return;
-            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            if (!('serviceWorker' in navigator)) {
+                el.textContent = 'no service worker';
+                return;
+            }
+            // Ask whichever SW worker is available: controller (active +
+            // in charge of this page), registration.active (installed +
+            // activated but not yet controlling — first visit until
+            // first reload), or registration.installing/waiting.
+            function queryWorker(worker) {
                 const chan = new MessageChannel();
                 chan.port1.onmessage = (e) => {
                     if (e.data && e.data.version) {
@@ -710,12 +718,18 @@
                             : e.data.version;
                     }
                 };
-                navigator.serviceWorker.controller.postMessage(
-                    { type: 'GET_VERSION' }, [chan.port2]
-                );
-            } else {
-                el.textContent = 'offline';
+                worker.postMessage({ type: 'GET_VERSION' }, [chan.port2]);
             }
+            if (navigator.serviceWorker.controller) {
+                queryWorker(navigator.serviceWorker.controller);
+                return;
+            }
+            // Controller null → either first install or between activations.
+            el.textContent = 'installing…';
+            navigator.serviceWorker.getRegistration().then((reg) => {
+                const w = reg && (reg.active || reg.waiting || reg.installing);
+                if (w) queryWorker(w);
+            });
         }
         // Fire once on load and again after any SW takeover
         window.addEventListener('load', updateVersionBadge);
