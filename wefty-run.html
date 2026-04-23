@@ -2519,6 +2519,8 @@
     const weftyRunA = loadImg('wefty_run_a.png');
     const weftyRunB = loadImg('wefty_run_b.png');
     const weftyFall = loadImg('wefty_fall.png');
+    const weftyJumpSquash = loadImg('wefty_jump_squash.png');
+    const weftyJumpStretch = loadImg('wefty_jump_stretch.png');
     const weftyGlider = loadImg('wefty_glider.png');
     const weftyShield = loadImg('wefty_shield.png');
     const weftySpring = loadImg('wefty_spring.png');
@@ -3553,7 +3555,26 @@
         } else if (hasDoubleJump && weftySpring.complete && weftySpring.naturalWidth) {
             spriteImg = weftySpring; spriteScale = 0.65; spriteBottom = 0.92;
         } else {
-            spriteImg = !world.grounded ? weftyFall : weftyRunA;
+            // Jump animation: squash on takeoff (~90ms window), stretch
+            // while rising, open-arms fall on descent. world._jumpAnimStart
+            // is snapshot on the grounded→airborne edge.
+            if (world.grounded) {
+                spriteImg = weftyRunA;
+            } else {
+                if (world._wasGroundedForJump) {
+                    world._jumpAnimStart = performance.now();
+                }
+                const inSquash = world._jumpAnimStart &&
+                    performance.now() - world._jumpAnimStart < 90;
+                if (inSquash && weftyJumpSquash.complete && weftyJumpSquash.naturalWidth) {
+                    spriteImg = weftyJumpSquash;
+                } else if (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) {
+                    spriteImg = weftyJumpStretch;
+                } else {
+                    spriteImg = weftyFall;
+                }
+            }
+            world._wasGroundedForJump = world.grounded;
         }
         const effSize = sSize * spriteScale;
         const rolling = spriteImg === weftyRunA;

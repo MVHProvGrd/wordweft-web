@@ -1358,6 +1358,8 @@
     const scissors   = loadImg('scissors_open.png');
     const weftyRoll  = loadImg('wefty_run_a.png');
     const weftyFall  = loadImg('wefty_fall.png');
+    const weftyJumpSquash = loadImg('wefty_jump_squash.png');
+    const weftyJumpStretch = loadImg('wefty_jump_stretch.png');
     const lassoImg   = loadImg('lasso.png');
     const ropeImg    = loadImg('rope_texture.png');
 
@@ -1512,14 +1514,22 @@
             const sprite = sprites[Math.max(0, Math.min(sprites.length - 1, l.variant))];
             if (!sprite.complete || !sprite.naturalWidth) continue;
             // Clamp the sprite to a reasonable visual SIZE while
-            // preserving aspect. drawW defaults to the hitbox width;
-            // if that would make the sprite exceed maxH, we scale
-            // down by height instead. maxH=0.10h (was 0.07 — too
-            // tight, shrank pines to miniatures; and no cap made
-            // pine ledges WAY taller than flat ones).
+            // Tree-bearing variants have trunks + leaves occupying part
+            // of their image width, so the usable snow/rock strip reads
+            // narrower than flat variants at the same hitbox width.
+            // Scale those sprites wider (visual only — hitbox is still
+            // lw) so the walkable portion feels comparable. Height cap
+            // raised to 0.13h so tall trees don't get height-clamped
+            // into narrow blocks.
+            const WIDTH_SCALE = {
+                GREEN: [1.0, 1.0, 1.0, 1.0],
+                BROWN: [1.0, 1.0, 1.0, 1.15],
+                SNOW:  [1.0, 1.20, 1.20, 1.20],
+            };
+            const widthScale = (WIDTH_SCALE[lb] || [1,1,1,1])[l.variant] || 1;
             const natAspect = sprite.naturalHeight / sprite.naturalWidth;
-            const maxH = h * 0.10;
-            const maxW = lw;
+            const maxH = h * 0.13;
+            const maxW = lw * widthScale;
             const widthLimitedH = maxW * natAspect;
             let drawW, drawH;
             if (widthLimitedH <= maxH) {
@@ -1529,16 +1539,14 @@
             }
             const centerX = ((l.xStart + l.xEnd) / 2) * w;
             const drawX = centerX - drawW / 2;
-            // Per-(biome, variant) topOffset so the visible SURFACE
-            // line lands at the same screen spot across every PNG.
-            // Variants whose sprite has decor sticking up above the
-            // walkable surface (green tufts, snow pines, brown
-            // crystal) need a LARGER offset than variants whose top
-            // pixel IS the surface.
+            // Per-(biome, variant) topOffset — fraction from top of
+            // sprite to the walkable surface line. Tree variants have
+            // much more sprite height above the walkable surface than
+            // flat variants; the fraction is PROPORTIONALLY LARGER.
             const TOP_OFFSET = {
                 GREEN: [0.32, 0.32, 0.32, 0.32],
                 BROWN: [0.14, 0.14, 0.14, 0.20],
-                SNOW:  [0.14, 0.30, 0.30, 0.30],
+                SNOW:  [0.14, 0.35, 0.45, 0.45],
             };
             const topOffset = drawH * (TOP_OFFSET[lb][l.variant] ?? 0.20);
             fgCtx.drawImage(sprite, drawX, lyScreen - topOffset, drawW, drawH);
@@ -1569,7 +1577,18 @@
         const wSize = h * 0.08;
         const wx = world.weftyX * w;
         const wy = (world.weftyY - world.cameraY) * h;
-        const sprite = world.weftyGrounded ? weftyRoll : weftyFall;
+        // Jump animation — squash on takeoff (~90ms), stretch rising,
+        // open-arms fall on descent.
+        if (!world.weftyGrounded && world._wasGroundedForJump) {
+            world._jumpAnimStart = performance.now();
+        }
+        world._wasGroundedForJump = world.weftyGrounded;
+        const _inSquash = !world.weftyGrounded && world._jumpAnimStart &&
+            performance.now() - world._jumpAnimStart < 90;
+        const sprite = world.weftyGrounded ? weftyRoll
+            : (_inSquash && weftyJumpSquash.complete && weftyJumpSquash.naturalWidth) ? weftyJumpSquash
+            : (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) ? weftyJumpStretch
+            : weftyFall;
         if (sprite.complete && sprite.naturalWidth) {
             // Reset rotation origin every time she lands so she plants
             // upright. rollOriginWorldX lives outside this draw block
