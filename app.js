@@ -960,6 +960,7 @@ const App = (() => {
         const blockedListEl = document.getElementById('blocked-users-list');
         const blockedHeading = document.getElementById('blocked-users-heading');
         if (blockedListEl && blockedHeading) {
+            const nameCache = new Map();
             const renderBlocked = async (uids) => {
                 if (!uids || uids.length === 0) {
                     blockedListEl.classList.add('hidden');
@@ -969,15 +970,15 @@ const App = (() => {
                 }
                 blockedListEl.classList.remove('hidden');
                 blockedHeading.classList.remove('hidden');
-                const rows = await Promise.all(uids.map(async (uid) => {
-                    let name = '…' + uid.slice(0, 6);
+                const uncached = uids.filter(u => !nameCache.has(u));
+                await Promise.all(uncached.map(async (uid) => {
                     try {
                         const snap = await db.ref('users/' + uid + '/profile').once('value');
                         const v = snap.val();
-                        if (v && v.displayName) name = v.displayName;
-                    } catch (_) { /* use fallback */ }
-                    return { uid, name };
+                        nameCache.set(uid, (v && v.displayName) ? v.displayName : '…' + uid.slice(0, 6));
+                    } catch (_) { nameCache.set(uid, '…' + uid.slice(0, 6)); }
                 }));
+                const rows = uids.map(uid => ({ uid, name: nameCache.get(uid) || '…' + uid.slice(0, 6) }));
                 const esc = (s) => String(s)
                     .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
                     .replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -993,14 +994,8 @@ const App = (() => {
                     };
                 });
             };
-            const teardown = Auth.observeBlockedUids(renderBlocked);
-            // re-fire once in case the listener attached after any
-            // initial data arrived.
-            Auth.getBlockedUids().then(renderBlocked);
-            // Keep the teardown reference on window so we don't leak
-            // listeners across settings-open cycles.
             if (window.__blockedUsersTeardown) window.__blockedUsersTeardown();
-            window.__blockedUsersTeardown = teardown;
+            window.__blockedUsersTeardown = Auth.observeBlockedUids(renderBlocked);
         }
 
         const deleteBtn = document.getElementById('btn-profile-delete');
