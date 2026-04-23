@@ -1594,18 +1594,19 @@
         const wSize = h * 0.08;
         const wx = world.weftyX * w;
         const wy = (world.weftyY - world.cameraY) * h;
-        // Jump animation — squash on takeoff (~90ms), stretch rising,
-        // open-arms fall on descent.
-        if (!world.weftyGrounded && world._wasGroundedForJump) {
-            world._jumpAnimStart = performance.now();
-        }
+        // Jump animation — stretch rising, open-arms fall descending.
+        // Squash frame was scrapped (timing too tight vs shorter climb
+        // jumps).
         world._wasGroundedForJump = world.weftyGrounded;
-        const _inSquash = !world.weftyGrounded && world._jumpAnimStart &&
-            performance.now() - world._jumpAnimStart < 400;
+        const _spriteIsStretch = !world.weftyGrounded && world.weftyVy < 0
+            && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth;
         const sprite = world.weftyGrounded ? weftyRoll
-            : (_inSquash && weftyJumpSquash.complete && weftyJumpSquash.naturalWidth) ? weftyJumpSquash
-            : (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) ? weftyJumpStretch
+            : _spriteIsStretch ? weftyJumpStretch
             : weftyFall;
+        // Stretch sprite is visually bigger so the ball-head matches
+        // rolling Wefty's diameter; tracked separately so the draw
+        // call can scale it up.
+        const _stretchScale = _spriteIsStretch ? 1.90 : 1.0;
         if (sprite.complete && sprite.naturalWidth) {
             // Reset rotation origin every time she lands so she plants
             // upright. rollOriginWorldX lives outside this draw block
@@ -1617,10 +1618,11 @@
             const rollDeg = (sprite === weftyRoll)
                 ? ((world.weftyX - (world.rollOriginWorldX || 0)) * w / (wSize * Math.PI)) * 360
                 : 0;
+            const drawSize = wSize * _stretchScale;
             fgCtx.save();
-            fgCtx.translate(wx, wy - wSize * 0.30);
+            fgCtx.translate(wx, wy - drawSize * 0.30);
             fgCtx.rotate(rollDeg * Math.PI / 180);
-            fgCtx.drawImage(sprite, -wSize / 2, -wSize * 0.50, wSize, wSize);
+            fgCtx.drawImage(sprite, -drawSize / 2, -drawSize * 0.50, drawSize, drawSize);
             fgCtx.restore();
         }
 

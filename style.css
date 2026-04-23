@@ -950,6 +950,35 @@ html, body {
 .host-setup-row > span:first-child  { color: var(--text-muted); }
 .host-setup-row > span:last-child   { color: var(--text-primary); font-weight: 500; }
 
+/* Value pills on the joiner waiting screen — visually match the
+   host's active-pill look in the lobby settings so the joiner sees
+   what the host picked in the same language. Read-only. */
+.host-setup-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 2px solid var(--accent-indigo);
+    background: rgba(124,111,232, 0.2);
+    color: var(--accent-indigo) !important;
+    font-size: 13px;
+    font-weight: 600 !important;
+    white-space: nowrap;
+}
+/* Starter pills use the 'free play' emerald accent — matches the
+   active Starter look in the host controls. */
+.host-setup-pill.pill-starter {
+    border-color: var(--accent-green);
+    background: rgba(16,185,129, 0.18);
+    color: var(--accent-green) !important;
+}
+/* Timer pills use the gold accent to match the host controls. */
+.host-setup-pill.pill-timer {
+    border-color: var(--accent-amber);
+    background: rgba(251,191,36, 0.18);
+    color: var(--accent-amber) !important;
+}
+
 /* ─── Game Screen ─────────────────────────────────────── */
 
 .game-container {

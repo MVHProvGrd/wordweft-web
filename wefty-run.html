@@ -3575,24 +3575,20 @@
         } else if (hasDoubleJump && weftySpring.complete && weftySpring.naturalWidth) {
             spriteImg = weftySpring; spriteScale = 0.65; spriteBottom = 0.92;
         } else {
-            // Jump animation: squash on takeoff (~90ms window), stretch
-            // while rising, open-arms fall on descent. world._jumpAnimStart
-            // is snapshot on the grounded→airborne edge.
+            // Jump animation: stretch while rising, open-arms fall on
+            // descent. Squash frame was scrapped. _wasGroundedForJump
+            // is still tracked for the dust-puff spawn upstream.
             if (world.grounded) {
                 spriteImg = weftyRunA;
+            } else if (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) {
+                spriteImg = weftyJumpStretch;
+                // Stretch sprite: ball is ~37% of its canvas vs ~70%
+                // of run_a → scale 1.90 matches ball-to-ball across
+                // rolling / stretch / fall transitions. bottom 0.88
+                // anchors her feet (tall stretched body extends up).
+                spriteScale = 1.90; spriteBottom = 0.88;
             } else {
-                if (world._wasGroundedForJump) {
-                    world._jumpAnimStart = performance.now();
-                }
-                const inSquash = world._jumpAnimStart &&
-                    performance.now() - world._jumpAnimStart < 400;
-                if (inSquash && weftyJumpSquash.complete && weftyJumpSquash.naturalWidth) {
-                    spriteImg = weftyJumpSquash;
-                } else if (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) {
-                    spriteImg = weftyJumpStretch;
-                } else {
-                    spriteImg = weftyFall;
-                }
+                spriteImg = weftyFall;
             }
             world._wasGroundedForJump = world.grounded;
         }
