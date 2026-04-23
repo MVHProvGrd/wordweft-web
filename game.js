@@ -959,8 +959,15 @@ const Game = (() => {
         // Try the gradeStory Cloud Function for LLM-enhanced scoring +
         // cross-platform-consistent playerStats. Falls back to heuristic
         // `result` on any failure (offline, no billing, LLM timeout, etc).
-        const merged = await tryGradeStory(result, players, words);
-        Room.postResult(merged || result);
+        // Gated to host-only so the four-player room doesn't fire four
+        // parallel LLM calls; non-hosts read the result via the Firebase
+        // listener Room.postResult writes to.
+        const me = players.find(p => p.id === Room.myIndex);
+        const amHost = me && me.isHost;
+        if (amHost) {
+            const merged = await tryGradeStory(result, players, words);
+            Room.postResult(merged || result);
+        }
     }
 
     /**

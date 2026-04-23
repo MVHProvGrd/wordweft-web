@@ -1369,7 +1369,7 @@
     // Share Run's instrumental loop — the prior climb loop had
     // vocals that the user flagged as unwanted. Revisit with a
     // dedicated no-lyrics track later.
-    const musicLoop = new Audio('wefty_run_loop.mp3');
+    const musicLoop = new Audio('wefty_climb_loop.mp3');
     musicLoop.loop = true; musicLoop.volume = 0.32;
     let musicStarted = false;
     function tryStartMusic() {
@@ -1572,9 +1572,16 @@
         const sprite = world.weftyGrounded ? weftyRoll : weftyFall;
         if (sprite.complete && sprite.naturalWidth) {
             // Anchor so Wefty's visible bottom is slightly INSIDE the
-            // grass — but not so deep that her body is swallowed by
-            // the tufts on the taller flower-rich variants.
-            fgCtx.drawImage(sprite, wx - wSize / 2, wy - wSize * 0.80, wSize, wSize);
+            // grass. Yarn-ball roll: degrees = travel / circumference
+            // * 360. weftyX is [0,1] in world units → pixels = wx.
+            const rollDeg = (sprite === weftyRoll)
+                ? (wx / (wSize * Math.PI)) * 360
+                : 0;
+            fgCtx.save();
+            fgCtx.translate(wx, wy - wSize * 0.30);
+            fgCtx.rotate(rollDeg * Math.PI / 180);
+            fgCtx.drawImage(sprite, -wSize / 2, -wSize * 0.50, wSize, wSize);
+            fgCtx.restore();
         }
 
         // Lasso visual — rope from Wefty to the KNOT on the loop's

@@ -3104,11 +3104,19 @@
             bgCtx.globalAlpha = 1;
         }
         if (woodlandBlend > 0 && woodlandImg.complete && woodlandImg.naturalWidth > 0) {
-            const wbW = h * (woodlandImg.naturalWidth / woodlandImg.naturalHeight);
+            // Crop out the empty sky padding above the trees (top ~38%
+            // of the source PNG). The cropped band gets stretched
+            // edge-to-edge vertically; ground plane lines up near the
+            // waterline.
+            const srcY = woodlandImg.naturalHeight * 0.38;
+            const srcH = woodlandImg.naturalHeight * 0.62;
+            const wbW = h * (woodlandImg.naturalWidth / srcH);
             const wbOffset = -((world.cameraX * 0.3 * w) % wbW);
             bgCtx.globalAlpha = woodlandBlend * 0.92;
             for (let x = wbOffset; x < w; x += wbW) {
-                bgCtx.drawImage(woodlandImg, x, 0, wbW, h);
+                bgCtx.drawImage(woodlandImg,
+                    0, srcY, woodlandImg.naturalWidth, srcH,
+                    x, 0, wbW, h);
             }
             bgCtx.globalAlpha = 1;
         }
