@@ -580,7 +580,7 @@
             <dt>A / D or ←/→</dt><dd>Move left / right</dd>
             <dt>W / Space / ↑</dt><dd>Jump</dd>
             <dt>S / ↓</dt><dd>Drop through the ledge below</dd>
-            <dt>F / Z</dt><dd>Throw lasso at a scissor above (available on demand)</dd>
+            <dt>F / L</dt><dd>Throw lasso at a scissor above (available on demand)</dd>
             <dt>❤</dt><dd>Hit points — scissors each cost one. Zero = game over.</dd>
         </dl>
         <button class="start-btn" id="btn-start">Start climbing</button>
@@ -1165,7 +1165,7 @@
         if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') {
             jump(); e.preventDefault();
         }
-        if (k === 'z' || k === 'Z' || k === 'f' || k === 'F') fireLasso();
+        if (k === 'f' || k === 'F' || k === 'l' || k === 'L') fireLasso();
     });
     window.addEventListener('keyup', (e) => {
         const k = e.key;
