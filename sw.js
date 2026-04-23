@@ -103,6 +103,11 @@ self.addEventListener('install', (event) => {
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
+    } else if (event.data && event.data.type === 'GET_VERSION' && event.source) {
+        // Respond to page's version query so the home-screen badge can
+        // show what SW is actually active (after a stale cache gets
+        // replaced, users can glance at the home screen to confirm).
+        event.source.postMessage({ type: 'VERSION', version: CACHE_NAME });
     }
 });
 

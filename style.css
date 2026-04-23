@@ -947,6 +947,18 @@ html, body {
     padding: 6px 0;
     font-size: 13px;
 }
+/* App version badge on the home screen — small muted mono text so
+   users can verify at a glance which deploy they're running. */
+.app-version {
+    text-align: center;
+    margin-top: 24px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    opacity: 0.6;
+}
+
 .host-setup-row > span:first-child  { color: var(--text-muted); }
 .host-setup-row > span:last-child   { color: var(--text-primary); font-weight: 500; }
 

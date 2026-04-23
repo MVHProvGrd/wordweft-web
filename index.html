@@ -129,6 +129,8 @@
                 <div id="daily-challenge-reward" class="challenge-reward">+25 bonus XP</div>
             </div>
 
+            <div id="app-version" class="app-version">loading&hellip;</div>
+
         </div>
     </div>
 
@@ -691,6 +693,33 @@
     <script src="screens.js"></script>
     <script src="game.js"></script>
     <script src="app.js"></script>
+    <script>
+        // Ask the active service worker for its cache name, render it
+        // on the home-screen version badge. Lets players confirm at a
+        // glance whether a refresh picked up the new deploy.
+        function updateVersionBadge() {
+            const el = document.getElementById('app-version');
+            if (!el) return;
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                const chan = new MessageChannel();
+                chan.port1.onmessage = (e) => {
+                    if (e.data && e.data.version) {
+                        el.textContent = e.data.version;
+                    }
+                };
+                navigator.serviceWorker.controller.postMessage(
+                    { type: 'GET_VERSION' }, [chan.port2]
+                );
+            } else {
+                el.textContent = 'offline';
+            }
+        }
+        // Fire once on load and again after any SW takeover
+        window.addEventListener('load', updateVersionBadge);
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.addEventListener('controllerchange', updateVersionBadge);
+        }
+    </script>
     <script>
         // Register service worker for PWA. Show a reload banner when a new
         // SW is waiting so users instantly get fresh JS/CSS/HTML instead of
