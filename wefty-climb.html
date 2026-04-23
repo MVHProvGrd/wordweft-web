@@ -1639,18 +1639,20 @@
             if (cur > bestHeight) {
                 bestHeight = cur;
                 localStorage.setItem('wefty_climb_best', String(cur));
-                // Submit to global Climb leaderboard — only if the
-                // player is signed in with a real account. Anonymous
-                // UIDs churn on reinstall and aren't worth tracking.
                 try {
-                    if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous) {
-                        firebase.database().ref('wefty_climb_leaderboard/' + Auth.uid).set({
-                            uid: Auth.uid,
-                            displayName: Auth.name || 'Player',
-                            avatar: Auth.avatar || '',
-                            bestHeight: cur,
-                            updatedAt: firebase.database.ServerValue.TIMESTAMP,
-                        });
+                    if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous
+                        && Auth.name && Auth.name !== 'Player') {
+                        firebase.database().ref('wefty_climb_leaderboard/' + Auth.uid)
+                            .transaction(existing => {
+                                if (existing && (existing.bestHeight || 0) >= cur) return;
+                                return {
+                                    uid: Auth.uid,
+                                    displayName: Auth.name,
+                                    avatar: Auth.avatar || '',
+                                    bestHeight: cur,
+                                    updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                                };
+                            });
                     }
                 } catch (_) {}
             }
@@ -1675,6 +1677,18 @@
             if (typeof Auth !== 'undefined') {
                 await Auth.init();
                 await Auth.ensureSignedIn();
+                if (Auth.uid && !Auth.isAnonymous) {
+                    try {
+                        const snap = await firebase.database()
+                            .ref('wefty_climb_leaderboard/' + Auth.uid + '/bestHeight')
+                            .once('value');
+                        const serverBest = parseInt(snap.val() || 0, 10) || 0;
+                        if (serverBest > bestHeight) {
+                            bestHeight = serverBest;
+                            localStorage.setItem('wefty_climb_best', String(serverBest));
+                        }
+                    } catch (_) {}
+                }
             }
         } catch (_) {}
     })();

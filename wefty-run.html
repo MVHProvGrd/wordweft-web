@@ -1188,6 +1188,22 @@
             if (typeof Auth !== 'undefined') {
                 await Auth.init();
                 await Auth.ensureSignedIn();
+                // Hydrate local PB from the server leaderboard so a fresh
+                // browser / cleared storage doesn't hide the true top
+                // score and (more importantly) doesn't let a fresh local 0
+                // clobber the server entry with a lower subsequent run.
+                if (Auth.uid && !Auth.isAnonymous) {
+                    try {
+                        const snap = await firebase.database()
+                            .ref('wefty_run_leaderboard/' + Auth.uid + '/bestDistance')
+                            .once('value');
+                        const serverBest = parseInt(snap.val() || 0, 10) || 0;
+                        if (serverBest > bestDistance) {
+                            bestDistance = serverBest;
+                            localStorage.setItem('wefty_run_best', String(serverBest));
+                        }
+                    } catch (_) {}
+                }
             }
         } catch (_) {}
     })();
@@ -2408,17 +2424,25 @@
                     bestDistance = score;
                     localStorage.setItem('wefty_run_best', String(score));
                     // Publish the new personal best to the global
-                    // Wefty Run leaderboard. Fire-and-forget; auth/db
-                    // may not be ready (e.g., offline) and that's OK.
+                    // Wefty Run leaderboard. Transaction only overwrites
+                    // when the new score actually beats the server entry —
+                    // local 'best' is unreliable (resets on cache clear /
+                    // reinstall / different device) and used to clobber
+                    // real top scores.
                     try {
-                        if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous) {
-                            firebase.database().ref('wefty_run_leaderboard/' + Auth.uid).set({
-                                uid: Auth.uid,
-                                displayName: Auth.name || 'Player',
-                                avatar: Auth.avatar || '',
-                                bestDistance: score,
-                                updatedAt: firebase.database.ServerValue.TIMESTAMP,
-                            });
+                        if (typeof Auth !== 'undefined' && Auth.uid && !Auth.isAnonymous
+                            && Auth.name && Auth.name !== 'Player') {
+                            firebase.database().ref('wefty_run_leaderboard/' + Auth.uid)
+                                .transaction(current => {
+                                    if (current && (current.bestDistance || 0) >= score) return;
+                                    return {
+                                        uid: Auth.uid,
+                                        displayName: Auth.name,
+                                        avatar: Auth.avatar || '',
+                                        bestDistance: score,
+                                        updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                                    };
+                                });
                         }
                     } catch (_) {}
                 }
