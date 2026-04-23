@@ -964,9 +964,16 @@ const Game = (() => {
         // listener Room.postResult writes to.
         const me = players.find(p => p.id === Room.myIndex);
         const amHost = me && me.isHost;
+        console.log('finishGame: myIndex=' + Room.myIndex +
+            ', amHost=' + amHost + ', players=' + players.length);
         if (amHost) {
             const merged = await tryGradeStory(result, players, words);
+            console.log('finishGame: tryGradeStory returned ' +
+                (merged ? 'LLM-merged result' : 'null (using heuristic)'));
             Room.postResult(merged || result);
+        } else {
+            console.log('finishGame: not host → skipping gradeStory, ' +
+                'waiting for host to post result');
         }
     }
 
@@ -976,7 +983,16 @@ const Game = (() => {
      * post the heuristic as-is.
      */
     async function tryGradeStory(heuristic, players, words) {
-        if (!fbFunctions || typeof fbFunctions.httpsCallable !== 'function') return null;
+        if (!fbFunctions || typeof fbFunctions.httpsCallable !== 'function') {
+            console.warn('gradeStory skipped — fbFunctions unavailable', {
+                fbFunctions,
+                firebaseFunctions: typeof firebase !== 'undefined' ? firebase.functions : 'firebase-undefined',
+            });
+            return null;
+        }
+        console.log('gradeStory: calling Cloud Function (host=' +
+            (players.find(p => p.id === Room.myIndex)?.isHost) +
+            ', words=' + words.length + ')');
         try {
             const playerById = {};
             players.forEach(p => { playerById[p.id] = p; });
