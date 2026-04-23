@@ -1320,14 +1320,31 @@
     }
     async function submitClimbScore(token, score) {
         if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return;
-        if (!Auth.name || Auth.name === 'Player') return;
+        let displayName = Auth.name;
+        if (!displayName || displayName === 'Player') {
+            try {
+                const snap = await firebase.database()
+                    .ref('users/' + Auth.uid + '/profile/displayName').once('value');
+                const v = snap.val();
+                if (v && v !== 'Player') displayName = v;
+            } catch (_) {}
+        }
+        if (!displayName || displayName === 'Player') {
+            console.warn('weftyClimbSubmit skipped — no resolvable display name');
+            return;
+        }
         try {
             const handshake = await weftyHandshake(token.runId, token.nonce, score);
             await firebase.functions().httpsCallable('weftyClimbSubmit')({
                 runId: token.runId, score, handshake,
-                displayName: Auth.name, avatar: Auth.avatar || '',
+                displayName, avatar: Auth.avatar || '',
             });
-        } catch (e) { console.warn('weftyClimbSubmit failed', e); }
+        } catch (e) {
+            console.warn('weftyClimbSubmit failed', e);
+            if (typeof showToast === 'function') {
+                showToast('Leaderboard submit failed: ' + (e.message || 'unknown'));
+            }
+        }
     }
 
     function resetWorld() {

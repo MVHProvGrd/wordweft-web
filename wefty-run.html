@@ -1534,14 +1534,34 @@
     }
     async function submitRunScore(token, score) {
         if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return;
-        if (!Auth.name || Auth.name === 'Player') return;
+        // Fall back to Firebase profile name when in-memory is blank
+        // or "Player" — profile may not have hydrated yet when game
+        // ended. Without this the submit silently no-ops.
+        let displayName = Auth.name;
+        if (!displayName || displayName === 'Player') {
+            try {
+                const snap = await firebase.database()
+                    .ref('users/' + Auth.uid + '/profile/displayName').once('value');
+                const v = snap.val();
+                if (v && v !== 'Player') displayName = v;
+            } catch (_) {}
+        }
+        if (!displayName || displayName === 'Player') {
+            console.warn('weftyRunSubmit skipped — no resolvable display name');
+            return;
+        }
         try {
             const handshake = await weftyHandshake(token.runId, token.nonce, score);
             await firebase.functions().httpsCallable('weftyRunSubmit')({
                 runId: token.runId, score, handshake,
-                displayName: Auth.name, avatar: Auth.avatar || '',
+                displayName, avatar: Auth.avatar || '',
             });
-        } catch (e) { console.warn('weftyRunSubmit failed', e); }
+        } catch (e) {
+            console.warn('weftyRunSubmit failed', e);
+            if (typeof showToast === 'function') {
+                showToast('Leaderboard submit failed: ' + (e.message || 'unknown'));
+            }
+        }
     }
 
     function resetWorld() {
