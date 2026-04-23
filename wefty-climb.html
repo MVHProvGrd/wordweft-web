@@ -1601,7 +1601,7 @@
         }
         world._wasGroundedForJump = world.weftyGrounded;
         const _inSquash = !world.weftyGrounded && world._jumpAnimStart &&
-            performance.now() - world._jumpAnimStart < 90;
+            performance.now() - world._jumpAnimStart < 400;
         const sprite = world.weftyGrounded ? weftyRoll
             : (_inSquash && weftyJumpSquash.complete && weftyJumpSquash.naturalWidth) ? weftyJumpSquash
             : (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) ? weftyJumpStretch

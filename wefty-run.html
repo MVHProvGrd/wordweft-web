@@ -3585,7 +3585,7 @@
                     world._jumpAnimStart = performance.now();
                 }
                 const inSquash = world._jumpAnimStart &&
-                    performance.now() - world._jumpAnimStart < 90;
+                    performance.now() - world._jumpAnimStart < 400;
                 if (inSquash && weftyJumpSquash.complete && weftyJumpSquash.naturalWidth) {
                     spriteImg = weftyJumpSquash;
                 } else if (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) {
