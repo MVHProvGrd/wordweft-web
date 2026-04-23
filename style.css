@@ -948,15 +948,19 @@ html, body {
     font-size: 13px;
 }
 /* App version badge on the home screen — small muted mono text so
-   users can verify at a glance which deploy they're running. */
+   users can verify at a glance which deploy they're running.
+   Horizontally centered regardless of parent alignment. */
 .app-version {
+    display: block;
+    width: 100%;
     text-align: center;
-    margin-top: 24px;
+    margin: 24px auto 0;
     font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 10px;
     color: var(--text-dim);
     letter-spacing: 0.5px;
     opacity: 0.6;
+    align-self: center;
 }
 
 .host-setup-row > span:first-child  { color: var(--text-muted); }
