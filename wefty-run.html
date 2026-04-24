@@ -2034,7 +2034,7 @@
         // Bottom at (HUD_BAND_TOP*canvasPxH - 10), so top at that minus
         // drawH. Converted back to world-y fraction:
         const drawH = p.spriteHeight * canvasPxW;
-        return (HUD_BAND_TOP * canvasPxH - 10 - drawH) / canvasPxH;
+        return (HUD_BAND_TOP * canvasPxH - drawH) / canvasPxH;
     }
     function platformSurfaceY(p, worldX) {
         if (p.variant && RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[p.variant]) {
@@ -3347,7 +3347,7 @@
                 const drawH = p.spriteHeight * w;
                 const centerX = ((p.xStart + p.xEnd) / 2) * w;
                 const drawX = centerX - drawW / 2;
-                const drawY = HUD_BAND_TOP * h - 10 - drawH;
+                const drawY = HUD_BAND_TOP * h - drawH;
                 bgCtx.drawImage(islandImg, drawX, drawY, drawW, drawH);
             } else {
                 // Loading fallback — simple grass-green path with sin crown
