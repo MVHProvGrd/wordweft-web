@@ -499,26 +499,6 @@
         opacity: 1;
     }
     .lasso-btn.cooldown { /* legacy class — no-op; ring handles it now */ }
-    /* ── HUD band (Part C) ────────────────────────────────────────
-       Textured green chevron strip at the bottom of the viewport
-       that frames the dock + action buttons so the glyphs always
-       have a readable backdrop, independent of whatever island or
-       water art is rolling past. Sits BELOW the dock + action
-       buttons in z-order; ABOVE the game canvases. Sized to exactly
-       contain the 76px action-btn circles + a small vertical pad. */
-    .hud-band {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: calc(108px + env(safe-area-inset-bottom, 0px));
-        background: #2f6b3b url('hud_chevron_green.png') repeat-x center center;
-        background-size: auto 100%;
-        border-top: 2px solid rgba(0, 0, 0, 0.25);
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.35) inset;
-        z-index: 4;   /* above canvases (default 0–1), below buttons (6) */
-        pointer-events: none;
-    }
     /* ── Face-lift power-up dock (Part B) ─────────────────────────
        4 rounded slots bottom-left with icon + name caption + count
        badge + cooldown ring + numbered key pill. Swaps the four
@@ -535,18 +515,16 @@
         z-index: 6;
     }
     .dock-slot {
-        /* Nearly transparent — the dock sits over the island body
-           and previously read as dark "brown/green boxes" covering
-           the art. Just the icon + count badge float now; the tile
-           is a faint dimming for stocked slots, nothing for empty.
-           Sized to match the 76px Lasso/Jump action buttons so the
-           three HUD elements share a clean baseline AND a matching
-           top edge. */
+        /* Dark opaque chips so the icon + name + number are clearly
+           readable over the on-canvas chevron HUD strip (which
+           renders underneath the dock as part of the scene). Sized
+           to match the 76px Lasso/Jump action buttons so the three
+           HUD elements share a clean baseline + top edge. */
         position: relative;
         width: 72px; height: 76px;
         border-radius: 14px;
-        background: rgba(26,14,20,0.20);
-        border: 1px solid rgba(251,243,231,0.14);
+        background: rgba(26,14,20,0.78);
+        border: 1.5px solid rgba(251,243,231,0.35);
         cursor: pointer;
         touch-action: manipulation;
         overflow: visible;
@@ -1017,11 +995,6 @@
     <canvas id="bg"></canvas>
     <canvas id="fg"></canvas>
 </div>
-<!-- Textured HUD band — a green chevron strip anchored to the bottom
-     of the viewport. Sits behind the dock + action buttons so the
-     glyphs always have a readable surface underneath, even when an
-     island's darker art would otherwise swallow them. -->
-<div class="hud-band" id="hud-band"></div>
 <div class="dock" id="dock">
     <div class="dock-slot" id="slot-dj"    data-kind="djump">
         <div class="dock-icon"  style="background-image:url('spring_pad.png')"></div>
@@ -2666,6 +2639,7 @@
     // adjacent rivers vary.
     const WATER_BLOCK = loadImg('water_block.png');
     const WATER_CHEVRON = loadImg('water_chevron_blue.png');
+    const HUD_CHEVRON = loadImg('hud_chevron_green.png');
     const WATER_SCROLL_SPEED = 0.15;   // slow; full tile every ~7s
 
     // First-gap wooden bridge — rope-railing + plank-deck sprites.
@@ -3222,6 +3196,21 @@
         const waterY = PLATFORM_Y + 0.22;
         const wlPx = waterY * h;
         const waterTick = world.frameTick || 0;
+        // Sea-floor HUD chevron — rendered UNDER the water + islands
+        // so they paint on top. Bottom 22% of viewport. Islands cover
+        // most of it; green shines through gaps + the strip above the
+        // waterline, giving the dock a consistent textured backdrop
+        // without hiding island art.
+        if (HUD_CHEVRON.complete && HUD_CHEVRON.naturalWidth > 0) {
+            const hudTopY = h * 0.78;
+            const hudH = h - hudTopY;
+            const hudTileW = hudH * (HUD_CHEVRON.naturalWidth / HUD_CHEVRON.naturalHeight);
+            let hudOff = -((world.cameraX * 0.10 * w) % hudTileW);
+            if (hudOff > 0) hudOff -= hudTileW;
+            for (let tx = hudOff; tx < w + hudTileW; tx += hudTileW) {
+                bgCtx.drawImage(HUD_CHEVRON, tx, hudTopY, hudTileW, hudH);
+            }
+        }
         bgCtx.fillStyle = '#1A3D6B';   // deep navy backing for the chevron tile
         bgCtx.fillRect(0, wlPx, w, h - wlPx);
         // Chevron water — per-gap vertical scroll. Each gap (between
