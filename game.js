@@ -929,23 +929,24 @@ const Game = (() => {
             console.log('finishGame: not host → waiting for host to post result');
             return;
         }
-        const merged = await tryGradeStory(seed, players, words);
-        if (merged) {
+        const graded = await tryGradeStory(seed, players, words);
+        if (graded.ok) {
             console.log('finishGame: LLM grade received → posting');
-            Room.postResult(merged);
+            Room.postResult(graded.data);
         } else {
-            console.warn('finishGame: LLM grading FAILED — posting error state');
+            console.warn('finishGame: LLM grading FAILED — posting error state:', graded.error);
             Room.postResult({
                 ...seed,
-                gradingError: 'LLM grading is unavailable. Deploy `gradeStory` and/or check Functions logs.',
+                gradingError: graded.error || 'LLM grading is unavailable. Check Functions logs.',
             });
         }
     }
 
     /**
      * Call the gradeStory Cloud Function and merge its response over the
-     * heuristic result. Returns null if the call fails so the caller can
-     * post the heuristic as-is.
+     * heuristic result. Returns {ok:true, data} on success or
+     * {ok:false, error} with a human-readable reason on failure — the
+     * caller renders that reason on the results screen so bugs surface.
      */
     async function tryGradeStory(heuristic, players, words) {
         if (!fbFunctions || typeof fbFunctions.httpsCallable !== 'function') {
@@ -953,7 +954,7 @@ const Game = (() => {
                 fbFunctions,
                 firebaseFunctions: typeof firebase !== 'undefined' ? firebase.functions : 'firebase-undefined',
             });
-            return null;
+            return { ok: false, error: 'Firebase Functions SDK not loaded (firebase-functions-compat.js missing).' };
         }
         console.log('gradeStory: calling Cloud Function (host=' +
             (players.find(p => p.id === Room.myIndex)?.isHost) +
@@ -976,7 +977,9 @@ const Game = (() => {
             const callable = fbFunctions.httpsCallable('gradeStory');
             const resp = await callable({ story: heuristic.fullStory, playerWords: attributed });
             const data = resp && resp.data ? resp.data : null;
-            if (!data) return null;
+            if (!data) {
+                return { ok: false, error: 'Cloud Function returned empty response.' };
+            }
 
             // Merge server playerStats over heuristic, matched by playerId.
             let mergedStats = heuristic.playerStats || [];
@@ -994,7 +997,7 @@ const Game = (() => {
                 });
             }
 
-            return Object.assign({}, heuristic, {
+            const merged = Object.assign({}, heuristic, {
                 storyGrade: data.storyGrade || heuristic.storyGrade,
                 storyFeedback: data.storyFeedback || heuristic.storyFeedback,
                 genreDetected: data.genreDetected || heuristic.genreDetected,
@@ -1008,9 +1011,17 @@ const Game = (() => {
                 illustration: data.illustration || heuristic.illustration,
                 playerStats: mergedStats,
             });
+            return { ok: true, data: merged };
         } catch (e) {
-            console.warn('gradeStory call failed, using heuristic result', e);
-            return null;
+            // HttpsError from firebase-functions-compat exposes `code` and
+            // `message`. Network/CORS errors from fetch show up as plain
+            // Error. Surface whichever is most informative so the user
+            // sees the actual cause on the results screen.
+            const code = e && e.code ? e.code : '';
+            const msg = e && e.message ? e.message : String(e);
+            const detail = e && e.details ? ' — ' + (typeof e.details === 'string' ? e.details : JSON.stringify(e.details)) : '';
+            console.warn('gradeStory call failed:', code, msg, detail, e);
+            return { ok: false, error: (code ? '[' + code + '] ' : '') + msg + detail };
         }
     }
 
