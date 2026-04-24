@@ -131,7 +131,7 @@
 /* Per-metric colors applied via existing .score-coherence/.score-creativity/… classes */
 .score-coherence  { background: linear-gradient(90deg, #9A87F2, rgba(154,135,242,0.75)); box-shadow: 0 0 12px rgba(154,135,242,0.5); }
 .score-creativity { background: linear-gradient(90deg, #B78AE8, rgba(183,138,232,0.75)); box-shadow: 0 0 12px rgba(183,138,232,0.5); }
-.score-humor      { background: linear-gradient(90deg, #E8A63E, rgba(232,166,62,0.75));  box-shadow: 0 0 12px rgba(232,166,62,0.5); }
+.score-entertainment { background: linear-gradient(90deg, #E8A63E, rgba(232,166,62,0.75));  box-shadow: 0 0 12px rgba(232,166,62,0.5); }
 .score-vocabulary { background: linear-gradient(90deg, #4AC29A, rgba(74,194,154,0.75));  box-shadow: 0 0 12px rgba(74,194,154,0.5); }
 .score-flow       { background: linear-gradient(90deg, #6BB8E8, rgba(107,184,232,0.75)); box-shadow: 0 0 12px rgba(107,184,232,0.5); }
 

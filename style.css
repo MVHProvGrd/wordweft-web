@@ -432,18 +432,19 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    border-radius: var(--radius-xs);
+    font-size: 22px;
+    border-radius: 10px;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: background 0.15s;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(245,240,255,0.08);
+    transition: background 0.15s, border-color 0.15s;
 }
 .avatar-option:hover {
     background: rgba(124,111,232,0.15);
 }
 .avatar-option.selected {
-    background: rgba(124,111,232,0.25);
-    border-color: var(--accent-indigo);
+    background: rgba(124,111,232,0.22);
+    border: 1.5px solid var(--accent-indigo);
 }
 
 .hidden {
@@ -1285,6 +1286,18 @@ html, body {
     background: rgba(124,111,232,0.15);
     color: var(--accent-indigo);
 }
+.result-feedback {
+    font-size: 14px;
+    color: #C7B8E8;
+    text-align: center;
+    line-height: 20px;
+    margin-top: 12px;
+    padding: 0 8px;
+}
+.result-retry-grade {
+    margin-top: 16px;
+    min-width: 160px;
+}
 .result-objectives {
     margin-top: 16px;
 }
@@ -1838,7 +1851,7 @@ html, body {
 /* Score bar colors */
 .score-coherence { background: #7C6FE8; }
 .score-creativity { background: #9A87F2; }
-.score-humor { background: #F59E0B; }
+.score-entertainment { background: #F59E0B; }
 .score-vocabulary { background: #10B981; }
 .score-flow { background: #3B82F6; }
 
@@ -1984,9 +1997,23 @@ html, body {
     text-align: center;
     margin-bottom: 20px;
 }
+/* Settings avatar (design: circular tinted well with halo ring). */
+.profile-avatar-ring {
+    width: 84px;
+    height: 84px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 30% 25%,
+        rgba(124,111,232,0.35), rgba(124,111,232,0.12) 70%);
+    border: 2px solid var(--accent-indigo);
+    box-shadow: 0 0 0 3px rgba(124,111,232,0.18);
+}
 .profile-avatar {
-    font-size: 64px;
-    margin-bottom: 8px;
+    font-size: 50px;
+    line-height: 1;
 }
 .profile-name {
     font-size: 22px;
@@ -2000,21 +2027,27 @@ html, body {
     gap: 8px;
     margin-bottom: 4px;
 }
+/* Tap-to-edit username: input renders as static display text at rest;
+   only shows the edit affordance when focused. */
 .profile-name-edit {
     background: transparent;
     border: 1px solid transparent;
-    border-bottom: 1px solid var(--border);
     color: var(--text-primary);
-    font-size: 20px;
+    font-size: 22px;
     font-weight: bold;
     text-align: center;
     padding: 4px 8px;
     width: 180px;
-    border-radius: 4px;
-    transition: border-color 0.2s;
+    border-radius: 6px;
+    cursor: text;
+    transition: background 0.15s, border-color 0.15s;
+}
+.profile-name-edit:hover:not(:focus) {
+    background: rgba(124,111,232,0.08);
 }
 .profile-name-edit:focus {
     outline: none;
+    background: rgba(124,111,232,0.12);
     border-color: var(--accent-indigo);
 }
 .profile-auth-section {
@@ -2022,16 +2055,17 @@ html, body {
     padding: 12px 0;
 }
 .profile-rank {
-    font-size: 14px;
-    color: var(--accent-indigo);
+    font-size: 12px;
+    color: var(--text-secondary);
     margin-bottom: 12px;
+    letter-spacing: 0.02em;
 }
 .profile-xp-bar {
-    height: 8px;
+    height: 5px;
     background: rgba(255,255,255,0.1);
-    border-radius: 4px;
+    border-radius: 3px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin: 0 40px 6px;
 }
 .profile-xp-fill {
     height: 100%;

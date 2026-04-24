@@ -929,17 +929,70 @@ const Game = (() => {
             console.log('finishGame: not host → waiting for host to post result');
             return;
         }
-        const graded = await tryGradeStory(seed, players, words);
+        await gradeAndPostResult(seed, players, words);
+    }
+
+    /**
+     * Host-only: grade the story via Cloud Function and post the result
+     * (or a grading-error state) back to the room. Shared by finishGame
+     * and the user-triggered retry on the results screen.
+     */
+    async function gradeAndPostResult(seed, playersSnap, wordsSnap) {
+        const graded = await tryGradeStory(seed, playersSnap, wordsSnap);
         if (graded.ok) {
-            console.log('finishGame: LLM grade received → posting');
+            console.log('gradeAndPostResult: LLM grade received → posting');
             Room.postResult(graded.data);
         } else {
-            console.warn('finishGame: LLM grading FAILED — posting error state:', graded.error);
+            console.warn('gradeAndPostResult: LLM grading FAILED — posting error state:', graded.error);
             Room.postResult({
                 ...seed,
                 gradingError: graded.error || 'LLM grading is unavailable. Check Functions logs.',
             });
         }
+        return graded.ok;
+    }
+
+    /**
+     * User-triggered retry after a grading failure. Only the host can
+     * actually retry (the Cloud Function call + result post). Non-hosts
+     * see the error state until the host retries successfully.
+     * Rebuilds the seed from the frozen words/players snapshot since
+     * they don't change after game end.
+     */
+    async function retryGrade() {
+        const me = players.find(p => p.id === Room.myIndex);
+        if (!me || !me.isHost) {
+            showToast('Only the host can retry grading.');
+            return false;
+        }
+        const storyWords = words.filter(w => w.playerId !== -1).map(w => w.word);
+        let fullStory = '';
+        storyWords.forEach((w, i) => {
+            if (i === 0 || (i > 0 && /[.!?]$/.test(storyWords[i - 1]))) {
+                w = w.charAt(0).toUpperCase() + w.slice(1);
+            }
+            fullStory += (i > 0 ? ' ' : '') + w;
+        });
+        if (fullStory && !/[.!?]$/.test(fullStory)) fullStory += '.';
+        const playerStats = players.map(p => {
+            const pWords = words.filter(w => w.playerId === p.id);
+            const pWordTexts = pWords.map(w => w.word);
+            const pUnique = new Set(pWordTexts.map(w => w.toLowerCase().replace(/[^a-z]/g, '')));
+            const avgLen = pWordTexts.length > 0 ?
+                (pWordTexts.reduce((sum, w) => sum + w.replace(/[^a-z]/gi, '').length, 0) / pWordTexts.length).toFixed(1) : 0;
+            const longest = pWordTexts.reduce((l, w) => w.replace(/[^a-z]/gi, '').length > l.length ? w : l, '');
+            return {
+                playerName: p.name,
+                playerAvatar: p.avatar || '\u{1F60A}',
+                wordCount: pWordTexts.length,
+                uniqueWords: pUnique.size,
+                avgWordLength: avgLen,
+                longestWord: longest,
+                bestWord: longest,
+            };
+        });
+        const seed = { fullStory, playerStats, totalWords: storyWords.length };
+        return await gradeAndPostResult(seed, players, words);
     }
 
     /**
@@ -997,18 +1050,28 @@ const Game = (() => {
                 });
             }
 
+            // Scores, grade, genre, mood, tags, illustration: LLM-only.
+            // No heuristic fallback — if the LLM omitted a field, it's an
+            // incomplete result and we'd rather surface that than paper
+            // over it with offline-computed fakes. Local carrier still
+            // supplies fullStory + factual player stats.
             const merged = Object.assign({}, heuristic, {
-                storyGrade: data.storyGrade || heuristic.storyGrade,
-                storyFeedback: data.storyFeedback || heuristic.storyFeedback,
-                genreDetected: data.genreDetected || heuristic.genreDetected,
-                moodDetected: data.moodDetected || heuristic.moodDetected,
-                coherenceScore: typeof data.coherenceScore === 'number' ? data.coherenceScore : heuristic.coherenceScore,
-                creativityScore: typeof data.creativityScore === 'number' ? data.creativityScore : heuristic.creativityScore,
-                humorScore: typeof data.humorScore === 'number' ? data.humorScore : heuristic.humorScore,
-                vocabularyScore: typeof data.vocabularyScore === 'number' ? data.vocabularyScore : heuristic.vocabularyScore,
-                flowScore: typeof data.flowScore === 'number' ? data.flowScore : heuristic.flowScore,
-                tags: Array.isArray(data.tags) ? data.tags : heuristic.tags,
-                illustration: data.illustration || heuristic.illustration,
+                storyGrade: data.storyGrade || '',
+                storyFeedback: data.storyFeedback || '',
+                genreDetected: data.genreDetected || '',
+                moodDetected: data.moodDetected || '',
+                coherenceScore: typeof data.coherenceScore === 'number' ? data.coherenceScore : 0,
+                creativityScore: typeof data.creativityScore === 'number' ? data.creativityScore : 0,
+                // Accept either key; server emits entertainmentScore now, old
+                // RTDB records still have humorScore. Persist under the new
+                // name going forward.
+                entertainmentScore: typeof data.entertainmentScore === 'number'
+                    ? data.entertainmentScore
+                    : (typeof data.humorScore === 'number' ? data.humorScore : 0),
+                vocabularyScore: typeof data.vocabularyScore === 'number' ? data.vocabularyScore : 0,
+                flowScore: typeof data.flowScore === 'number' ? data.flowScore : 0,
+                tags: Array.isArray(data.tags) ? data.tags : [],
+                illustration: data.illustration || '',
                 playerStats: mergedStats,
             });
             return { ok: true, data: merged };
@@ -1242,6 +1305,7 @@ const Game = (() => {
         submitWord,
         toggleFinishVote,
         finishGame,
+        retryGrade,
         endPausedGame,
         cleanup,
         // Exposed so other modules (e.g., app.js profile forms) can gate

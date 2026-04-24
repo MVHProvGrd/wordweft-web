@@ -61,8 +61,39 @@ const Results = (() => {
             if (genreEl) genreEl.textContent = 'Grading failed';
             const feedbackEl = document.getElementById('result-feedback');
             if (feedbackEl) feedbackEl.textContent = data.gradingError;
+
+            // Retry is host-only. Render the button for everyone so the
+            // UX is consistent, but non-hosts get a toast explaining they
+            // can't drive the retry. Disable during in-flight retry.
+            const retryEl = document.getElementById('result-retry-grade');
+            if (retryEl) {
+                retryEl.classList.remove('hidden');
+                retryEl.disabled = false;
+                retryEl.textContent = 'Retry grading';
+                retryEl.onclick = async () => {
+                    retryEl.disabled = true;
+                    retryEl.textContent = 'Retrying…';
+                    try {
+                        const ok = await Game.retryGrade();
+                        if (!ok) {
+                            retryEl.disabled = false;
+                            retryEl.textContent = 'Retry grading';
+                        }
+                        // On success, the room's result listener will
+                        // re-render this screen with fresh data and the
+                        // button disappears naturally.
+                    } catch (e) {
+                        console.warn('retry grading threw:', e);
+                        retryEl.disabled = false;
+                        retryEl.textContent = 'Retry grading';
+                    }
+                };
+            }
             return;
         }
+        // Hide retry button on a successful grade.
+        const retryEl = document.getElementById('result-retry-grade');
+        if (retryEl) retryEl.classList.add('hidden');
 
         const gradeChar = (data.storyGrade || 'C').charAt(0);
         const gradeColors = { A: '#10B981', B: '#7C6FE8', C: '#F59E0B', D: '#EF4444', F: '#EF4444' };
@@ -95,6 +126,13 @@ const Results = (() => {
             summaryEl.classList.toggle('hidden', !data.summary);
         }
 
+        // Android parity: render storyFeedback under the genre/mood + tags.
+        const feedbackEl = document.getElementById('result-feedback');
+        if (feedbackEl) {
+            feedbackEl.textContent = data.storyFeedback || '';
+            feedbackEl.classList.toggle('hidden', !data.storyFeedback);
+        }
+
         if (_words.length > 0) {
             renderResultStory(_words.length);
         } else {
@@ -103,10 +141,16 @@ const Results = (() => {
         }
 
         // Score bars
+        // `entertainmentScore` is the current wire key; `humorScore` is
+        // only present on RTDB entries posted before the rename. Read
+        // both so replaying an old room doesn't show 0.
+        const entertainmentVal = typeof data.entertainmentScore === 'number'
+            ? data.entertainmentScore
+            : (typeof data.humorScore === 'number' ? data.humorScore : 0);
         const scores = [
             { id: 'coherence', value: data.coherenceScore || 0, color: 'score-coherence' },
             { id: 'creativity', value: data.creativityScore || 0, color: 'score-creativity' },
-            { id: 'humor', value: data.humorScore || 0, color: 'score-humor' },
+            { id: 'entertainment', value: entertainmentVal, color: 'score-entertainment' },
             { id: 'vocabulary', value: data.vocabularyScore || 0, color: 'score-vocabulary' },
             { id: 'flow', value: data.flowScore || 0, color: 'score-flow' }
         ];
