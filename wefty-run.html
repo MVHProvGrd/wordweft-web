@@ -3735,8 +3735,9 @@
         // so it drifts off-screen as the camera scrolls. 500ms fade.
         if (world._whooshLaunchMs && weftyWhoosh.complete && weftyWhoosh.naturalWidth > 0) {
             const age = performance.now() - world._whooshLaunchMs;
-            if (age < 500) {
-                const wAlpha = Math.max(0, Math.min(1, 1 - age / 500));
+            const WHOOSH_MS = 1200;  // long enough that the world-anchored puff visibly scrolls past before fading
+            if (age < WHOOSH_MS) {
+                const wAlpha = Math.max(0, Math.min(1, 1 - age / WHOOSH_MS));
                 const wSize = sSize * 1.4;
                 const wScreenX = (world._whooshWorldX - world.cameraX) * w;
                 if (wScreenX > -wSize && wScreenX < w + wSize) {
@@ -4047,11 +4048,10 @@
         world.events.push('game-over');
     });
     // Keyboard P to toggle pause matches the "RESUME (P)" affordance.
-    window.addEventListener('keydown', (e) => {
-        if ((e.key === 'p' || e.key === 'P') && !world.gameOver) {
-            setPaused(!world.isPaused);
-        }
-    });
+    // (A second P keydown listener used to live here; dropping it
+    // because the document-level KeyP handler at line ~2884 already
+    // toggles pause, and two listeners caused double-fire → net
+    // no-op when the user pressed P.)
     async function toggleFullscreen() {
         const root = document.documentElement;
         try {
