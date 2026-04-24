@@ -1581,6 +1581,7 @@
     }
 
     function resetWorld() {
+        console.log('[wefty-run] resetWorld entered — about to call mintRunToken');
         world.cameraX = 0;
         world.weftyY = PLATFORM_Y;
         world.weftyVy = 0;
@@ -1590,7 +1591,16 @@
         // Mint a fresh server-side run token each attempt. Fires
         // async — by the time a run lasts long enough to reach game
         // over, the token will be ready. No-op for anonymous users.
-        mintRunToken().then(t => { runToken = t; });
+        try {
+            mintRunToken().then(t => {
+                console.log('[wefty-run] mintRunToken resolved, assigning runToken=', t);
+                runToken = t;
+            }).catch(err => {
+                console.error('[wefty-run] mintRunToken promise rejected:', err);
+            });
+        } catch (syncErr) {
+            console.error('[wefty-run] mintRunToken threw synchronously:', syncErr);
+        }
         world.biomeIndex = 0;
         world.lastMilestone = 0;
         world.isDrawing = false;
