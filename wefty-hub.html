@@ -131,7 +131,7 @@
     </a>
     <a class="tile locked" href="#" id="climb-tile">
         <div class="tile-title"><span class="dot slate" id="climb-dot"></span>Wefty Climb 🔒</div>
-        <div class="tile-sub" id="climb-sub">Reach 1500 m in Wefty Run to unlock.</div>
+        <div class="tile-sub" id="climb-sub">Reach 750 m in Wefty Run to unlock.</div>
     </a>
     <a class="tile locked" href="#">
         <div class="tile-title"><span class="dot slate"></span>Wefty Skyweave 🪁</div>
@@ -163,6 +163,43 @@
     });
 </script>
 <script>
+    // Retroactive unlocks: if the user has an existing best that
+    // already crossed the milestone (via server leaderboard sync
+    // or prior run on another device), grant the unlock flag now.
+    // Prevents the "I have a 2240m record but Climb is still locked"
+    // confusion. Thresholds in world units (Wefty Run's `m >=`
+    // checks): 30 = 500m/Level 2, 75 = 750m/Level 3 / Climb.
+    (function retroactiveUnlocks() {
+        const best = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
+        if (best >= 500 && !localStorage.getItem('wefty_run_level2_unlocked')) {
+            localStorage.setItem('wefty_run_level2_unlocked', '1');
+        }
+        if (best >= 750 && !localStorage.getItem('wefty_run_level3_unlocked')) {
+            localStorage.setItem('wefty_run_level3_unlocked', '1');
+        }
+        // Also check the server leaderboard for the signed-in user —
+        // local PB might be 0 on a fresh device but the server has
+        // an old record. Fires on auth-ready (may be async).
+        if (typeof firebase !== 'undefined' && firebase.auth && firebase.database) {
+            firebase.auth().onAuthStateChanged((u) => {
+                if (!u || u.isAnonymous) return;
+                firebase.database()
+                    .ref('wefty_run_leaderboard/' + u.uid + '/bestDistance')
+                    .once('value').then(snap => {
+                        const serverBest = parseInt(snap.val() || 0, 10) || 0;
+                        let changed = false;
+                        if (serverBest >= 500 && !localStorage.getItem('wefty_run_level2_unlocked')) {
+                            localStorage.setItem('wefty_run_level2_unlocked', '1'); changed = true;
+                        }
+                        if (serverBest >= 750 && !localStorage.getItem('wefty_run_level3_unlocked')) {
+                            localStorage.setItem('wefty_run_level3_unlocked', '1'); changed = true;
+                        }
+                        if (changed) location.reload();
+                    }).catch(() => {});
+            });
+        }
+    })();
+
     // Reflect Level 2 / Level 3 progress in the tile copy.
     if (localStorage.getItem('wefty_run_level2_unlocked')) {
         const t = document.getElementById('run-tile');

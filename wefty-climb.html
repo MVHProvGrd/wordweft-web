@@ -677,6 +677,7 @@
         // Collections
         ledges: [],
         hazards: [],
+        heartPickups: [],   // HP restoration pickups; collected on contact
         hazardSpawnCdn: 2,
         nextHazardId: 1,
         // Lasso
@@ -778,6 +779,14 @@
                 y: newY, sticky, variant,
             });
             newCenters.push(center);
+            // Heart pickup — ~15% chance per ledge, only when HP is
+            // below max. No other pickups yet (letters/powers/springs
+            // paused while the core loop stabilizes).
+            if (world.hearts < 3 && rng() < 0.15) {
+                world.heartPickups.push({
+                    x: center, y: newY - 0.05, collected: false,
+                });
+            }
         }
         world._lastRowCenters = newCenters;
     }
@@ -864,6 +873,21 @@
         // Cull ledges/hazards below the camera.
         world.ledges  = world.ledges .filter(l  => l.y  <= world.cameraY + VIEWPORT_H + 0.5);
         world.hazards = world.hazards.filter(hz => hz.y <= world.cameraY + VIEWPORT_H + 0.2);
+        world.heartPickups = world.heartPickups.filter(p => !p.collected && p.y <= world.cameraY + VIEWPORT_H + 0.5);
+        // Heart pickup collision — pick up on overlap, bump HP up to
+        // max of 3. Muted during tutorialMode so demo runs don't
+        // max out the player's starting HP.
+        if (!world.tutorialMode) {
+            for (const p of world.heartPickups) {
+                if (p.collected) continue;
+                const dx = p.x - world.weftyX;
+                const dy = p.y - world.weftyY + 0.02;
+                if (Math.sqrt(dx*dx + dy*dy) < 0.07) {
+                    p.collected = true;
+                    world.hearts = Math.min(3, world.hearts + 1);
+                }
+            }
+        }
 
         // Hazard movement.
         for (const hz of world.hazards) {
@@ -1423,6 +1447,7 @@
         world.horizontalInput = 0; world.jumpHeld = false;
         world.dropThroughUntilY = -Infinity; world.offscreenSince = -1;
         world.hazards.length = 0; world.hazardSpawnCdn = 2;
+        world.heartPickups.length = 0;
         world.lassoReadyAtTick = 0; world.lassoFlashUntilTick = 0;
         world._submitted = false;
         world.climbStartTimeMs = Date.now();
@@ -1438,6 +1463,7 @@
     const ledgeBrown = [0,1,2,3].map(i => loadImg(`climb_ledge_brown_v${i}.png`));
     const ledgeSnow  = [0,1,2,3].map(i => loadImg(`climb_ledge_snow_v${i}.png`));
     const scissors   = loadImg('scissors_open.png');
+    const pickupHeart = loadImg('pickup_heart.png');
     const weftyRoll  = loadImg('wefty_run_a.png');
     const weftyFall  = loadImg('wefty_fall.png');
     const weftyJumpSquash = loadImg('wefty_jump_squash.png');
@@ -1653,6 +1679,23 @@
             fgCtx.rotate(rotDeg * Math.PI / 180);
             fgCtx.drawImage(scissors, -hazSize / 2, -hazSize / 2, hazSize, hazSize);
             fgCtx.restore();
+        }
+
+        // Heart pickups — rendered between ledges and Wefty so they
+        // sit on top of ledges but behind Wefty during overlap.
+        if (pickupHeart.complete && pickupHeart.naturalWidth) {
+            const heartSize = h * 0.045;
+            const bobAmp = h * 0.005;
+            for (const p of world.heartPickups) {
+                if (p.collected) continue;
+                const hx = p.x * w;
+                const hy = (p.y - world.cameraY) * h;
+                if (hy < -heartSize || hy > h + heartSize) continue;
+                const bob = Math.sin((world.frameTick + hx * 0.03) * 0.12) * bobAmp;
+                fgCtx.drawImage(pickupHeart,
+                    hx - heartSize / 2, hy - heartSize / 2 + bob,
+                    heartSize, heartSize);
+            }
         }
 
         // Wefty (plain rolling sprite for v1).
