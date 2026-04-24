@@ -780,7 +780,7 @@
             // Heart pickup — ~15% chance per ledge, only when HP is
             // below max. No other pickups yet (letters/powers/springs
             // paused while the core loop stabilizes).
-            if (world.hearts < 3 && rng() < 0.15) {
+            if (world.hearts < MAX_NEEDLES && rng() < 0.15) {
                 world.heartPickups.push({
                     x: center, y: newY - 0.05, collected: false,
                 });
@@ -882,7 +882,7 @@
                 const dy = p.y - world.weftyY + 0.02;
                 if (Math.sqrt(dx*dx + dy*dy) < 0.07) {
                     p.collected = true;
-                    world.hearts = Math.min(3, world.hearts + 1);
+                    world.hearts = Math.min(MAX_NEEDLES, world.hearts + 1);
                 }
             }
         }
@@ -1811,7 +1811,8 @@
             tbBiomeDotEl.classList.remove('green','brown','snow');
             tbBiomeDotEl.classList.add(biome.toLowerCase());
         }
-        // Drawn hearts — 3 slots reflecting world.hearts.
+        // Drawn hearts — 3 slots baseline, grows past 3 when bonus
+        // hearts are picked up (matches Wefty Run behavior).
         function heartSvg(filled) {
             const fill = filled ? '#d8554a' : 'rgba(216,85,74,0.18)';
             const stroke = filled ? '#8a2a22' : 'rgba(216,85,74,0.35)';
@@ -1821,7 +1822,7 @@
             </svg></span>`;
         }
         if (tbHeartsEl) {
-            const shown = 3;
+            const shown = Math.max(3, world.hearts);
             const filled = Math.max(0, Math.min(shown, world.hearts));
             let html = '';
             for (let i = 0; i < shown; i++) html += heartSvg(i < filled);
