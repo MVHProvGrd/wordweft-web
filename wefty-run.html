@@ -1680,8 +1680,11 @@
     // computed so the part BELOW the walkable ridge is constant
     // (ISLAND_BELOW_RIDGE_H) — decoration above the ridge varies
     // naturally per variant. Width follows from the derived height.
-    const ISLAND_BELOW_RIDGE_H = 0.22;
+    const ISLAND_BELOW_RIDGE_H = 0.22;   // legacy, unused for sizing now
     const ISLAND_FALLBACK_W = 1.00;
+    // Per-variant render-scale overrides. v7's source PNG has an
+    // oversized tree crown; even at uniform height it felt 10% tall.
+    const ISLAND_SCALE_OVERRIDES = { v7: 0.90, storm_v7: 0.90 };
 
     function buildPlatform(xStart) {
         const variant = pickRunIslandVariant();
@@ -1689,15 +1692,17 @@
         let spriteTopY, spriteHeight, spriteRenderW, xEnd;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
-            let minRidge = s.surface[0];
-            for (const v of s.surface) if (v < minRidge) minRidge = v;
-            // Uniform total sprite height — every variant the same size
-            // so the opossum (v3, high walking surface) reads the same
-            // as v0 etc. Size targets portrait phone first; landscape
-            // enlarges proportionally (drawH uses canvas width).
-            spriteHeight = 0.26;
+            // Bottom-anchor: sprite's opaque bottom always sits 10px
+            // above HUD_BAND_TOP so every island shows a 10px water
+            // sliver under it. spriteTopY is COMPUTED at render/
+            // collision time from the live canvas dims (drawH depends
+            // on canvas width). Store spriteHeight (world y fraction
+            // *in landscape*) + the per-variant scale so both systems
+            // can derive the same spriteTopY consistently.
+            const scale = ISLAND_SCALE_OVERRIDES[variant] || 1.0;
+            spriteHeight = 0.26 * scale;
             spriteRenderW = spriteHeight * (s.w / s.h);
-            spriteTopY = top - minRidge * spriteHeight;
+            spriteTopY = null;  // computed per-frame in platformSurfaceY + render
             xEnd = xStart + spriteRenderW;
         } else {
             xEnd = xStart + ISLAND_FALLBACK_W;
@@ -2017,6 +2022,20 @@
     // into the per-column surface array. Otherwise fall back to
     // the legacy sin-crown shape so a delayed JSON load can't
     // break collision on the first few frames.
+    // Bottom-anchored sprite positioning — spriteTopY in world-y
+    // fraction computed from live canvas dims so every island's
+    // opaque bottom sits 10px above HUD_BAND_TOP. Called from both
+    // platformSurfaceY (collision) and the render loop (paint) so
+    // they always agree.
+    function islandSpriteTopY(p) {
+        const canvasPxH = bg.height / (window.devicePixelRatio || 1);
+        const canvasPxW = bg.width / (window.devicePixelRatio || 1);
+        // drawH (render pixels) = p.spriteHeight * canvasPxW (legacy).
+        // Bottom at (HUD_BAND_TOP*canvasPxH - 10), so top at that minus
+        // drawH. Converted back to world-y fraction:
+        const drawH = p.spriteHeight * canvasPxW;
+        return (HUD_BAND_TOP * canvasPxH - 10 - drawH) / canvasPxH;
+    }
     function platformSurfaceY(p, worldX) {
         if (p.variant && RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[p.variant]) {
             const surf = RUN_ISLAND_SURFACES[p.variant].surface;
@@ -2027,7 +2046,13 @@
             const hi = Math.min(surf.length - 1, lo + 1);
             const f = idx - lo;
             const yFrac = surf[lo] * (1 - f) + surf[hi] * f;
-            return p.spriteTopY + yFrac * p.spriteHeight;
+            // spriteHeight is a world-y fraction scaled by canvas
+            // width (legacy). Convert to world-y units for the
+            // surface calc via the live canvas aspect.
+            const canvasPxH = bg.height / (window.devicePixelRatio || 1);
+            const canvasPxW = bg.width / (window.devicePixelRatio || 1);
+            const spriteHeightWorldY = p.spriteHeight * (canvasPxW / canvasPxH);
+            return islandSpriteTopY(p) + yFrac * spriteHeightWorldY;
         }
         if (!p.crown) return p.top;
         const t = Math.max(0, Math.min(1, (worldX - p.xStart) / (p.xEnd - p.xStart)));
@@ -3315,22 +3340,14 @@
             const ready = islandImg && islandImg.complete && islandImg.naturalWidth > 0
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
-                // NATURAL-aspect sprite render. No plinth polygon
-                // anymore — it painted a solid green rectangle under
-                // the ridge that visually "covered the island". The
-                // sprite's own baked bottom (dirt / shading) gives
-                // the island its organic shape; water underneath
-                // (full-width strip rendered below) hides any sprite
-                // bits that extend past the waterline.
-                const surf = RUN_ISLAND_SURFACES[p.variant].surface;
-                let minRidge = surf[0];
-                for (const v of surf) if (v < minRidge) minRidge = v;
+                // Bottom-anchored render — opaque bottom 10px above
+                // HUD_BAND_TOP. Matches islandSpriteTopY() used for
+                // physics so render and collision agree.
                 const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
                 const drawH = p.spriteHeight * w;
                 const centerX = ((p.xStart + p.xEnd) / 2) * w;
                 const drawX = centerX - drawW / 2;
-                const peakPx = PLATFORM_Y * h;
-                const drawY = peakPx - minRidge * drawH;
+                const drawY = HUD_BAND_TOP * h - 10 - drawH;
                 bgCtx.drawImage(islandImg, drawX, drawY, drawW, drawH);
             } else {
                 // Loading fallback — simple grass-green path with sin crown
