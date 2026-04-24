@@ -506,13 +506,25 @@
     .dock {
         position: absolute;
         /* Centered bottom — Lasso now occupies bottom-left, Jump
-           bottom-right, dock sits between them. */
+           bottom-right, dock sits between them. Gap shrinks on
+           landscape phones where vertical space is at a premium. */
         left: 50%;
         transform: translateX(-50%);
-        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
         display: flex;
-        gap: 8px;
+        gap: 6px;
         z-index: 6;
+    }
+    /* Landscape phones — canvas height <= 420px. Scale the whole dock
+       to ~70% so it doesn't eat a third of the playfield vertically.
+       Uses a CSS scale transform to shrink every child (icon, label,
+       badges) in one shot without per-element media queries. */
+    @media (max-height: 500px) and (orientation: landscape) {
+        .dock {
+            transform: translateX(-50%) scale(0.72);
+            transform-origin: bottom center;
+            bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+        }
     }
     .dock-slot {
         /* Solid dark cards that read cleanly over the wavy green HUD
@@ -1679,15 +1691,11 @@
             const s = RUN_ISLAND_SURFACES[variant];
             let minRidge = s.surface[0];
             for (const v of s.surface) if (v < minRidge) minRidge = v;
-            // Uniform total sprite height. Previously we derived height
-            // from (1-minRidge) so the below-ridge dirt matched across
-            // variants, but sprites with a high walking surface (v3 —
-            // opossum — has minRidge ~0.15 because its trees extend
-            // up in the PNG) rendered at half the size of others. With
-            // a fixed total height, every variant reads the same size
-            // on screen; bottoms that extend past HUD_BAND_TOP are
-            // covered naturally by the HUD dock band drawn last.
-            spriteHeight = 0.44;
+            // Uniform total sprite height — every variant the same size
+            // so the opossum (v3, high walking surface) reads the same
+            // as v0 etc. Size targets portrait phone first; landscape
+            // enlarges proportionally (drawH uses canvas width).
+            spriteHeight = 0.26;
             spriteRenderW = spriteHeight * (s.w / s.h);
             spriteTopY = top - minRidge * spriteHeight;
             xEnd = xStart + spriteRenderW;
