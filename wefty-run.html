@@ -1956,7 +1956,7 @@
         world.events.push('shield');
     }
 
-    const LASSO_RANGE = 0.23;   // shortened from 0.35 — ~1/4 screen
+    const LASSO_RANGE = 0.30;   // bumped from 0.23 to match Climb so overhead scissors are catchable
     const LASSO_COOLDOWN_TICKS = 90;
     const LASSO_FLASH_TICKS = 22;
     function fireLasso() {
@@ -1992,10 +1992,14 @@
             world.events.push('lasso');
             return true;
         }
-        // Miss: flick the rope upward at strike range so the visual
-        // reach matches the snag range and reads as defensive.
-        world.lassoLastHitX = wx;
-        world.lassoLastHitY = wy - LASSO_RANGE * 0.9;
+        // Miss: fire the rope forward+up so the visual reads as an
+        // attack sweep. Must be ahead of Wefty in world coords — since
+        // the target is world-stamped and cameraX keeps scrolling,
+        // anchoring AT Wefty's X makes the rope drift leftward over
+        // the flash window (Wefty's screen X stays fixed as the world
+        // moves). Forward placement cancels the drift visually.
+        world.lassoLastHitX = wx + LASSO_RANGE * 0.9;
+        world.lassoLastHitY = wy - LASSO_RANGE * 0.3;
         world.lassoHit = false;
         return false;
     }

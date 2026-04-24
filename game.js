@@ -897,83 +897,48 @@ const Game = (() => {
         // Ensure story ends with punctuation
         if (fullStory && !/[.!?]$/.test(fullStory)) fullStory += '.';
 
-        // Use analyzer if available, otherwise basic scoring
-        let result;
-        if (typeof StoryAnalyzer !== 'undefined') {
-            result = StoryAnalyzer.analyze(fullStory, words, players);
-        } else {
-            // Basic fallback scoring
-            const uniqueWords = new Set(storyWords.map(w => w.toLowerCase().replace(/[^a-z]/g, '')));
-            const uniqueRatio = storyWords.length > 0 ? uniqueWords.size / storyWords.length : 0;
-            const coherence = Math.min(100, 50 + Math.round(uniqueRatio * 30) + Math.min(20, storyWords.length));
-            const creativity = Math.min(100, 40 + Math.round(uniqueRatio * 40) + (storyWords.length > 20 ? 10 : 0));
-            const humor = Math.min(100, 20 + Math.round(Math.random() * 30));
-            const vocabulary = Math.min(100, 30 + Math.round(uniqueRatio * 40) + Math.min(15, storyWords.length / 2));
-            const flow = Math.min(100, 40 + Math.min(30, storyWords.length) + Math.round(uniqueRatio * 20));
-            const avg = Math.round((coherence + creativity + humor + vocabulary + flow) / 5);
-            const grade = avg >= 90 ? 'A+' : avg >= 85 ? 'A' : avg >= 80 ? 'A-' :
-                          avg >= 75 ? 'B+' : avg >= 70 ? 'B' : avg >= 65 ? 'B-' :
-                          avg >= 60 ? 'C+' : avg >= 55 ? 'C' : avg >= 50 ? 'C-' :
-                          avg >= 45 ? 'D+' : avg >= 40 ? 'D' : 'F';
-
-            // Per-player stats
-            const playerStats = players.map(p => {
-                const pWords = words.filter(w => w.playerId === p.id);
-                const pWordTexts = pWords.map(w => w.word);
-                const pUnique = new Set(pWordTexts.map(w => w.toLowerCase().replace(/[^a-z]/g, '')));
-                const avgLen = pWordTexts.length > 0 ?
-                    (pWordTexts.reduce((sum, w) => sum + w.replace(/[^a-z]/gi, '').length, 0) / pWordTexts.length).toFixed(1) : 0;
-                const longest = pWordTexts.reduce((l, w) => w.replace(/[^a-z]/gi, '').length > l.length ? w : l, '');
-                const impact = pWordTexts.length > 0 ?
-                    Math.min(100, Math.round((pWordTexts.length / storyWords.length) * 50 + (pUnique.size / Math.max(1, pWordTexts.length)) * 50)) : 0;
-                return {
-                    playerName: p.name,
-                    playerAvatar: p.avatar || '\u{1F60A}',
-                    wordCount: pWordTexts.length,
-                    uniqueWords: pUnique.size,
-                    avgWordLength: avgLen,
-                    longestWord: longest,
-                    impactScore: impact,
-                    languageLevel: 'A2',
-                    languageLevelName: 'Explorer',
-                    bestWord: longest,
-                    title: pWordTexts.length > 10 ? 'The Wordsmith' : pWordTexts.length > 5 ? 'Story Weaver' : 'The Quiet One'
-                };
-            });
-
-            result = {
-                fullStory: fullStory,
-                storyGrade: grade,
-                genreDetected: 'Slice of Life',
-                moodDetected: 'Neutral',
-                coherenceScore: coherence,
-                creativityScore: creativity,
-                humorScore: humor,
-                vocabularyScore: vocabulary,
-                flowScore: flow,
-                playerStats: playerStats,
-                totalWords: storyWords.length
+        // Per-player word stats are just facts (counts, longest word,
+        // etc.) — computed locally since they don't need an LLM. The
+        // judged scores (coherence, creativity, humor, grade, genre,
+        // mood, tags) MUST come from the Cloud Function. No heuristic
+        // fallback — if LLM fails, the results screen shows an error.
+        const playerStats = players.map(p => {
+            const pWords = words.filter(w => w.playerId === p.id);
+            const pWordTexts = pWords.map(w => w.word);
+            const pUnique = new Set(pWordTexts.map(w => w.toLowerCase().replace(/[^a-z]/g, '')));
+            const avgLen = pWordTexts.length > 0 ?
+                (pWordTexts.reduce((sum, w) => sum + w.replace(/[^a-z]/gi, '').length, 0) / pWordTexts.length).toFixed(1) : 0;
+            const longest = pWordTexts.reduce((l, w) => w.replace(/[^a-z]/gi, '').length > l.length ? w : l, '');
+            return {
+                playerName: p.name,
+                playerAvatar: p.avatar || '\u{1F60A}',
+                wordCount: pWordTexts.length,
+                uniqueWords: pUnique.size,
+                avgWordLength: avgLen,
+                longestWord: longest,
+                bestWord: longest,
             };
-        }
+        });
+        const seed = { fullStory, playerStats, totalWords: storyWords.length };
 
-        // Try the gradeStory Cloud Function for LLM-enhanced scoring +
-        // cross-platform-consistent playerStats. Falls back to heuristic
-        // `result` on any failure (offline, no billing, LLM timeout, etc).
-        // Gated to host-only so the four-player room doesn't fire four
-        // parallel LLM calls; non-hosts read the result via the Firebase
-        // listener Room.postResult writes to.
         const me = players.find(p => p.id === Room.myIndex);
         const amHost = me && me.isHost;
         console.log('finishGame: myIndex=' + Room.myIndex +
             ', amHost=' + amHost + ', players=' + players.length);
-        if (amHost) {
-            const merged = await tryGradeStory(result, players, words);
-            console.log('finishGame: tryGradeStory returned ' +
-                (merged ? 'LLM-merged result' : 'null (using heuristic)'));
-            Room.postResult(merged || result);
+        if (!amHost) {
+            console.log('finishGame: not host → waiting for host to post result');
+            return;
+        }
+        const merged = await tryGradeStory(seed, players, words);
+        if (merged) {
+            console.log('finishGame: LLM grade received → posting');
+            Room.postResult(merged);
         } else {
-            console.log('finishGame: not host → skipping gradeStory, ' +
-                'waiting for host to post result');
+            console.warn('finishGame: LLM grading FAILED — posting error state');
+            Room.postResult({
+                ...seed,
+                gradingError: 'LLM grading is unavailable. Deploy `gradeStory` and/or check Functions logs.',
+            });
         }
     }
 

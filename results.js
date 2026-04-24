@@ -46,6 +46,24 @@ const Results = (() => {
         if (typeof Sound !== 'undefined') { Sound.stopMusic(); Sound.playGameEnd(); }
         App.showScreen('results');
 
+        // LLM-only grading mode: if the Cloud Function failed, data
+        // comes back with gradingError + no scores. Show an honest
+        // error state instead of faking a grade.
+        if (data.gradingError) {
+            const illustrationEl = document.getElementById('result-illustration');
+            if (illustrationEl) illustrationEl.textContent = '⚠️';
+            const gradeEl = document.getElementById('result-grade');
+            if (gradeEl) {
+                gradeEl.textContent = '—';
+                gradeEl.style.cssText = 'font-size:48px;font-weight:900;color:#EF4444';
+            }
+            const genreEl = document.getElementById('result-genre');
+            if (genreEl) genreEl.textContent = 'Grading failed';
+            const feedbackEl = document.getElementById('result-feedback');
+            if (feedbackEl) feedbackEl.textContent = data.gradingError;
+            return;
+        }
+
         const gradeChar = (data.storyGrade || 'C').charAt(0);
         const gradeColors = { A: '#10B981', B: '#7C6FE8', C: '#F59E0B', D: '#EF4444', F: '#EF4444' };
         const gradeColor = gradeColors[gradeChar] || '#F59E0B';
