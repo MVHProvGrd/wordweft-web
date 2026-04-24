@@ -515,18 +515,17 @@
         z-index: 6;
     }
     .dock-slot {
-        /* Chevron-textured cards: the HUD green chevron tile fills the
-           card face so the slot reads as a button cut out of the HUD
-           band instead of a flat dark chip. Sized up to match the
-           design's chunkier cards while staying under the Lasso/Jump
-           button height. Numbers float outside on the corners. */
+        /* Solid dark cards that read cleanly over the wavy green HUD
+           band drawn on the canvas. Drop-shadow + inset lip gives
+           physical button depth. No fighting texture behind the icon. */
         position: relative;
         width: 84px; height: 90px;
         border-radius: 16px;
-        background: #3f5c33 url('hud_chevron_green.png') repeat;
-        background-size: auto 100%;
-        border: 2px solid rgba(26,14,20,0.55);
-        box-shadow: 0 3px 0 rgba(26,14,20,0.4), inset 0 0 0 1px rgba(251,243,231,0.08);
+        background: #1f2e20;
+        border: 2px solid rgba(26,14,20,0.7);
+        box-shadow: 0 3px 0 rgba(26,14,20,0.55),
+                    inset 0 1px 0 rgba(251,243,231,0.10),
+                    inset 0 -3px 0 rgba(0,0,0,0.3);
         cursor: pointer;
         touch-action: manipulation;
         overflow: visible;
@@ -1667,11 +1666,7 @@
     // computed so the part BELOW the walkable ridge is constant
     // (ISLAND_BELOW_RIDGE_H) — decoration above the ridge varies
     // naturally per variant. Width follows from the derived height.
-    // Islands sit ON TOP of the water; their bottoms can't intrude
-    // into the HUD dock band (HUD_BAND_TOP) or they'd overlap the
-    // buttons. The ridge-to-bottom height is the distance from the
-    // walking surface down to the HUD band top.
-    const ISLAND_BELOW_RIDGE_H = HUD_BAND_TOP - PLATFORM_Y;
+    const ISLAND_BELOW_RIDGE_H = 0.22;
     const ISLAND_FALLBACK_W = 1.00;
 
     function buildPlatform(xStart) {
@@ -1954,7 +1949,7 @@
         world.events.push('shield');
     }
 
-    const LASSO_RANGE = 0.30;   // bumped from 0.23 to match Climb so overhead scissors are catchable
+    const LASSO_RANGE = 0.40;   // generous diagonal reach so mid-jump lasso catches scissors on the next platform below
     const LASSO_COOLDOWN_TICKS = 90;
     const LASSO_FLASH_TICKS = 22;
     function fireLasso() {
@@ -2667,6 +2662,38 @@
     const HUD_CHEVRON = loadImg('hud_chevron_green.png');
     const WATER_SCROLL_SPEED = 0.15;   // slow; full tile every ~7s
 
+    // Canvas-drawn smooth wavy band — no PNG asset. Used for the green
+    // HUD dock band (static scroll=0) and the blue water trough
+    // (animated scroll from frameTick). Renders a base-color fill
+    // first, then horizontal sine rows in the highlight color. Rows
+    // are phase-offset so the pattern reads as woven ripples, not
+    // stacked parallel waves. Double-buffers outside visible h so
+    // negative scroll works without tearing.
+    function drawWavyBand(ctx, x, y, w, bandH, baseColor, waveColor, scrollPx) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(x, y, w, bandH);
+        const rowH = 16;            // distance between wave midlines
+        const period = 72;          // wavelength px
+        const amp = 5;              // crest height px
+        const twoPi = Math.PI * 2;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = waveColor;
+        const rows = Math.ceil(bandH / rowH) + 2;
+        const yOffset = ((scrollPx % rowH) + rowH) % rowH;
+        for (let r = 0; r < rows; r++) {
+            const cy = y - yOffset + r * rowH + rowH * 0.5;
+            if (cy < y - rowH || cy > y + bandH + rowH) continue;
+            const phase = r * 0.7;  // stagger rows so waves interlock
+            ctx.beginPath();
+            for (let xi = 0; xi <= w; xi += 4) {
+                const yi = cy + Math.sin((xi / period) * twoPi + phase) * amp;
+                if (xi === 0) ctx.moveTo(x + xi, yi);
+                else ctx.lineTo(x + xi, yi);
+            }
+            ctx.stroke();
+        }
+    }
+
     // First-gap wooden bridge — rope-railing + plank-deck sprites.
     // BG = deck + posts (renders behind Wefty). FG = yarn rope rail
     // (renders in front so the rail occludes Wefty for depth).
@@ -2808,6 +2835,13 @@
         else if (e.code === 'Digit4') { e.preventDefault(); activateShield(); }
     });
     document.addEventListener('keydown', (e) => {
+        // Pause toggle works regardless of tutorial state — player
+        // should always be able to resume/hard-pause.
+        if (e.code === 'KeyP' && !world.gameOver) {
+            e.preventDefault();
+            setPaused(!world.isPaused);
+            return;
+        }
         if (tutorialOpen()) {
             if (e.code === 'ArrowRight' || e.code === 'Enter' || e.code === 'Space') {
                 e.preventDefault();
@@ -2829,9 +2863,6 @@
         } else if (e.code === 'KeyL' || e.code === 'KeyF') {
             e.preventDefault();
             fireLasso();
-        } else if (e.code === 'KeyP') {
-            e.preventDefault();
-            setPaused(!world.isPaused);
         } else if (e.code === 'KeyH' || e.code === 'Slash') {
             e.preventDefault();
             openTutorial(false);
@@ -3212,82 +3243,18 @@
         // waterline fill now.
 
         // FULL-WIDTH WATER STRIP — rendered in SCREEN coords (not
-        // Water is a narrow band between the island bottoms and the
-        // HUD dock band. Not a whole sea floor — just enough that the
-        // islands read as sitting on water, with the dock a clean
-        // separate slab below.
+        // Water is a narrow band between island bottoms and the HUD
+        // dock band. Wavy blue, animated scroll (see drawWavyBand).
         const waterY = PLATFORM_Y + 0.10;
         const wlPx = waterY * h;
         const hudTopPx = HUD_BAND_TOP * h;
         const waterTick = world.frameTick || 0;
-        bgCtx.fillStyle = '#1A3D6B';   // deep navy backing for the chevron tile
-        bgCtx.fillRect(0, wlPx, w, hudTopPx - wlPx);
-        // Chevron water — per-gap vertical scroll. Each gap (between
-        // adjacent platforms) gets a stable ±1 direction from the
-        // platform on its left, so the surface reads as patches of
-        // water flowing different ways. ctx clip masks each chevron
-        // pass to its gap so adjacent directions don't bleed.
-        const chevronReady = WATER_CHEVRON.complete && WATER_CHEVRON.naturalWidth > 0;
-        if (chevronReady && world.platforms.length > 0) {
-            const bandH = hudTopPx - wlPx;
-            const tileH = bandH;
-            const tileW = tileH * (WATER_CHEVRON.naturalWidth / WATER_CHEVRON.naturalHeight);
-            const baseScroll = (waterTick * 0.6) % tileH;
-
-            const renderChevronInRange = (xLeft, xRight, dir) => {
-                if (xRight <= 0 || xLeft >= w) return;
-                const clippedLeft = Math.max(0, xLeft);
-                const clippedRight = Math.min(w, xRight);
-                bgCtx.save();
-                bgCtx.beginPath();
-                bgCtx.rect(clippedLeft, wlPx, clippedRight - clippedLeft, hudTopPx - wlPx);
-                bgCtx.clip();
-                const scrollPx = dir > 0 ? baseScroll : (tileH - baseScroll);
-                let hOff = -((world.cameraX * 0.18 * w) % tileW);
-                if (hOff > 0) hOff -= tileW;
-                for (let tx = hOff; tx < w + tileW; tx += tileW) {
-                    const yA = wlPx - scrollPx;
-                    bgCtx.drawImage(WATER_CHEVRON, tx, yA, tileW, tileH);
-                    const yB = yA + tileH;
-                    if (yB < hudTopPx) bgCtx.drawImage(WATER_CHEVRON, tx, yB, tileW, tileH);
-                }
-                bgCtx.restore();
-            };
-
-            // Left edge → first platform: use first platform's dir
-            const firstP = world.platforms[0];
-            renderChevronInRange(
-                -tileW * 2,
-                (firstP.xStart - world.cameraX) * w,
-                firstP.waterDir
-            );
-            // Inter-platform gaps
-            for (let i = 0; i < world.platforms.length - 1; i++) {
-                const a = world.platforms[i];
-                const b = world.platforms[i + 1];
-                renderChevronInRange(
-                    (a.xEnd - world.cameraX) * w,
-                    (b.xStart - world.cameraX) * w,
-                    a.waterDir
-                );
-            }
-            // Last platform → right edge
-            const lastP = world.platforms[world.platforms.length - 1];
-            renderChevronInRange(
-                (lastP.xEnd - world.cameraX) * w,
-                w + tileW * 2,
-                lastP.waterDir
-            );
-        } else if (WATER_BLOCK.complete && WATER_BLOCK.naturalWidth > 0) {
-            // Fallback: legacy block water until the chevron tile loads
-            const tileDrawH = h - wlPx;
-            const tileW = tileDrawH * (WATER_BLOCK.naturalWidth / WATER_BLOCK.naturalHeight);
-            let hOff = -((world.cameraX * 0.25 * w) % tileW);
-            if (hOff > 0) hOff -= tileW;
-            for (let tx = hOff; tx < w + tileW; tx += tileW) {
-                bgCtx.drawImage(WATER_BLOCK, tx, wlPx, tileW, tileDrawH);
-            }
-        }
+        drawWavyBand(
+            bgCtx, 0, wlPx, w, hudTopPx - wlPx,
+            '#1A3D6B',    // deep navy base
+            '#2E6FB4',    // brighter blue highlight
+            waterTick * 2 // animated scroll
+        );
 
         // Platforms
         // Build platform paths in WORLD coordinates (multiplied by w/h)
@@ -3327,6 +3294,14 @@
         // JSON hasn't fetched, draw a simple grass-green fill under
         // the legacy sin-crown curve so the first frames aren't a
         // void.
+        // Clip island rendering to stop at the top of the HUD dock band.
+        // Islands are sized in world units from PLATFORM_Y down and may
+        // extend past HUD_BAND_TOP; without this clip their dirt bases
+        // paint over the green dock surface, which we've reserved.
+        bgCtx.save();
+        bgCtx.beginPath();
+        bgCtx.rect(0, 0, w, hudTopPx);
+        bgCtx.clip();
         const samples = 24;
         for (const p of world.platforms) {
             if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
@@ -3373,6 +3348,7 @@
                 bgCtx.stroke();
             }
         }
+        bgCtx.restore();
 
         // Floating reward platforms — the Wave-5 biome-keyed ledge
         // sprites land here instead of on the main ground chain. Each
@@ -3419,24 +3395,19 @@
         bgCtx.restore();
 
         // HUD dock band — bottom slab, drawn LAST on the background
-        // canvas so water/islands never overlap it. The DOM dock slots
-        // layer on top of this as individual chevron-faced buttons.
-        if (HUD_CHEVRON.complete && HUD_CHEVRON.naturalWidth > 0) {
-            const hudBandH = h - hudTopPx;
-            const hudTileW = hudBandH * (HUD_CHEVRON.naturalWidth / HUD_CHEVRON.naturalHeight);
-            let hudOff = -((world.cameraX * 0.10 * w) % hudTileW);
-            if (hudOff > 0) hudOff -= hudTileW;
-            for (let tx = hudOff; tx < w + hudTileW; tx += hudTileW) {
-                bgCtx.drawImage(HUD_CHEVRON, tx, hudTopPx, hudTileW, hudBandH);
-            }
-            // Thin light cap line at the top of the band, separates
-            // the water trough from the dock surface.
-            bgCtx.fillStyle = 'rgba(251,243,231,0.55)';
-            bgCtx.fillRect(0, hudTopPx, w, 2);
-        } else {
-            bgCtx.fillStyle = '#3f5c33';
-            bgCtx.fillRect(0, hudTopPx, w, h - hudTopPx);
-        }
+        // canvas so water/islands never overlap it. Same wavy pattern
+        // as the water above, in green. Static (no scroll) to ground
+        // it as UI, not motion. DOM dock slots layer on top as cards.
+        drawWavyBand(
+            bgCtx, 0, hudTopPx, w, h - hudTopPx,
+            '#4a6a3e',    // dock green base
+            '#3a5330',    // darker green ripple
+            0             // static; not animated
+        );
+        // Thin light cap line at the top of the band separates water
+        // trough from dock surface.
+        bgCtx.fillStyle = 'rgba(251,243,231,0.55)';
+        bgCtx.fillRect(0, hudTopPx, w, 2);
 
         // Foreground: bridges, live stroke, Wefty
         fgCtx.clearRect(0, 0, w, h);
