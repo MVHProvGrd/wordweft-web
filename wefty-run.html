@@ -3695,7 +3695,12 @@
                 // anchors her feet (tall stretched body extends up).
                 spriteScale = 1.90; spriteBottom = 0.88;
             } else {
+                // wefty_fall PNG's opaque content (256×216) is ~40%
+                // wider than wefty_run_a's (184×184) in the same
+                // 256×256 canvas; scale 0.72 matches diameters so she
+                // doesn't snap huge on the way down.
                 spriteImg = weftyFall;
+                spriteScale = 0.72; spriteBottom = 0.80;
             }
             world._wasGroundedForJump = world.grounded;
         }

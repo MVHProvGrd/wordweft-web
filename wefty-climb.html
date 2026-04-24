@@ -1712,10 +1712,13 @@
         const sprite = world.weftyGrounded ? weftyRoll
             : _spriteIsStretch ? weftyJumpStretch
             : weftyFall;
-        // Stretch sprite is visually bigger so the ball-head matches
-        // rolling Wefty's diameter; tracked separately so the draw
-        // call can scale it up.
-        const _stretchScale = _spriteIsStretch ? 1.90 : 1.0;
+        // Per-sprite scale: stretch is bigger to match the ball head
+        // diameter on rising jumps; fall is scaled DOWN because its
+        // opaque content (256×216) is ~40% wider than roll's (184×184)
+        // in the same 256×256 canvas and otherwise reads huge on
+        // landing.
+        const _stretchScale = _spriteIsStretch ? 1.90
+            : (sprite === weftyFall ? 0.72 : 1.0);
         if (sprite.complete && sprite.naturalWidth) {
             // Reset rotation origin every time she lands so she plants
             // upright. rollOriginWorldX lives outside this draw block
