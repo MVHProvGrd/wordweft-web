@@ -340,9 +340,12 @@ const Auth = (() => {
             const nextLevelXp = xpForLevel(level + 1) - xpForLevel(level);
             const progress = nextLevelXp > 0 ? (currentLevelXp / nextLevelXp * 100) : 0;
 
-            document.getElementById('user-level').textContent = 'Lv.' + level + ' ' + rank;
-            document.getElementById('xp-bar').style.width = progress + '%';
-            document.getElementById('xp-text').textContent = xp + ' XP';
+            const levelEl = document.getElementById('user-level');
+            if (levelEl) levelEl.textContent = 'Lv.' + level + ' ' + rank;
+            const xpBar = document.getElementById('xp-bar');
+            if (xpBar) xpBar.style.width = progress + '%';
+            const xpText = document.getElementById('xp-text');
+            if (xpText) xpText.textContent = xp + ' XP';
 
             // Day-streak banner — calendar-day based, ticked on sign-in.
             const dayStreak = await tickDayStreak(stats);
