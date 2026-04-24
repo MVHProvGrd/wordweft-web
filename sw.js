@@ -1,10 +1,10 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v101';
-// 2026-04-24 15:00Z is replaced by the sync-wordweft-web workflow
+const CACHE_NAME = 'wordweft-v102';
+// 2026-04-24 15:11Z is replaced by the sync-wordweft-web workflow
 // at deploy time with the UTC timestamp of the sync (e.g.
 // "2026-04-23 21:45Z"). When running from source it stays as the
 // placeholder and the page shows "(dev)" instead.
-const BUILD_TIMESTAMP = '2026-04-24 15:00Z';
+const BUILD_TIMESTAMP = '2026-04-24 15:11Z';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -161,8 +161,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         fetch(event.request)
             .then((response) => {
-                // Cache successful responses
-                if (response.ok) {
+                // Only cache full 200 responses. 206 (Partial Content) from
+                // Range requests on mp3/mp4 throws "Partial response is
+                // unsupported" in Cache API. 3xx redirects also unsafe to
+                // cache as-is. Skip anything non-200.
+                if (response.status === 200) {
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
                 }
