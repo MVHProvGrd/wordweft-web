@@ -1647,22 +1647,28 @@
     // a 1700×500 sprite stays wider than a 1400×320 one, but their
     // flowers look the same size. Anchored at 1400 px/world-unit so
     // the median variant lands around the previous 0.30 world height.
-    const ISLAND_PX_PER_WORLD = 1400;
+    // BOTTOM-anchored sizing — every island's base sits at the same
+    // Y so bottoms align along the HUD chevron top. Sprite height is
+    // computed so the part BELOW the walkable ridge is constant
+    // (ISLAND_BELOW_RIDGE_H) — decoration above the ridge varies
+    // naturally per variant. Width follows from the derived height.
+    const ISLAND_BELOW_RIDGE_H = 0.22;
     const ISLAND_FALLBACK_W = 1.00;
 
-    // Build a Platform with variant + sprite world coords attached.
-    // Shared between seedPlatforms() and addNextPlatform() so every
-    // platform in world.platforms has consistent sprite placement.
     function buildPlatform(xStart) {
         const variant = pickRunIslandVariant();
         const top = PLATFORM_Y;
         let spriteTopY, spriteHeight, spriteRenderW, xEnd;
         if (RUN_ISLAND_SURFACES && RUN_ISLAND_SURFACES[variant]) {
             const s = RUN_ISLAND_SURFACES[variant];
-            spriteRenderW = s.w / ISLAND_PX_PER_WORLD;
-            spriteHeight  = s.h / ISLAND_PX_PER_WORLD;
             let minRidge = s.surface[0];
             for (const v of s.surface) if (v < minRidge) minRidge = v;
+            // Solve spriteHeight so (1-minRidge)*H = ISLAND_BELOW_RIDGE_H.
+            // Clamp below-ridge fraction to 0.5 so extreme-minRidge
+            // sprites don't balloon to absurd heights.
+            const belowRidgeFrac = Math.max(0.5, 1 - minRidge);
+            spriteHeight = ISLAND_BELOW_RIDGE_H / belowRidgeFrac;
+            spriteRenderW = spriteHeight * (s.w / s.h);
             spriteTopY = top - minRidge * spriteHeight;
             xEnd = xStart + spriteRenderW;
         } else {
@@ -3197,12 +3203,12 @@
         const wlPx = waterY * h;
         const waterTick = world.frameTick || 0;
         // Sea-floor HUD chevron — rendered UNDER the water + islands
-        // so they paint on top. Bottom 22% of viewport. Islands cover
-        // most of it; green shines through gaps + the strip above the
-        // waterline, giving the dock a consistent textured backdrop
-        // without hiding island art.
+        // so they paint on top. Top of the chevron aligned with
+        // PLATFORM_Y so islands' walking surfaces sit ON the
+        // chevron's top edge (user's red line) — island bases sink
+        // into the chevron, water sits over the bottom ~6%.
         if (HUD_CHEVRON.complete && HUD_CHEVRON.naturalWidth > 0) {
-            const hudTopY = h * 0.78;
+            const hudTopY = PLATFORM_Y * h;
             const hudH = h - hudTopY;
             const hudTileW = hudH * (HUD_CHEVRON.naturalWidth / HUD_CHEVRON.naturalHeight);
             let hudOff = -((world.cameraX * 0.10 * w) % hudTileW);

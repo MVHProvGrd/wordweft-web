@@ -705,14 +705,15 @@
         world.ledges.length = 0;
         world.hazards.length = 0;
         world.ledges.push({ xStart: 0, xEnd: 1, y: 0.9, sticky: false, variant: 0 });
-        world._lastRowY = START_CAMERA_Y;
+        // Start row-gen from the floor's Y so the first spawned row
+        // lands ~0.14 above the floor (reachable), not above the
+        // viewport. Bug was using START_CAMERA_Y (0 = top of view).
+        world._lastRowY = 0.9;
         world._lastRowCenters = [0.5];
         for (let i = 0; i < 14; i++) spawnNextRow();
     }
     function spawnNextRow() {
-        const baseY = (world.ledges.length <= 1)
-            ? START_CAMERA_Y : world._lastRowY;
-        const newY = baseY - (0.11 + rng() * 0.05);
+        const newY = world._lastRowY - (0.11 + rng() * 0.05);
         world._lastRowY = newY;
 
         // Density: 30% triple (easy cluster), 45% double (fork),
@@ -762,13 +763,10 @@
 
         const newCenters = [];
         for (const rawCx of slots) {
-            // Variable widths — short risky (0.15-0.22), medium
-            // (0.25-0.35), wide safe rest (0.38-0.48).
-            const widthRoll = rng();
-            let len;
-            if (widthRoll < 0.30) len = 0.15 + rng() * 0.07;
-            else if (widthRoll < 0.75) len = 0.25 + rng() * 0.10;
-            else len = 0.38 + rng() * 0.10;
+            // Tightened width range so ledges read as similar-size
+            // with just a touch of variety. Wider range (0.15-0.48)
+            // made some ledges look like stairs next to others.
+            const len = 0.26 + rng() * 0.10;  // 0.26-0.36
             const minC = len / 2, maxC = 1 - len / 2;
             const center = Math.max(minC, Math.min(maxC, rawCx));
             const sticky = world.heightClimbed > 3 && rng() < 0.12;
