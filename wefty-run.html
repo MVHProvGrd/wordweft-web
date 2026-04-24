@@ -2667,8 +2667,12 @@
         'storm_v5','storm_v6','storm_v7','storm_v8','storm_v9',
     ];
     const RUN_ISLAND = {};
+    const RUN_ISLAND_BACK = {};   // above red line — renders BEHIND Wefty
+    const RUN_ISLAND_FRONT = {};  // at/below red line — renders IN FRONT of Wefty
     for (const v of RUN_ISLAND_VARIANTS) {
         RUN_ISLAND[v] = loadImg(`run_island_${v}.png`);
+        RUN_ISLAND_BACK[v] = loadImg(`run_island_${v}_back.png`);
+        RUN_ISLAND_FRONT[v] = loadImg(`run_island_${v}_front.png`);
     }
     // Per-variant walkable surface (256 normalized Y samples).
     // Populated asynchronously; until loaded, surfaceYAt falls back
@@ -3289,11 +3293,15 @@
         const wlPx = waterY * h;
         const hudTopPx = HUD_BAND_TOP * h;
         const waterTick = world.frameTick || 0;
+        // Storm biome (30-75m) → desaturate the water to grey so the
+        // whole scene reads as weather-affected, not just the sky.
+        const stormActive = world.distance >= 30 && world.distance < 75;
+        const waterBase = stormActive ? '#3C4A5C' : '#1A3D6B';
+        const waterWave = stormActive ? '#566779' : '#2E6FB4';
         drawWavyBand(
             bgCtx, 0, wlPx, w, hudTopPx - wlPx,
-            '#1A3D6B',    // deep navy base
-            '#2E6FB4',    // brighter blue highlight
-            waterTick * 2 // animated scroll
+            waterBase, waterWave,
+            waterTick * 0.6  // slower scroll — was *2 (too hectic)
         );
 
         // Platforms
@@ -3337,13 +3345,18 @@
         const samples = 24;
         for (const p of world.platforms) {
             if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
-            const islandImg = p.variant ? RUN_ISLAND[p.variant] : null;
+            // Use the _back layer (pixels above the walking line) in
+            // the BG pass so trees render BEHIND Wefty. The _front
+            // layer paints after Wefty in the FG pass below.
+            const backImg = p.variant ? RUN_ISLAND_BACK[p.variant] : null;
+            const fallbackImg = p.variant ? RUN_ISLAND[p.variant] : null;
+            const islandImg = (backImg && backImg.complete && backImg.naturalWidth > 0)
+                ? backImg : fallbackImg;
             const ready = islandImg && islandImg.complete && islandImg.naturalWidth > 0
                           && p.spriteTopY !== undefined && p.spriteHeight !== undefined;
             if (ready) {
-                // Bottom-anchored render — opaque bottom 10px above
-                // HUD_BAND_TOP. Matches islandSpriteTopY() used for
-                // physics so render and collision agree.
+                // Bottom-anchored render — opaque bottom at HUD_BAND_TOP.
+                // Matches islandSpriteTopY() used for physics.
                 const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
                 const drawH = p.spriteHeight * w;
                 const centerX = ((p.xStart + p.xEnd) / 2) * w;
@@ -3754,13 +3767,26 @@
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
         }
 
-        // Post-Wefty FG pass. Islands are flat single PNGs drawn in
-        // the BG pass now — no per-platform FG sprite anymore. The
-        // only things left in this pass are the first-gap bridge
-        // rope rails (synthesized) so Wefty reads as walking UNDER
-        // the rope.
+        // Post-Wefty FG pass. Islands' _front layer (grass/flowers/
+        // mushrooms/opossum — everything except trees) renders here
+        // so Wefty appears BEHIND them where they cross her walking
+        // line. Also first-gap bridge rope rails for the same reason.
         fgCtx.save();
         fgCtx.translate(-world.cameraX * w, 0);
+        // Islands · FRONT layer — same positioning as the _back
+        // render in the BG pass.
+        for (const p of world.platforms) {
+            if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
+            const frontImg = p.variant ? RUN_ISLAND_FRONT[p.variant] : null;
+            if (!frontImg || !frontImg.complete || !frontImg.naturalWidth) continue;
+            if (p.spriteHeight === undefined) continue;
+            const drawW = (p.spriteRenderW || (p.xEnd - p.xStart)) * w;
+            const drawH = p.spriteHeight * w;
+            const centerX = ((p.xStart + p.xEnd) / 2) * w;
+            const drawX = centerX - drawW / 2;
+            const drawY = HUD_BAND_TOP * h - drawH;
+            fgCtx.drawImage(frontImg, drawX, drawY, drawW, drawH);
+        }
         // First-gap wooden bridge · synthesized yarn-rope rails drawn
         // AFTER Wefty so she reads as walking UNDER the rope. Two
         // gently-dipping ropes (upper + middle) spanning post-to-post.
