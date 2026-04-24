@@ -2618,6 +2618,7 @@
     const weftyGlider = loadImg('wefty_glider.png');
     const weftyShield = loadImg('wefty_shield.png');
     const weftySpring = loadImg('wefty_spring.png');
+    const weftyWhoosh = loadImg('wefty_whoosh.png');
     const lassoImg   = loadImg('lasso.png');
     const ropeImg    = loadImg('rope_texture.png');
     const parallaxImg = loadImg('parallax_bg.png');
@@ -3702,6 +3703,13 @@
                 spriteImg = weftyFall;
                 spriteScale = 0.72; spriteBottom = 0.80;
             }
+            // Ground → air edge fires the whoosh dust puff. Anchor at
+            // Wefty's world-X so it stays planted at the takeoff
+            // point as the camera scrolls past. 500ms fade-out.
+            if (world._wasGroundedForJump && !world.grounded) {
+                world._whooshLaunchMs = performance.now();
+                world._whooshWorldX = world.cameraX + WEFTY_SCREEN_X;
+            }
             world._wasGroundedForJump = world.grounded;
         }
         const effSize = sSize * spriteScale;
@@ -3710,6 +3718,27 @@
         const rollDeg = rolling ? (world.cameraX * w / circ) * 360 : 0;
         const iframes = world.invincibleUntil > performance.now();
         const blink = iframes ? (Math.floor(performance.now() / 50) % 2 === 0 ? 0.4 : 1) : 1;
+        // Whoosh dust puff — stamped on takeoff, stays in world coords
+        // so it drifts off-screen as the camera scrolls. 500ms fade.
+        if (world._whooshLaunchMs && weftyWhoosh.complete && weftyWhoosh.naturalWidth > 0) {
+            const age = performance.now() - world._whooshLaunchMs;
+            if (age < 500) {
+                const wAlpha = Math.max(0, Math.min(1, 1 - age / 500));
+                const wSize = sSize * 1.4;
+                const wScreenX = (world._whooshWorldX - world.cameraX) * w;
+                if (wScreenX > -wSize && wScreenX < w + wSize) {
+                    fgCtx.save();
+                    fgCtx.globalAlpha = wAlpha;
+                    fgCtx.drawImage(
+                        weftyWhoosh,
+                        wScreenX - wSize / 2,
+                        feetY - wSize * 0.55,
+                        wSize, wSize,
+                    );
+                    fgCtx.restore();
+                }
+            }
+        }
         if (spriteImg && spriteImg.complete && spriteImg.naturalWidth > 0) {
             fgCtx.save();
             fgCtx.globalAlpha = blink;
