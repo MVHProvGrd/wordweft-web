@@ -704,45 +704,90 @@
         world.ledges.length = 0;
         world.hazards.length = 0;
         world.ledges.push({ xStart: 0, xEnd: 1, y: 0.9, sticky: false, variant: 0 });
-        // Pre-spawn plenty of ledges well above the top of the
-        // viewport so nothing visibly pops in during the first few
-        // seconds of play. With spacing ~0.25 each, 16 covers 4
-        // viewports of buffer — camera can scroll 40m before the
-        // procedural spawner has to work.
-        for (let i = 0; i < 16; i++) spawnNextLedge();
+        world._lastRowY = START_CAMERA_Y;
+        world._lastRowCenters = [0.5];
+        for (let i = 0; i < 14; i++) spawnNextRow();
     }
-    function spawnNextLedge() {
-        const lastY = world.ledges.length
-            ? world.ledges[world.ledges.length - 1].y
-            : START_CAMERA_Y;
-        // Vertical gap 0.11-0.16 world units. Max jump height is
-        // v²/(2g) = 1.15²/6.4 ≈ 0.207, so 0.16 leaves a 22% margin —
-        // every jump is comfortably reachable, not pixel-perfect.
-        const newY = lastY - (0.11 + rng() * 0.05);
-        spawnLedgeAt(newY);
+    function spawnNextRow() {
+        const baseY = (world.ledges.length <= 1)
+            ? START_CAMERA_Y : world._lastRowY;
+        const newY = baseY - (0.11 + rng() * 0.05);
+        world._lastRowY = newY;
+
+        // Density: 30% triple (easy cluster), 45% double (fork),
+        // 25% single (challenge — must commit to the one path).
+        const densityRoll = rng();
+        let slots;
+        if (densityRoll < 0.30) {
+            slots = [
+                0.15 + rng() * 0.10,
+                0.42 + rng() * 0.16,
+                0.75 + rng() * 0.10,
+            ];
+        } else if (densityRoll < 0.75) {
+            slots = rng() < 0.65 ? [
+                0.15 + rng() * 0.12,
+                0.73 + rng() * 0.12,
+            ] : [
+                0.25 + rng() * 0.10,
+                0.65 + rng() * 0.10,
+            ];
+        } else {
+            const anchor = world._lastRowCenters[
+                Math.floor(rng() * world._lastRowCenters.length)
+            ] ?? 0.5;
+            const bias = (rng() * 0.40) - 0.20;
+            const c = Math.max(0.15, Math.min(0.85, anchor + bias));
+            slots = [c];
+        }
+
+        // Reachability: at least one slot must be within 0.30 horizontal
+        // of a previous-row ledge (max jump reach). Nudge the closest
+        // if every slot is out of reach.
+        const prevs = world._lastRowCenters || [];
+        if (prevs.length > 0) {
+            let minDist = Infinity, nearestSlotIdx = 0, nearestPrev = prevs[0];
+            for (let i = 0; i < slots.length; i++) {
+                for (const p of prevs) {
+                    const d = Math.abs(slots[i] - p);
+                    if (d < minDist) { minDist = d; nearestSlotIdx = i; nearestPrev = p; }
+                }
+            }
+            if (minDist > 0.30) {
+                slots[nearestSlotIdx] = nearestPrev +
+                    (slots[nearestSlotIdx] > nearestPrev ? 0.28 : -0.28);
+            }
+        }
+
+        const newCenters = [];
+        for (const rawCx of slots) {
+            // Variable widths — short risky (0.15-0.22), medium
+            // (0.25-0.35), wide safe rest (0.38-0.48).
+            const widthRoll = rng();
+            let len;
+            if (widthRoll < 0.30) len = 0.15 + rng() * 0.07;
+            else if (widthRoll < 0.75) len = 0.25 + rng() * 0.10;
+            else len = 0.38 + rng() * 0.10;
+            const minC = len / 2, maxC = 1 - len / 2;
+            const center = Math.max(minC, Math.min(maxC, rawCx));
+            const sticky = world.heightClimbed > 3 && rng() < 0.12;
+            const variant = Math.floor(rng() * 4);
+            world.ledges.push({
+                xStart: center - len / 2,
+                xEnd:   center + len / 2,
+                y: newY, sticky, variant,
+            });
+            newCenters.push(center);
+        }
+        world._lastRowCenters = newCenters;
     }
+    // Legacy single-ledge spawn — thin wrapper in case an older
+    // caller still references it.
+    function spawnNextLedge() { spawnNextRow(); }
     function spawnLedgeAt(y) {
-        const len = 0.28 + rng() * 0.22;
-        const prev = world.ledges[world.ledges.length - 1];
-        const prevCenter = prev ? (prev.xStart + prev.xEnd) / 2 : 0.5;
-        // Horizontal reach at full jump is ~0.30 world units. Cap the
-        // bias well inside that so even a wall-hugging chain stays
-        // reachable after the mean-reversion pull is applied.
-        const pullToCenter = (0.5 - prevCenter) * 0.30;
-        const sign = rng() < 0.5 ? 1 : -1;
-        const bias = sign * (0.10 + rng() * 0.12);
-        let center = prevCenter + bias + pullToCenter;
-        const minC = len / 2;
-        const maxC = 1 - len / 2;
-        if (center < minC) center = minC;
-        if (center > maxC) center = maxC;
-        const sticky = world.heightClimbed > 3 && rng() < 0.15;
-        const variant = Math.floor(rng() * 4);
-        world.ledges.push({
-            xStart: center - len / 2,
-            xEnd:   center + len / 2,
-            y, sticky, variant,
-        });
+        // Kept for any external caller that pins a specific Y.
+        world._lastRowY = y + 0.14;
+        spawnNextRow();
     }
 
     // ── Physics helpers ──────────────────────────────────────────────
@@ -814,7 +859,7 @@
         // Procedural generation — keep 1.5 viewports of ledges above.
         const topOfWorld = world.cameraY - 1.5;
         while ((world.ledges.length ? world.ledges[world.ledges.length - 1].y : START_CAMERA_Y) > topOfWorld) {
-            spawnNextLedge();
+            spawnNextRow();
         }
         // Cull ledges/hazards below the camera.
         world.ledges  = world.ledges .filter(l  => l.y  <= world.cameraY + VIEWPORT_H + 0.5);
