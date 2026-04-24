@@ -580,7 +580,7 @@
         pointer-events: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.4);
     }
-    .dock-slot.active .dock-count { display: none; }
+    .dock-slot.active .dock-count { /* show count even while active so reserves are always visible */ }
     .dock-slot.empty .dock-count { display: none; }
     /* Slot-number chip top-left — dark rounded-square with light
        number, matches the design's bold slot-identifier badge. */
@@ -1278,8 +1278,10 @@
         frameTick: 0,
         events: [],     // 'bridge-valid' | 'milestone' | 'game-over' | 'jump' | 'hazard-hit' | 'spring' | 'glider' | 'double-jump' | 'slow-mo' | 'shield' | 'shield-broken'
     };
-    // Biome: NORMAL default, STORM at/past 50m.
-    function currentBiome() { return world.distance >= 30 ? 'STORM' : 'NORMAL'; }
+    // Biome: NORMAL default, STORM during the 30–75m window. Reverts
+    // to NORMAL past 75m so islands spawn from the meadow pool again
+    // once the storm has passed, matching the storm VFX duration.
+    function currentBiome() { return (world.distance >= 30 && world.distance < 75) ? 'STORM' : 'NORMAL'; }
 
     // Local best distance + personal top-5 scoreboard
     let bestDistance = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
@@ -3263,6 +3265,12 @@
         // pinned to the platform instead of sliding across it.
         const camOffsetX = world.cameraX * w;
         bgCtx.save();
+        // Clip (screen-space) so island sprites can't paint into the
+        // reserved HUD dock band. Applied BEFORE the world translate so
+        // the rect coordinates are in screen space, not world space.
+        bgCtx.beginPath();
+        bgCtx.rect(0, 0, w, hudTopPx);
+        bgCtx.clip();
         bgCtx.translate(-camOffsetX, 0);
 
         // FIRST-GAP WOODEN BRIDGE · BG layer (deck + end posts).
@@ -3294,14 +3302,6 @@
         // JSON hasn't fetched, draw a simple grass-green fill under
         // the legacy sin-crown curve so the first frames aren't a
         // void.
-        // Clip island rendering to stop at the top of the HUD dock band.
-        // Islands are sized in world units from PLATFORM_Y down and may
-        // extend past HUD_BAND_TOP; without this clip their dirt bases
-        // paint over the green dock surface, which we've reserved.
-        bgCtx.save();
-        bgCtx.beginPath();
-        bgCtx.rect(0, 0, w, hudTopPx);
-        bgCtx.clip();
         const samples = 24;
         for (const p of world.platforms) {
             if (p.xEnd < world.cameraX - 0.1 || p.xStart > world.cameraX + 1.1) continue;
@@ -3348,7 +3348,6 @@
                 bgCtx.stroke();
             }
         }
-        bgCtx.restore();
 
         // Floating reward platforms — the Wave-5 biome-keyed ledge
         // sprites land here instead of on the main ground chain. Each
