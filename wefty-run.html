@@ -1527,14 +1527,27 @@
             .map(b => b.toString(16).padStart(2, '0')).join('');
     }
     async function mintRunToken() {
-        if (typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return null;
+        if (typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) {
+            console.log('[wefty-run] mintRunToken skip: Auth=' + typeof Auth +
+                ' uid=' + (typeof Auth !== 'undefined' ? Auth.uid : 'n/a') +
+                ' anon=' + (typeof Auth !== 'undefined' ? Auth.isAnonymous : 'n/a'));
+            return null;
+        }
         try {
+            console.log('[wefty-run] mintRunToken calling weftyRunStart...');
             const res = await firebase.functions().httpsCallable('weftyRunStart')();
+            console.log('[wefty-run] mintRunToken ok:', res.data);
             return res.data || null;
-        } catch (e) { console.warn('weftyRunStart failed', e); return null; }
+        } catch (e) { console.warn('[wefty-run] weftyRunStart failed', e); return null; }
     }
     async function submitRunScore(token, score) {
-        if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return;
+        console.log('[wefty-run] submitRunScore entered token=', token, 'score=', score);
+        if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) {
+            console.log('[wefty-run] submitRunScore skip: token=' + !!token +
+                ' uid=' + (typeof Auth !== 'undefined' ? Auth.uid : 'n/a') +
+                ' anon=' + (typeof Auth !== 'undefined' ? Auth.isAnonymous : 'n/a'));
+            return;
+        }
         // Fall back to Firebase profile name when in-memory is blank
         // or "Player" — profile may not have hydrated yet when game
         // ended. Without this the submit silently no-ops.
@@ -1552,13 +1565,15 @@
             return;
         }
         try {
+            console.log('[wefty-run] weftyRunSubmit calling with', {runId: token.runId, score, displayName});
             const handshake = await weftyHandshake(token.runId, token.nonce, score);
-            await firebase.functions().httpsCallable('weftyRunSubmit')({
+            const res = await firebase.functions().httpsCallable('weftyRunSubmit')({
                 runId: token.runId, score, handshake,
                 displayName, avatar: Auth.avatar || '',
             });
+            console.log('[wefty-run] weftyRunSubmit ok:', res.data);
         } catch (e) {
-            console.warn('weftyRunSubmit failed', e);
+            console.warn('[wefty-run] weftyRunSubmit failed', e);
             if (typeof showToast === 'function') {
                 showToast('Leaderboard submit failed: ' + (e.message || 'unknown'));
             }
