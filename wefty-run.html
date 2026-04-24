@@ -511,90 +511,93 @@
         transform: translateX(-50%);
         bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         display: flex;
-        gap: 6px;
+        gap: 8px;
         z-index: 6;
     }
     .dock-slot {
-        /* Dark opaque chips so the icon + name + number are clearly
-           readable over the on-canvas chevron HUD strip (which
-           renders underneath the dock as part of the scene). Sized
-           to match the 76px Lasso/Jump action buttons so the three
-           HUD elements share a clean baseline + top edge. */
+        /* Chevron-textured cards: the HUD green chevron tile fills the
+           card face so the slot reads as a button cut out of the HUD
+           band instead of a flat dark chip. Sized up to match the
+           design's chunkier cards while staying under the Lasso/Jump
+           button height. Numbers float outside on the corners. */
         position: relative;
-        width: 72px; height: 76px;
-        border-radius: 14px;
-        background: rgba(26,14,20,0.78);
-        border: 1.5px solid rgba(251,243,231,0.35);
+        width: 84px; height: 90px;
+        border-radius: 16px;
+        background: #3f5c33 url('hud_chevron_green.png') repeat;
+        background-size: auto 100%;
+        border: 2px solid rgba(26,14,20,0.55);
+        box-shadow: 0 3px 0 rgba(26,14,20,0.4), inset 0 0 0 1px rgba(251,243,231,0.08);
         cursor: pointer;
         touch-action: manipulation;
         overflow: visible;
-        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        transition: filter 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
     .dock-slot.empty {
-        background: transparent;
-        border-color: transparent;
+        filter: grayscale(0.85) brightness(0.75);
         cursor: default;
     }
     .dock-slot.active {
-        background: rgba(232,179,76,0.28);
-        border-color: #e8b34c;
-        border-width: 2px;
-        box-shadow: 0 0 12px rgba(232,179,76,0.7);
+        border-color: #f4c96a;
+        box-shadow: 0 3px 0 rgba(26,14,20,0.4),
+                    0 0 0 3px rgba(244,201,106,0.35),
+                    0 0 14px rgba(244,201,106,0.55);
     }
-    .dock-slot:active:not(.empty) { transform: scale(0.94); }
+    .dock-slot:active:not(.empty) { transform: translateY(2px); box-shadow: 0 1px 0 rgba(26,14,20,0.4); }
     .dock-icon {
         position: absolute;
-        left: 50%; top: 42%;
+        left: 50%; top: 38%;
         transform: translate(-50%, -50%);
-        width: 36px; height: 36px;
+        width: 44px; height: 44px;
         background-position: center;
         background-repeat: no-repeat;
         background-size: contain;
-        opacity: 1;
+        filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45));
         pointer-events: none;
     }
-    .dock-slot.empty .dock-icon { opacity: 0.35; filter: grayscale(0.5); }
+    .dock-slot.empty .dock-icon { opacity: 0.45; }
     .dock-name {
         position: absolute;
-        left: 0; right: 0; bottom: 5px;
+        left: 0; right: 0; bottom: 6px;
         text-align: center;
-        font-size: 8px; font-weight: 800;
-        letter-spacing: 0.8px;
+        font-size: 11px; font-weight: 900;
+        letter-spacing: 1.2px;
         color: #fbf3e7;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.75);
         pointer-events: none;
     }
-    .dock-slot.empty .dock-name { color: rgba(251,243,231,0.40); }
-    /* Count badge — rounded square anchored just inside the top-right
-       corner (was floating fully outside). */
+    .dock-slot.empty .dock-name { color: rgba(251,243,231,0.45); }
+    /* Count badge — white circle top-right, bold dark number. Matches
+       the design's "how many of this power-up do I have" pill. */
     .dock-count {
         position: absolute;
-        top: -4px; right: -4px;
-        width: 20px; height: 20px;
-        border-radius: 6px;
-        background: rgba(26,14,20,0.92);
-        border: 1.5px solid rgba(251,243,231,0.85);
+        top: -6px; right: -6px;
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        background: #fbf3e7;
+        border: 2px solid #1a0e14;
         display: flex; align-items: center; justify-content: center;
-        font-size: 11px; font-weight: 800;
-        color: #fbf3e7;
+        font-size: 12px; font-weight: 900;
+        color: #1a0e14;
         pointer-events: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.4);
     }
     .dock-slot.active .dock-count { display: none; }
     .dock-slot.empty .dock-count { display: none; }
-    /* Slot-number chip top-left — always visible (mobile + desktop)
-       since the number doubles as a visual slot identifier, not just a
-       keyboard hint. Rounded square to match the count badge. */
+    /* Slot-number chip top-left — dark rounded-square with light
+       number, matches the design's bold slot-identifier badge. */
     .dock-key {
         position: absolute;
-        top: -4px; left: -4px;
-        width: 20px; height: 20px;
-        border-radius: 6px;
-        background: rgba(26,14,20,0.92);
-        border: 1.5px solid rgba(251,243,231,0.85);
+        top: -6px; left: -6px;
+        width: 22px; height: 22px;
+        border-radius: 7px;
+        background: #1a0e14;
+        border: 2px solid #fbf3e7;
         display: flex;
         align-items: center; justify-content: center;
-        font: 800 11px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font: 900 12px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: #fbf3e7;
         pointer-events: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.4);
     }
     .dock-slot.empty .dock-key { opacity: 0.35; }
     .dock-ring {
@@ -1212,6 +1215,12 @@
 
     // ── Constants (mirror of WeftyRunWorld companion) ──────────────────
     const PLATFORM_Y = 0.72;
+    // Bottom slab reserved for the HUD dock band. Nothing else may
+    // render into it — water ends at HUD_BAND_TOP, islands bottom out
+    // at HUD_BAND_TOP so the green chevron surface reads as a clean
+    // button strip instead of a sea floor with water and island roots
+    // punched into it.
+    const HUD_BAND_TOP = 0.86;
     const DEATH_Y = 1.10;
     const GRAVITY = 2.4;
     const RUN_SPEED = 0.20;
@@ -1658,7 +1667,11 @@
     // computed so the part BELOW the walkable ridge is constant
     // (ISLAND_BELOW_RIDGE_H) — decoration above the ridge varies
     // naturally per variant. Width follows from the derived height.
-    const ISLAND_BELOW_RIDGE_H = 0.22;
+    // Islands sit ON TOP of the water; their bottoms can't intrude
+    // into the HUD dock band (HUD_BAND_TOP) or they'd overlap the
+    // buttons. The ridge-to-bottom height is the distance from the
+    // walking surface down to the HUD band top.
+    const ISLAND_BELOW_RIDGE_H = HUD_BAND_TOP - PLATFORM_Y;
     const ISLAND_FALLBACK_W = 1.00;
 
     function buildPlatform(xStart) {
@@ -3199,32 +3212,16 @@
         // waterline fill now.
 
         // FULL-WIDTH WATER STRIP — rendered in SCREEN coords (not
-        // world-shifted) so one solid river fills everything below
-        // the waterline. Islands draw on top so their sprite sits on
-        // top of the water; gaps naturally show through as river.
-        // Lowered from 0.10 → 0.22: was cutting through the middle of
-        // every island. Now sits just below the average island bottom
-        // so water laps at the edges instead of submerging the rocks.
-        const waterY = PLATFORM_Y + 0.22;
+        // Water is a narrow band between the island bottoms and the
+        // HUD dock band. Not a whole sea floor — just enough that the
+        // islands read as sitting on water, with the dock a clean
+        // separate slab below.
+        const waterY = PLATFORM_Y + 0.10;
         const wlPx = waterY * h;
+        const hudTopPx = HUD_BAND_TOP * h;
         const waterTick = world.frameTick || 0;
-        // Sea-floor HUD chevron — rendered UNDER the water + islands
-        // so they paint on top. Top of the chevron aligned with
-        // PLATFORM_Y so islands' walking surfaces sit ON the
-        // chevron's top edge (user's red line) — island bases sink
-        // into the chevron, water sits over the bottom ~6%.
-        if (HUD_CHEVRON.complete && HUD_CHEVRON.naturalWidth > 0) {
-            const hudTopY = PLATFORM_Y * h;
-            const hudH = h - hudTopY;
-            const hudTileW = hudH * (HUD_CHEVRON.naturalWidth / HUD_CHEVRON.naturalHeight);
-            let hudOff = -((world.cameraX * 0.10 * w) % hudTileW);
-            if (hudOff > 0) hudOff -= hudTileW;
-            for (let tx = hudOff; tx < w + hudTileW; tx += hudTileW) {
-                bgCtx.drawImage(HUD_CHEVRON, tx, hudTopY, hudTileW, hudH);
-            }
-        }
         bgCtx.fillStyle = '#1A3D6B';   // deep navy backing for the chevron tile
-        bgCtx.fillRect(0, wlPx, w, h - wlPx);
+        bgCtx.fillRect(0, wlPx, w, hudTopPx - wlPx);
         // Chevron water — per-gap vertical scroll. Each gap (between
         // adjacent platforms) gets a stable ±1 direction from the
         // platform on its left, so the surface reads as patches of
@@ -3232,7 +3229,7 @@
         // pass to its gap so adjacent directions don't bleed.
         const chevronReady = WATER_CHEVRON.complete && WATER_CHEVRON.naturalWidth > 0;
         if (chevronReady && world.platforms.length > 0) {
-            const bandH = h - wlPx;
+            const bandH = hudTopPx - wlPx;
             const tileH = bandH;
             const tileW = tileH * (WATER_CHEVRON.naturalWidth / WATER_CHEVRON.naturalHeight);
             const baseScroll = (waterTick * 0.6) % tileH;
@@ -3243,7 +3240,7 @@
                 const clippedRight = Math.min(w, xRight);
                 bgCtx.save();
                 bgCtx.beginPath();
-                bgCtx.rect(clippedLeft, wlPx, clippedRight - clippedLeft, h - wlPx);
+                bgCtx.rect(clippedLeft, wlPx, clippedRight - clippedLeft, hudTopPx - wlPx);
                 bgCtx.clip();
                 const scrollPx = dir > 0 ? baseScroll : (tileH - baseScroll);
                 let hOff = -((world.cameraX * 0.18 * w) % tileW);
@@ -3252,7 +3249,7 @@
                     const yA = wlPx - scrollPx;
                     bgCtx.drawImage(WATER_CHEVRON, tx, yA, tileW, tileH);
                     const yB = yA + tileH;
-                    if (yB < h) bgCtx.drawImage(WATER_CHEVRON, tx, yB, tileW, tileH);
+                    if (yB < hudTopPx) bgCtx.drawImage(WATER_CHEVRON, tx, yB, tileW, tileH);
                 }
                 bgCtx.restore();
             };
@@ -3420,6 +3417,26 @@
             }
         }
         bgCtx.restore();
+
+        // HUD dock band — bottom slab, drawn LAST on the background
+        // canvas so water/islands never overlap it. The DOM dock slots
+        // layer on top of this as individual chevron-faced buttons.
+        if (HUD_CHEVRON.complete && HUD_CHEVRON.naturalWidth > 0) {
+            const hudBandH = h - hudTopPx;
+            const hudTileW = hudBandH * (HUD_CHEVRON.naturalWidth / HUD_CHEVRON.naturalHeight);
+            let hudOff = -((world.cameraX * 0.10 * w) % hudTileW);
+            if (hudOff > 0) hudOff -= hudTileW;
+            for (let tx = hudOff; tx < w + hudTileW; tx += hudTileW) {
+                bgCtx.drawImage(HUD_CHEVRON, tx, hudTopPx, hudTileW, hudBandH);
+            }
+            // Thin light cap line at the top of the band, separates
+            // the water trough from the dock surface.
+            bgCtx.fillStyle = 'rgba(251,243,231,0.55)';
+            bgCtx.fillRect(0, hudTopPx, w, 2);
+        } else {
+            bgCtx.fillStyle = '#3f5c33';
+            bgCtx.fillRect(0, hudTopPx, w, h - hudTopPx);
+        }
 
         // Foreground: bridges, live stroke, Wefty
         fgCtx.clearRect(0, 0, w, h);
