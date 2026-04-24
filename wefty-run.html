@@ -1679,11 +1679,15 @@
             const s = RUN_ISLAND_SURFACES[variant];
             let minRidge = s.surface[0];
             for (const v of s.surface) if (v < minRidge) minRidge = v;
-            // Solve spriteHeight so (1-minRidge)*H = ISLAND_BELOW_RIDGE_H.
-            // Clamp below-ridge fraction to 0.5 so extreme-minRidge
-            // sprites don't balloon to absurd heights.
-            const belowRidgeFrac = Math.max(0.5, 1 - minRidge);
-            spriteHeight = ISLAND_BELOW_RIDGE_H / belowRidgeFrac;
+            // Uniform total sprite height. Previously we derived height
+            // from (1-minRidge) so the below-ridge dirt matched across
+            // variants, but sprites with a high walking surface (v3 —
+            // opossum — has minRidge ~0.15 because its trees extend
+            // up in the PNG) rendered at half the size of others. With
+            // a fixed total height, every variant reads the same size
+            // on screen; bottoms that extend past HUD_BAND_TOP are
+            // covered naturally by the HUD dock band drawn last.
+            spriteHeight = 0.44;
             spriteRenderW = spriteHeight * (s.w / s.h);
             spriteTopY = top - minRidge * spriteHeight;
             xEnd = xStart + spriteRenderW;
@@ -3265,12 +3269,6 @@
         // pinned to the platform instead of sliding across it.
         const camOffsetX = world.cameraX * w;
         bgCtx.save();
-        // Clip (screen-space) so island sprites can't paint into the
-        // reserved HUD dock band. Applied BEFORE the world translate so
-        // the rect coordinates are in screen space, not world space.
-        bgCtx.beginPath();
-        bgCtx.rect(0, 0, w, hudTopPx);
-        bgCtx.clip();
         bgCtx.translate(-camOffsetX, 0);
 
         // FIRST-GAP WOODEN BRIDGE · BG layer (deck + end posts).
