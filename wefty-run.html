@@ -3717,11 +3717,13 @@
                 spriteScale = 0.72; spriteBottom = 0.80;
             }
             // Ground → air edge fires the whoosh dust puff. Anchor at
-            // Wefty's world-X so it stays planted at the takeoff
-            // point as the camera scrolls past. 500ms fade-out.
+            // Wefty's world-X AND the ground-Y at that moment so the
+            // puff stays planted on the island's surface as the
+            // camera scrolls past (doesn't drift up with her jump).
             if (world._wasGroundedForJump && !world.grounded) {
                 world._whooshLaunchMs = performance.now();
                 world._whooshWorldX = world.cameraX + WEFTY_SCREEN_X;
+                world._whooshWorldY = world.weftyY;  // ground Y at takeoff
             }
             world._wasGroundedForJump = world.grounded;
         }
@@ -3741,12 +3743,15 @@
                 const wSize = sSize * 1.4;
                 const wScreenX = (world._whooshWorldX - world.cameraX) * w;
                 if (wScreenX > -wSize && wScreenX < w + wSize) {
+                    // Pin Y to the ground at launch — don't follow
+                    // Wefty's airborne Y.
+                    const wScreenY = (world._whooshWorldY || world.weftyY) * h;
                     fgCtx.save();
                     fgCtx.globalAlpha = wAlpha;
                     fgCtx.drawImage(
                         weftyWhoosh,
                         wScreenX - wSize / 2,
-                        feetY - wSize * 0.55,
+                        wScreenY - wSize * 0.55,
                         wSize, wSize,
                     );
                     fgCtx.restore();

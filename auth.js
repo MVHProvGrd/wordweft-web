@@ -101,8 +101,39 @@ const Auth = (() => {
      *  - Friends: union with summed counters.
      *  - Achievements: union; keep earliest unlock.
      *  - Genre history: union.
+     *
+     * As of 2026-04-24 this ships a thin wrapper around the
+     * `mergeAnonymousAccount` Cloud Function so the merge runs with
+     * admin privileges (enables tightening users/{uid}/.write to
+     * auth.uid === $uid). If the callable fails for any reason we
+     * log — we do NOT fall back to a client-side merge since that
+     * would silently keep writing to other users' nodes and mask
+     * the rule violation.
      */
     async function mergeAnonymousIntoCurrent(fromUid, toUid) {
+        if (!fromUid || !toUid || fromUid === toUid) return;
+        try {
+            if (!firebase.functions) {
+                console.error('mergeAnonymousIntoCurrent: firebase.functions not loaded');
+                return;
+            }
+            const callable = firebase.functions().httpsCallable('mergeAnonymousAccount');
+            const res = await callable({ anonUid: fromUid });
+            console.log('Merged anonymous user', fromUid, 'into', toUid,
+                '(server):', res && res.data);
+        } catch (e) {
+            console.error('mergeAnonymousAccount callable failed:', e && (e.code + ' ' + e.message));
+        }
+    }
+
+    /**
+     * Legacy client-side merge kept UNUSED — retained only so older
+     * callers that reference the symbol still compile. All real merges
+     * now go through the `mergeAnonymousAccount` Cloud Function (see
+     * mergeAnonymousIntoCurrent above). Delete in a follow-up once the
+     * entire session proves the server path sticks.
+     */
+    async function _legacyMergeAnonymousIntoCurrent(fromUid, toUid) {
         if (!fromUid || !toUid || fromUid === toUid) return;
         try {
             const srcRef = db.ref('users/' + fromUid);

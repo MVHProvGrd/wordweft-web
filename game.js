@@ -2,6 +2,34 @@
 const Game = (() => {
     let profanitySet = new Set();
     let reservedNames = new Set();
+    // Moderation — blocked UIDs from the signed-in user's
+    // users/{uid}/blocked map, kept live. Populated after Auth.init
+    // resolves (see wireBlockedUidsListener below).
+    let blockedUids = new Set();
+    let blockedUidsDispose = null;
+    function wireBlockedUidsListener() {
+        if (typeof Auth === 'undefined' || !Auth.observeBlockedUids) return;
+        if (blockedUidsDispose) blockedUidsDispose();
+        blockedUidsDispose = Auth.observeBlockedUids((uids) => {
+            blockedUids = new Set(uids || []);
+            try { renderStory(words.length); } catch (_) {}
+        });
+    }
+    if (typeof window !== 'undefined') {
+        // Auth.init completes asynchronously; wire after DOM ready.
+        window.addEventListener('DOMContentLoaded', () => {
+            // Hook as soon as Auth is ready. Auth fires `onAuthStateChanged`
+            // internally; we just poll-and-attach once we have a uid.
+            const tryWire = () => {
+                if (typeof Auth !== 'undefined' && Auth.uid) {
+                    wireBlockedUidsListener();
+                } else {
+                    setTimeout(tryWire, 500);
+                }
+            };
+            tryWire();
+        });
+    }
     // Load profanity + reserved-names lists
     fetch('profanity.json').then(r => r.json()).then(list => {
         list.forEach(w => profanitySet.add(w.toLowerCase()));
@@ -524,6 +552,82 @@ const Game = (() => {
         });
     }
 
+    /**
+     * Long-press / right-click a player list item to open a small
+     * Block + Report menu. Play-Store-required moderation UX for
+     * UGC games. Silently no-ops on the current user (can't block
+     * yourself) and on players without a uid (AI / pre-sign-in).
+     */
+    function attachModerationMenu(el, player) {
+        if (!player || !player.uid) return;
+        if (typeof Auth !== 'undefined' && Auth.uid && player.uid === Auth.uid) return;
+        let pressTimer = null;
+        const open = (ev) => {
+            if (ev) ev.preventDefault();
+            showModerationMenuFor(player, el);
+        };
+        el.addEventListener('contextmenu', open);
+        el.addEventListener('touchstart', (ev) => {
+            pressTimer = setTimeout(() => open(ev), 520);
+        });
+        ['touchend', 'touchmove', 'touchcancel'].forEach((n) => {
+            el.addEventListener(n, () => {
+                if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+            });
+        });
+    }
+
+    function showModerationMenuFor(player, anchorEl) {
+        // One menu at a time — clear any existing.
+        document.querySelectorAll('.moderation-menu').forEach(n => n.remove());
+        const menu = document.createElement('div');
+        menu.className = 'moderation-menu';
+        menu.innerHTML =
+            '<div class="mm-header">' + escapeHtml(player.name) + '</div>' +
+            '<button class="mm-action mm-block" data-act="block">🚫 Block</button>' +
+            '<button class="mm-action mm-report" data-act="report">⚠️ Report</button>' +
+            '<button class="mm-action mm-cancel" data-act="cancel">Cancel</button>';
+        // Position next to the anchor; fall back to center if off-screen.
+        const rect = anchorEl.getBoundingClientRect();
+        menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+        menu.style.top = (rect.bottom + 6) + 'px';
+        document.body.appendChild(menu);
+
+        const close = () => {
+            menu.remove();
+            document.removeEventListener('click', onOutside, true);
+        };
+        const onOutside = (ev) => {
+            if (!menu.contains(ev.target)) close();
+        };
+        setTimeout(() => document.addEventListener('click', onOutside, true), 0);
+
+        menu.querySelector('.mm-block').addEventListener('click', async () => {
+            close();
+            const ok = await Auth.blockUser(player.uid);
+            showToast(ok ? ('Blocked ' + player.name) : 'Block failed', ok ? '#4AC29A' : '#EF4444');
+        });
+        menu.querySelector('.mm-report').addEventListener('click', async () => {
+            close();
+            const reason = prompt('Report ' + player.name + ' for:\n' +
+                'harassment / inappropriate / spam / other', 'inappropriate');
+            if (!reason) return;
+            const ok = await Auth.fileReport({
+                reportedUid: player.uid,
+                roomId: (typeof Room !== 'undefined' && Room.code) ? Room.code : undefined,
+                reason: reason.trim().toLowerCase(),
+            });
+            showToast(ok ? 'Report submitted' : 'Report failed', ok ? '#4AC29A' : '#EF4444');
+        });
+        menu.querySelector('.mm-cancel').addEventListener('click', close);
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
     function updateLobbyPlayers() {
         const list = document.getElementById('player-list');
         const count = document.getElementById('player-count');
@@ -539,6 +643,7 @@ const Game = (() => {
                 <span class="player-item-name" style="color: ${pColor}">${p.name}</span>
                 ${p.isHost ? '<span class="player-item-host">Host</span>' : ''}
             `;
+            attachModerationMenu(item, p);
             list.appendChild(item);
         });
         if (count) count.textContent = '(' + players.length + '/8)';
@@ -571,6 +676,19 @@ const Game = (() => {
             const span = document.createElement('span');
             span.className = 'story-word';
             const player = players.find(p => p.id === w.playerId);
+            const isBlocked = !!(player && player.uid && blockedUids.has(player.uid));
+            if (isBlocked) {
+                // Redact the word but keep a placeholder so story
+                // length/flow is preserved. "⟨hidden⟩" ~matches the
+                // Android redaction tag for cross-platform parity.
+                span.classList.add('story-word-redacted');
+                span.textContent = (i > 0 ? ' ' : '') + '⟨hidden⟩';
+                span.style.color = '#666680';
+                span.style.fontStyle = 'italic';
+                if (i >= oldLength) span.classList.add('new');
+                textEl.appendChild(span);
+                return;
+            }
             if (player) {
                 span.style.color = getPlayerColor(player.color);
             } else if (w.playerId === -1) {

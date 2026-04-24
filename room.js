@@ -82,6 +82,11 @@ const Room = (() => {
                     isConnected: true
                 });
 
+                // Participants index — RTDB rules gate any subsequent
+                // write to rooms/{code}/** on membership in this map.
+                // Host is the first participant.
+                await ref.child('participants/' + uid).set(true);
+
                 // Disconnect cleanup
                 ref.child('players/0/isConnected').onDisconnect().set(false);
 
@@ -172,6 +177,10 @@ const Room = (() => {
                 isHost: false,
                 isConnected: true
             });
+
+            // Participants index — membership check for tightened
+            // rooms/.write rule.
+            await ref.child('participants/' + uid).set(true);
 
             ref.child('players/' + playerIndex + '/isConnected').onDisconnect().set(false);
 
