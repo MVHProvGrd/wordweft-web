@@ -4,113 +4,175 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Wefty's Playground</title>
+<link rel="stylesheet" href="ww2-tokens.css">
+<link rel="stylesheet" href="ww2-polish.css">
 <style>
-    /* Self-hosted variable fonts (see wefty-run.html for notes). */
     @font-face {
         font-family: 'Fraunces';
         src: url('fraunces.ttf') format('truetype-variations');
-        font-weight: 100 900;
-        font-style: normal;
-        font-display: swap;
+        font-weight: 100 900; font-style: normal; font-display: swap;
     }
     @font-face {
         font-family: 'Nunito';
         src: url('nunito.ttf') format('truetype-variations');
-        font-weight: 200 900;
-        font-style: normal;
-        font-display: swap;
+        font-weight: 200 900; font-style: normal; font-display: swap;
     }
     @font-face {
         font-family: 'JetBrains Mono';
         src: url('jetbrains_mono.ttf') format('truetype-variations');
-        font-weight: 100 800;
-        font-style: normal;
-        font-display: swap;
-    }
-    :root {
-        --bg-0: #0F0F23;
-        --bg-1: #1A1A2E;
-        --muted: #A0A0B8;
+        font-weight: 100 800; font-style: normal; font-display: swap;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
     body {
-        margin: 0;
-        font-family: "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
-        color: #fff;
-        background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
+        font-family: var(--ww-body);
+        color: var(--ww-ink-0);
+        background: var(--ww-bg-0);
+        background-image: var(--ww-surface-glow);
         min-height: 100vh;
-        padding: 24px 20px 40px;
+        padding: 20px 18px 48px;
     }
     .wrap { max-width: 480px; margin: 0 auto; }
-    header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-    header a.back {
-        color: var(--muted);
-        text-decoration: none;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
+    header {
+        display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
     }
-    header h1 { font-size: 20px; margin: 0; flex: 1; }
+    header a.back {
+        color: var(--ww-ink-2);
+        text-decoration: none;
+        font-size: 13px;
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        transition: background 0.15s, color 0.15s;
+    }
+    header a.back:hover { background: var(--ww-hair); color: var(--ww-ink-1); }
+    .eyebrow-row { margin-top: 4px; margin-bottom: 2px; }
+    .hub-title {
+        font-family: var(--ww-display);
+        font-weight: 800;
+        font-size: 32px;
+        letter-spacing: -0.02em;
+        margin: 0 0 24px;
+        color: var(--ww-ink-0);
+    }
     .mascot {
-        display: flex;
-        justify-content: center;
-        margin: 18px 0 6px;
+        display: flex; justify-content: center;
+        margin: 4px 0 14px;
     }
     .mascot img {
-        width: 140px; height: 140px;
+        width: 128px; height: 128px;
         animation: bob 2.6s ease-in-out infinite;
+        filter: drop-shadow(0 6px 14px rgba(124,111,232,0.25));
     }
     @keyframes bob {
         0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-6px); }
+        50%      { transform: translateY(-6px); }
     }
     .tagline {
         text-align: center;
-        color: var(--muted);
-        font-size: 14px;
-        margin-bottom: 22px;
+        color: var(--ww-ink-2);
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin: 4px 0 22px;
     }
+
+    /* ── Tiles ─────────────────────────────────────────────── */
     .tile {
         display: block;
-        background: rgba(30, 30, 54, 0.9);
-        border-radius: 20px;
-        padding: 20px 22px;
-        margin-bottom: 14px;
+        background: var(--ww-bg-2);
+        border: 1px solid var(--ww-hair-2);
+        border-radius: 18px;
+        padding: 18px 20px;
+        margin-bottom: 12px;
         text-decoration: none;
-        color: #fff;
-        transition: transform 0.15s ease, background 0.15s ease;
+        color: var(--ww-ink-0);
+        box-shadow: var(--ww-shadow-card);
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+        position: relative;
+        overflow: hidden;
     }
-    .tile:hover { background: rgba(40, 40, 70, 0.95); transform: translateY(-1px); }
+    .tile::before {
+        content: '';
+        position: absolute; left: 0; top: 0; bottom: 0;
+        width: 4px;
+        background: var(--tile-accent, var(--ww-violet-400));
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+    .tile:hover {
+        background: var(--ww-bg-3);
+        border-color: var(--tile-accent, var(--ww-violet-400));
+        transform: translateY(-1px);
+    }
+    .tile:hover::before { opacity: 1; }
     .tile:active { transform: translateY(1px); }
     .tile-title {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-weight: 700;
+        display: flex; align-items: center; gap: 12px;
+        font-family: var(--ww-display);
+        font-weight: 800;
         font-size: 17px;
+        letter-spacing: -0.01em;
+        color: var(--ww-ink-0);
     }
+    .tile-title .emoji { font-size: 18px; line-height: 1; }
     .dot {
-        width: 12px; height: 12px; border-radius: 6px;
+        width: 10px; height: 10px; border-radius: 10px;
+        flex: 0 0 auto;
+        box-shadow: 0 0 0 3px rgba(255,255,255,0.03);
     }
-    .dot.pink  { background: #EC4899; }
-    .dot.green { background: #10B981; }
-    .dot.sky   { background: #38BDF8; }
-    .dot.slate { background: #475569; }
-    .dot.amber { background: #FBBF24; }
-    .tile.locked { opacity: 0.55; pointer-events: none; }
+    .dot.run   { background: var(--ww-emerald); }
+    .dot.climb { background: var(--ww-teal); }
+    .dot.soon  { background: var(--ww-ink-3); }
+    .dot.scores{ background: var(--ww-gold); }
     .tile-sub {
-        color: var(--muted);
+        color: var(--ww-ink-2);
         font-size: 13px;
+        line-height: 1.45;
         margin-top: 6px;
-        margin-left: 24px;
+        padding-left: 22px;
     }
+    .tile.locked { opacity: 0.55; pointer-events: none; }
+    .tile.run   { --tile-accent: var(--ww-emerald); }
+    .tile.climb { --tile-accent: var(--ww-teal); }
+    .tile.scores{ --tile-accent: var(--ww-gold); }
+
+    /* Chip row for per-tile badges (new/unlocked/locked). */
+    .tile-badges {
+        display: flex; gap: 6px; margin-top: 10px; padding-left: 22px;
+        flex-wrap: wrap;
+    }
+    .tile-badge {
+        font-family: var(--ww-body);
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 3px 10px;
+        border-radius: 100px;
+        color: var(--ww-violet-200);
+        background: color-mix(in oklab, var(--ww-violet-400) 14%, transparent);
+        border: 1px solid color-mix(in oklab, var(--ww-violet-400) 30%, transparent);
+    }
+    .tile-badge.gold {
+        color: var(--ww-gold);
+        background: color-mix(in oklab, var(--ww-gold) 14%, transparent);
+        border-color: color-mix(in oklab, var(--ww-gold) 35%, transparent);
+    }
+    .tile-badge.locked {
+        color: var(--ww-ink-3);
+        background: var(--ww-hair);
+        border-color: var(--ww-hair-2);
+    }
+
     .signin-status {
         text-align: center;
         margin-top: 32px;
-        font-size: 12px;
-        color: var(--muted);
-        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 11px;
+        color: var(--ww-ink-3);
+        font-family: var(--ww-mono);
+        letter-spacing: 0.05em;
     }
     .signin-status.hidden { display: none; }
 </style>
@@ -119,40 +181,61 @@
 <div class="wrap">
     <header>
         <a class="back" href="index.html">← Home</a>
-        <h1>Wefty's Playground</h1>
     </header>
+    <div class="eyebrow-row"><span class="ww-eyebrow">Mini-games · Wefty</span></div>
+    <h1 class="hub-title">Wefty's Playground</h1>
+
     <div class="mascot">
         <img src="wefty.png" alt="Wefty">
     </div>
     <div class="tagline">Pick a game</div>
-    <a class="tile" href="wefty-run.html" id="run-tile">
-        <div class="tile-title"><span class="dot green"></span>Wefty Run</div>
-        <div class="tile-sub">Auto-runner. Draw thread bridges to survive. Tap the ? in-game for a refresher.</div>
+
+    <a class="tile run" href="wefty-run.html" id="run-tile">
+        <div class="tile-title">
+            <span class="dot run"></span>Wefty Run <span class="emoji">✨</span>
+        </div>
+        <div class="tile-sub" id="run-sub">Auto-runner. Draw thread bridges to survive.</div>
     </a>
-    <a class="tile locked" href="#" id="climb-tile">
-        <div class="tile-title"><span class="dot slate" id="climb-dot"></span>Wefty Climb 🔒</div>
+
+    <a class="tile climb locked" href="#" id="climb-tile">
+        <div class="tile-title">
+            <span class="dot soon" id="climb-dot"></span>Wefty Climb <span class="emoji">🏔️</span>
+        </div>
         <div class="tile-sub" id="climb-sub">Reach 750 m in Wefty Run to unlock.</div>
+        <div class="tile-badges" id="climb-badges"><span class="tile-badge locked">Locked</span></div>
     </a>
+
     <a class="tile locked" href="#">
-        <div class="tile-title"><span class="dot slate"></span>Wefty Skyweave 🪁</div>
-        <div class="tile-sub">Soar a yarn carpet through obstacles. Coming soon.</div>
+        <div class="tile-title">
+            <span class="dot soon"></span>Wefty Skyweave <span class="emoji">🪁</span>
+        </div>
+        <div class="tile-sub">Soar a yarn carpet through obstacles.</div>
+        <div class="tile-badges"><span class="tile-badge locked">Coming soon</span></div>
     </a>
+
     <a class="tile locked" href="#">
-        <div class="tile-title"><span class="dot slate"></span>Wefty Swing 🌴</div>
-        <div class="tile-sub">Jungle-swing across vine anchors. Coming soon.</div>
+        <div class="tile-title">
+            <span class="dot soon"></span>Wefty Swing <span class="emoji">🌴</span>
+        </div>
+        <div class="tile-sub">Jungle-swing across vine anchors.</div>
+        <div class="tile-badges"><span class="tile-badge locked">Coming soon</span></div>
     </a>
-    <a class="tile" href="wefty-scores.html">
-        <div class="tile-title"><span class="dot amber"></span>Top Runs 🏆</div>
-        <div class="tile-sub">Global Wefty Run leaderboard — personal bests worldwide.</div>
+
+    <a class="tile scores" href="wefty-scores.html">
+        <div class="tile-title">
+            <span class="dot scores"></span>Top Runs <span class="emoji">🏆</span>
+        </div>
+        <div class="tile-sub">Global leaderboards — personal bests worldwide.</div>
     </a>
+
     <p id="signin-status" class="signin-status hidden"></p>
 </div>
+
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
-    // Show "Signed in as <email>" for the current Firebase user, if any.
     firebase.auth().onAuthStateChanged((user) => {
         const el = document.getElementById('signin-status');
         if (user && !user.isAnonymous && user.email) {
@@ -164,12 +247,8 @@
     });
 </script>
 <script>
-    // Retroactive unlocks: if the user has an existing best that
-    // already crossed the milestone (via server leaderboard sync
-    // or prior run on another device), grant the unlock flag now.
-    // Prevents the "I have a 2240m record but Climb is still locked"
-    // confusion. Thresholds in world units (Wefty Run's `m >=`
-    // checks): 30 = 500m/Level 2, 75 = 750m/Level 3 / Climb.
+    // Retroactive unlocks — grant the Level 2 / Climb flags if the
+    // user's server best already crossed the milestone.
     (function retroactiveUnlocks() {
         const best = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
         if (best >= 500 && !localStorage.getItem('wefty_run_level2_unlocked')) {
@@ -178,9 +257,6 @@
         if (best >= 750 && !localStorage.getItem('wefty_run_level3_unlocked')) {
             localStorage.setItem('wefty_run_level3_unlocked', '1');
         }
-        // Also check the server leaderboard for the signed-in user —
-        // local PB might be 0 on a fresh device but the server has
-        // an old record. Fires on auth-ready (may be async).
         if (typeof firebase !== 'undefined' && firebase.auth && firebase.database) {
             firebase.auth().onAuthStateChanged((u) => {
                 if (!u || u.isAnonymous) return;
@@ -201,14 +277,15 @@
         }
     })();
 
-    // Reflect Level 2 / Level 3 progress in the tile copy.
     if (localStorage.getItem('wefty_run_level2_unlocked')) {
+        const sub = document.getElementById('run-sub');
+        if (sub) sub.textContent = 'Auto-runner — Level 2 storm biome unlocked past 500 m.';
         const t = document.getElementById('run-tile');
-        if (t) {
-            t.querySelector('.tile-title').innerHTML =
-                '<span class="dot green"></span>Wefty Run ✨';
-            t.querySelector('.tile-sub').textContent =
-                'Auto-runner — Level 2 storm biome unlocked past 500 m.';
+        if (t && !t.querySelector('.tile-badges')) {
+            const b = document.createElement('div');
+            b.className = 'tile-badges';
+            b.innerHTML = '<span class="tile-badge gold">Level 2 unlocked</span>';
+            t.appendChild(b);
         }
     }
     if (localStorage.getItem('wefty_run_level3_unlocked')) {
@@ -216,10 +293,12 @@
         if (t) {
             t.classList.remove('locked');
             t.href = 'wefty-climb.html';
-            t.querySelector('.tile-title').innerHTML =
-                '<span class="dot sky"></span>Wefty Climb 🏔️';
+            const dot = document.getElementById('climb-dot');
+            if (dot) dot.className = 'dot climb';
             document.getElementById('climb-sub').textContent =
                 'Mountain climb — ascend through green, rocky, and snowy biomes.';
+            const badges = document.getElementById('climb-badges');
+            if (badges) badges.innerHTML = '<span class="tile-badge gold">Unlocked</span>';
         }
     }
 </script>
