@@ -650,10 +650,10 @@ const App = (() => {
                         '<span class="public-room-chip chip-mode">' + modeLabelFor(r.gameMode) + '</span>' +
                         '<span class="public-room-chip chip-starter">' + starterLabelFor(r.storyStarter) + '</span>' +
                         '<span class="public-room-chip chip-timer">' + timerLabel + '</span>' +
+                        (r.hiddenObjectivesEnabled
+                            ? '<span class="public-room-chip chip-objectives">Hidden Objectives</span>'
+                            : '') +
                     '</div>' +
-                    (r.hiddenObjectivesEnabled
-                        ? '<div class="public-room-objectives">Hidden Objectives</div>'
-                        : '') +
                 '</div>' +
                 '<div class="public-room-count">' +
                     '<div class="public-room-count-num">' + (r.playerCount || 0) + '/' + (r.maxPlayers || 8) + '</div>' +
