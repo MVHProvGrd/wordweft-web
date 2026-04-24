@@ -1515,7 +1515,11 @@
     // determined attacker can extract it. The real fence is the
     // server's time-of-flight plausibility check in weftyRunSubmit.
     const LOOMWORD = '23a1f7f020d6affacdd0e373f622834088de0c2a4513625407ce380b48c20c3a';
-    let runToken = null;
+    // Store the mint *promise*, not the resolved value. Gen 2 cold start
+    // can take 1-2s; a run that ends faster than that used to read
+    // runToken=null and silently skip the submit. Callers now await this
+    // promise so the submit waits for the token no matter the run length.
+    let runTokenPromise = null;
     async function weftyHandshake(runId, nonce, score) {
         const enc = new TextEncoder();
         const key = await crypto.subtle.importKey(
@@ -1527,27 +1531,17 @@
             .map(b => b.toString(16).padStart(2, '0')).join('');
     }
     async function mintRunToken() {
-        if (typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) {
-            console.log('[wefty-run] mintRunToken skip: Auth=' + typeof Auth +
-                ' uid=' + (typeof Auth !== 'undefined' ? Auth.uid : 'n/a') +
-                ' anon=' + (typeof Auth !== 'undefined' ? Auth.isAnonymous : 'n/a'));
-            return null;
-        }
+        if (typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return null;
         try {
-            console.log('[wefty-run] mintRunToken calling weftyRunStart...');
             const res = await firebase.functions().httpsCallable('weftyRunStart')();
-            console.log('[wefty-run] mintRunToken ok:', res.data);
             return res.data || null;
-        } catch (e) { console.warn('[wefty-run] weftyRunStart failed', e); return null; }
+        } catch (e) { console.warn('weftyRunStart failed', e); return null; }
     }
-    async function submitRunScore(token, score) {
-        console.log('[wefty-run] submitRunScore entered token=', token, 'score=', score);
-        if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) {
-            console.log('[wefty-run] submitRunScore skip: token=' + !!token +
-                ' uid=' + (typeof Auth !== 'undefined' ? Auth.uid : 'n/a') +
-                ' anon=' + (typeof Auth !== 'undefined' ? Auth.isAnonymous : 'n/a'));
-            return;
-        }
+    async function submitRunScore(tokenPromise, score) {
+        // Wait for the mint to land even if the run was shorter than the
+        // cold-start (fixes silent skip on first post-page-load attempt).
+        const token = tokenPromise ? await tokenPromise : null;
+        if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return;
         // Fall back to Firebase profile name when in-memory is blank
         // or "Player" — profile may not have hydrated yet when game
         // ended. Without this the submit silently no-ops.
@@ -1565,15 +1559,13 @@
             return;
         }
         try {
-            console.log('[wefty-run] weftyRunSubmit calling with', {runId: token.runId, score, displayName});
             const handshake = await weftyHandshake(token.runId, token.nonce, score);
-            const res = await firebase.functions().httpsCallable('weftyRunSubmit')({
+            await firebase.functions().httpsCallable('weftyRunSubmit')({
                 runId: token.runId, score, handshake,
                 displayName, avatar: Auth.avatar || '',
             });
-            console.log('[wefty-run] weftyRunSubmit ok:', res.data);
         } catch (e) {
-            console.warn('[wefty-run] weftyRunSubmit failed', e);
+            console.warn('weftyRunSubmit failed', e);
             if (typeof showToast === 'function') {
                 showToast('Leaderboard submit failed: ' + (e.message || 'unknown'));
             }
@@ -1581,26 +1573,15 @@
     }
 
     function resetWorld() {
-        console.log('[wefty-run] resetWorld entered — about to call mintRunToken');
         world.cameraX = 0;
         world.weftyY = PLATFORM_Y;
         world.weftyVy = 0;
         world.grounded = true;
         world.distance = 0;
         world.gameOver = false;
-        // Mint a fresh server-side run token each attempt. Fires
-        // async — by the time a run lasts long enough to reach game
-        // over, the token will be ready. No-op for anonymous users.
-        try {
-            mintRunToken().then(t => {
-                console.log('[wefty-run] mintRunToken resolved, assigning runToken=', t);
-                runToken = t;
-            }).catch(err => {
-                console.error('[wefty-run] mintRunToken promise rejected:', err);
-            });
-        } catch (syncErr) {
-            console.error('[wefty-run] mintRunToken threw synchronously:', syncErr);
-        }
+        // Start minting now; submit awaits this promise on game-over so
+        // a short run still catches the token once the cold start lands.
+        runTokenPromise = mintRunToken();
         world.biomeIndex = 0;
         world.lastMilestone = 0;
         world.isDrawing = false;
@@ -2534,9 +2515,9 @@
                 // Submit every run (not gated on local PB) — server
                 // transaction writes only on actual beat, and refreshes
                 // displayName/avatar on every call so renames propagate.
-                const tokenForSubmit = runToken;
-                runToken = null;
-                submitRunScore(tokenForSubmit, score);
+                const tokenPromiseForSubmit = runTokenPromise;
+                runTokenPromise = null;
+                submitRunScore(tokenPromiseForSubmit, score);
                 const runTs = recordRun(score);
                 renderScoreboard(runTs);
             }

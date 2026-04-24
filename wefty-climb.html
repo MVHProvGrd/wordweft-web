@@ -1387,7 +1387,9 @@
     // ── Anti-cheat: server-minted climb token + HMAC handshake ──────
     // See wefty-run.html for the full rationale.
     const LOOMWORD = '23a1f7f020d6affacdd0e373f622834088de0c2a4513625407ce380b48c20c3a';
-    let climbToken = null;
+    // Store mint promise, not the resolved value — Gen 2 cold start can
+    // exceed a short-run lifespan. See wefty-run.html for full rationale.
+    let climbTokenPromise = null;
     async function weftyHandshake(runId, nonce, score) {
         const enc = new TextEncoder();
         const key = await crypto.subtle.importKey(
@@ -1405,7 +1407,8 @@
             return res.data || null;
         } catch (e) { console.warn('weftyClimbStart failed', e); return null; }
     }
-    async function submitClimbScore(token, score) {
+    async function submitClimbScore(tokenPromise, score) {
+        const token = tokenPromise ? await tokenPromise : null;
         if (!token || typeof Auth === 'undefined' || !Auth.uid || Auth.isAnonymous) return;
         let displayName = Auth.name;
         if (!displayName || displayName === 'Player') {
@@ -1440,7 +1443,7 @@
         world.weftyGrounded = true;
         world.heightClimbed = 0; world.frameTick = 0;
         world.gameOver = false; world.isPaused = false;
-        mintClimbToken().then(t => { climbToken = t; });
+        climbTokenPromise = mintClimbToken();
         world.hearts = 3;
         world.horizontalInput = 0; world.jumpHeld = false;
         world.dropThroughUntilY = -Infinity; world.offscreenSince = -1;
@@ -1831,9 +1834,9 @@
                 localStorage.setItem('wefty_climb_best', String(cur));
             }
             // Submit every run — see wefty-run.html for the rationale.
-            const tokenForSubmit = climbToken;
-            climbToken = null;
-            submitClimbScore(tokenForSubmit, cur);
+            const tokenPromiseForSubmit = climbTokenPromise;
+            climbTokenPromise = null;
+            submitClimbScore(tokenPromiseForSubmit, cur);
             // Populate Beat 1 stats review sheet (new 2-beat flow).
             populateClimbBeat1(cur);
             overlay.classList.remove('hidden');
