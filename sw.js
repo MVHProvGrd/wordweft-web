@@ -1,10 +1,10 @@
 // WordWeft Service Worker — caches static assets for offline shell
 const CACHE_NAME = 'wordweft-v122';
-// 2026-04-24 21:32Z is replaced by the sync-wordweft-web workflow
+// 2026-04-24 21:36Z is replaced by the sync-wordweft-web workflow
 // at deploy time with the UTC timestamp of the sync (e.g.
 // "2026-04-23 21:45Z"). When running from source it stays as the
 // placeholder and the page shows "(dev)" instead.
-const BUILD_TIMESTAMP = '2026-04-24 21:32Z';
+const BUILD_TIMESTAMP = '2026-04-24 21:36Z';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -76,6 +76,8 @@ const STATIC_ASSETS = [
     '/parallax_woodland.png',
     '/wefty_run_loop.mp3',
     '/wefty_climb_loop.mp3',
+    '/jazz_loop.mp3',
+    '/chiptune_loop.mp3',
     '/wefty_game_over.mp3',
     '/wefty_powerup.mp3',
     '/needle_icon.png',

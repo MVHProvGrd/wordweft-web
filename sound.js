@@ -183,12 +183,31 @@ const Sound = (() => {
 
   let currentMusicStyle = null;
 
+  // Lyria-generated instrumental loops replacing the MIDI-style synth
+  // for the two styles the user liked most. Other styles keep the
+  // 3-overtone synth path below.
+  const loopTracks = {
+    jazz:     { src: 'jazz_loop.mp3',     volume: 0.35 },
+    chiptune: { src: 'chiptune_loop.mp3', volume: 0.32 },
+  };
+  let loopAudio = null;
+
   function startMusic(style, force) {
     if (muted) return;
     // Don't restart if already playing the same style
-    if (!force && currentMusicStyle === style && musicTimeoutId) return;
+    if (!force && currentMusicStyle === style && (musicTimeoutId || loopAudio)) return;
     stopMusic();
     currentMusicStyle = style;
+
+    const track = loopTracks[style];
+    if (track) {
+      loopAudio = new Audio(track.src);
+      loopAudio.loop = true;
+      loopAudio.volume = track.volume;
+      loopAudio.play().catch(() => {});
+      return;
+    }
+
     const melody = melodies[style];
     if (!melody) return;
 
@@ -225,6 +244,10 @@ const Sound = (() => {
       });
       musicOscillators = [];
     } catch (e) {}
+    if (loopAudio) {
+      try { loopAudio.pause(); loopAudio.src = ''; } catch (e) {}
+      loopAudio = null;
+    }
   }
 
   return {
