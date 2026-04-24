@@ -279,9 +279,11 @@ const Auth = (() => {
     function updateUI() {
         const userBar = document.getElementById('user-bar');
         if (currentUser && playerName) {
-            userBar.classList.remove('hidden');
-            document.getElementById('user-avatar').textContent = playerAvatar || '\u{1F60A}';
-            document.getElementById('user-name').textContent = playerName;
+            if (userBar) userBar.classList.remove('hidden');
+            const avatarEl = document.getElementById('user-avatar');
+            if (avatarEl) avatarEl.textContent = playerAvatar || '\u{1F60A}';
+            const nameEl = document.getElementById('user-name');
+            if (nameEl) nameEl.textContent = playerName;
             loadUserLevel();
         } else {
             if (userBar) userBar.classList.add('hidden');
