@@ -140,17 +140,10 @@ const Results = (() => {
             if (resultStoryEl) resultStoryEl.textContent = data.fullStory || '';
         }
 
-        // Score bars
-        // `entertainmentScore` is the current wire key; `humorScore` is
-        // only present on RTDB entries posted before the rename. Read
-        // both so replaying an old room doesn't show 0.
-        const entertainmentVal = typeof data.entertainmentScore === 'number'
-            ? data.entertainmentScore
-            : (typeof data.humorScore === 'number' ? data.humorScore : 0);
         const scores = [
             { id: 'coherence', value: data.coherenceScore || 0, color: 'score-coherence' },
             { id: 'creativity', value: data.creativityScore || 0, color: 'score-creativity' },
-            { id: 'entertainment', value: entertainmentVal, color: 'score-entertainment' },
+            { id: 'entertainment', value: data.entertainmentScore || 0, color: 'score-entertainment' },
             { id: 'vocabulary', value: data.vocabularyScore || 0, color: 'score-vocabulary' },
             { id: 'flow', value: data.flowScore || 0, color: 'score-flow' }
         ];

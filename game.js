@@ -1185,12 +1185,7 @@ const Game = (() => {
                 moodDetected: data.moodDetected || '',
                 coherenceScore: typeof data.coherenceScore === 'number' ? data.coherenceScore : 0,
                 creativityScore: typeof data.creativityScore === 'number' ? data.creativityScore : 0,
-                // Accept either key; server emits entertainmentScore now, old
-                // RTDB records still have humorScore. Persist under the new
-                // name going forward.
-                entertainmentScore: typeof data.entertainmentScore === 'number'
-                    ? data.entertainmentScore
-                    : (typeof data.humorScore === 'number' ? data.humorScore : 0),
+                entertainmentScore: typeof data.entertainmentScore === 'number' ? data.entertainmentScore : 0,
                 vocabularyScore: typeof data.vocabularyScore === 'number' ? data.vocabularyScore : 0,
                 flowScore: typeof data.flowScore === 'number' ? data.flowScore : 0,
                 tags: Array.isArray(data.tags) ? data.tags : [],
