@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft Music</title>
+<link rel="stylesheet" href="ww2-tokens.css">
+<link rel="stylesheet" href="ww2-polish.css">
+<style>
+    @font-face {
+        font-family: 'Fraunces';
+        src: url('fraunces.ttf') format('truetype-variations');
+        font-weight: 100 900; font-style: normal; font-display: swap;
+    }
+    @font-face {
+        font-family: 'Nunito';
+        src: url('nunito.ttf') format('truetype-variations');
+        font-weight: 200 900; font-style: normal; font-display: swap;
+    }
+    @font-face {
+        font-family: 'JetBrains Mono';
+        src: url('jetbrains_mono.ttf') format('truetype-variations');
+        font-weight: 100 800; font-style: normal; font-display: swap;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: var(--ww-body);
+        color: var(--ww-ink-0);
+        background: var(--ww-bg-0);
+        background-image: var(--ww-surface-glow);
+        min-height: 100vh;
+        padding: 20px 18px 48px;
+    }
+    .wrap { max-width: 560px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    header a.back {
+        color: var(--ww-ink-2);
+        text-decoration: none;
+        font-size: 13px;
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        transition: background 0.15s, color 0.15s;
+    }
+    header a.back:hover { background: var(--ww-hair); color: var(--ww-ink-1); }
+    h1 {
+        font-family: var(--ww-display);
+        font-weight: 800;
+        font-size: 32px;
+        letter-spacing: -0.02em;
+        margin: 0 0 6px;
+    }
+    .lede {
+        color: var(--ww-ink-2);
+        font-size: 14px;
+        margin: 0 0 28px;
+        line-height: 1.5;
+    }
+    .lede code {
+        font-family: var(--ww-mono);
+        font-size: 12px;
+        background: var(--ww-bg-2);
+        padding: 1px 6px;
+        border-radius: 6px;
+    }
+    .section-label {
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--ww-ink-2);
+        margin: 28px 0 10px;
+    }
+    .track {
+        background: var(--ww-bg-2);
+        border: 1px solid var(--ww-hair-2);
+        border-radius: 16px;
+        padding: 16px 18px;
+        margin-bottom: 12px;
+        box-shadow: var(--ww-shadow-card);
+    }
+    .track-head {
+        display: flex; align-items: baseline; justify-content: space-between;
+        gap: 10px; margin-bottom: 4px;
+    }
+    .track-title {
+        font-family: var(--ww-display);
+        font-weight: 700;
+        font-size: 18px;
+        margin: 0;
+    }
+    .track-stage {
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    .stage-live   { background: rgba(60,180,120,0.15); color: #2a8a5a; }
+    .stage-staged { background: rgba(124,111,232,0.18); color: #5a4ec8; }
+    .stage-synth  { background: rgba(180,140,60,0.15); color: #8a6a2a; }
+    .track-where { color: var(--ww-ink-2); font-size: 12px; margin: 0 0 8px; }
+    .track-vibe { font-size: 13px; color: var(--ww-ink-1); margin: 8px 0 10px; line-height: 1.5; }
+    audio { width: 100%; margin-top: 4px; }
+    .filename {
+        font-family: var(--ww-mono);
+        font-size: 11px;
+        color: var(--ww-ink-2);
+    }
+    .filename a { color: var(--ww-ink-2); text-decoration: none; }
+    .filename a:hover { color: var(--ww-ink-0); }
+    .synth-note {
+        font-size: 12px;
+        color: var(--ww-ink-2);
+        font-style: italic;
+        padding: 8px 12px;
+        background: rgba(180,140,60,0.06);
+        border-left: 3px solid rgba(180,140,60,0.4);
+        border-radius: 4px;
+    }
+    @media (prefers-color-scheme: dark) {
+        .stage-live   { color: #6dd9a3; }
+        .stage-staged { color: #b3a8ff; }
+        .stage-synth  { color: #d9b86d; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a class="back" href="/">← Back</a>
+    </header>
+
+    <h1>WordWeft Music</h1>
+    <p class="lede">
+        All instrumental loops in the game. Generated via Google's
+        <code>lyria-3-clip-preview</code> and seamlessly stitched with a
+        1.5 s equal-power crossfade so the wrap is inaudible. Each
+        player loops in-page; right-click → "Save audio as…" to grab
+        the file.
+    </p>
+
+    <div class="section-label">Live in-game</div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Run</h3>
+            <span class="track-stage stage-live">Live</span>
+        </div>
+        <p class="track-where">Plays during Wefty Run mini-game.</p>
+        <p class="track-vibe">
+            Cartoon-adventure cheerful instrumental, cozy and bouncy.
+            Recently re-looped — last 1.5 s now folds smoothly back into
+            the start so the wrap doesn't drop out.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_run_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_run_loop.mp3" download>wefty_run_loop.mp3</a> · 28.5 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Climb</h3>
+            <span class="track-stage stage-live">Live</span>
+        </div>
+        <p class="track-where">Plays during Wefty Climb across all biomes.</p>
+        <p class="track-vibe">
+            Same cartoon-adventure family as Run but with a slightly
+            higher register — flute + glockenspiel lead, a hint of
+            chime sparkle. The "well-done" loop the user pointed to
+            as the wrap-quality target.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_climb_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_climb_loop.mp3" download>wefty_climb_loop.mp3</a> · 30.8 s · 194 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Jazz</h3>
+            <span class="track-stage stage-live">Live</span>
+        </div>
+        <p class="track-where">Main-game waiting music — style "Jazz" in Settings → Music.</p>
+        <p class="track-vibe">
+            Instrumental lounge jazz, 90 BPM C major swing. Brushed
+            drums + walking upright bass + muted trumpet over Rhodes
+            piano. Replaces the older 3-overtone synth rendering of the
+            same melody.
+        </p>
+        <audio controls preload="metadata" loop src="jazz_loop.mp3"></audio>
+        <div class="filename"><a href="jazz_loop.mp3" download>jazz_loop.mp3</a> · 29.2 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Chiptune</h3>
+            <span class="track-stage stage-live">Live</span>
+        </div>
+        <p class="track-where">Main-game waiting music — style "Chiptune" in Settings → Music.</p>
+        <p class="track-vibe">
+            Modern chiptune-adjacent instrumental, 140 BPM C major
+            pentatonic. Square-lead + arpeggiated synth bass + light
+            drum-machine groove. Replaces the old 3-overtone synth.
+        </p>
+        <audio controls preload="metadata" loop src="chiptune_loop.mp3"></audio>
+        <div class="filename"><a href="chiptune_loop.mp3" download>chiptune_loop.mp3</a> · 29.2 s · 128 kbps</div>
+    </div>
+
+    <div class="section-label">Synth (no static file — rendered in-app)</div>
+
+    <p class="synth-note">
+        Lullaby, Bossa Nova, and Blues are still rendered live by
+        <code>sound.js</code> (web) / <code>SoundManager.kt</code>
+        (Android) using the 3-overtone synth — pick them in Settings →
+        Music to hear, or open the main game and let it idle. Lyria
+        rerolls available on request.
+    </p>
+
+    <div class="section-label">Staged for upcoming levels</div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Skyweave</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: flying-carpet level. Asset committed; not yet wired into a screen.</p>
+        <p class="track-vibe">
+            Magical adventure-flight, soaring. Pizzicato strings + flute
+            and oboe trading a fluttering line, celesta sparkle,
+            tambourine pulse. Harmonic minor with hijaz colour, 110 BPM.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_skyweave_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_skyweave_loop.mp3" download>wefty_skyweave_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Swing</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: Wefty Swing mini-game. Asset committed; not yet wired.</p>
+        <p class="track-vibe">
+            Big-band swing loop, playful and bouncy — vaudeville-cartoon
+            chase energy. Walking bass, brushed drums, muted trumpets +
+            clarinets trading, stride piano. F major 140 BPM shuffle.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_swing_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_swing_loop.mp3" download>wefty_swing_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">MemeWeft</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: rebrand of the CaptionClash scaffold. Asset committed; not yet wired.</p>
+        <p class="track-vibe">
+            Modern internet-meme loop, playful and quirky. Lo-fi
+            boom-bap groove, wobbly saw bass, retro square-lead, pitched
+            vocal-chop stabs (no actual words). Hyperpop-adjacent but
+            lighthearted. A minor pentatonic, 120 BPM.
+        </p>
+        <audio controls preload="metadata" loop src="memeweft_loop.mp3"></audio>
+        <div class="filename"><a href="memeweft_loop.mp3" download>memeweft_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Weave</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: warp/weft literal-theme level. Asset committed; not yet wired.</p>
+        <p class="track-vibe">
+            Weaving-loom loop — rhythmic and hypnotic. Marimba + kalimba
+            + wood-block lattice trading call-and-response patterns,
+            bowed-cello drone, hand-drum pulse, finger-cymbal accents.
+            D Dorian, 100 BPM.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_weave_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_weave_loop.mp3" download>wefty_weave_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <p class="lede" style="margin-top: 32px; font-size: 12px;">
+        Generation recipe + Lyria prompt tips live in the repo's
+        <code>CLAUDE.md</code> under "Music generation (Lyria-3)".
+    </p>
+</div>
+
+<script>
+    // Pause every other audio when one starts — so two tracks don't
+    // overlap when the user clicks through them.
+    document.querySelectorAll('audio').forEach((a) => {
+        a.addEventListener('play', () => {
+            document.querySelectorAll('audio').forEach((b) => {
+                if (b !== a && !b.paused) b.pause();
+            });
+        });
+    });
+</script>
+</body>
+</html>
