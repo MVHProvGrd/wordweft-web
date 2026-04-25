@@ -102,6 +102,8 @@
     .stage-live   { background: rgba(60,180,120,0.15); color: #2a8a5a; }
     .stage-staged { background: rgba(124,111,232,0.18); color: #5a4ec8; }
     .stage-synth  { background: rgba(180,140,60,0.15); color: #8a6a2a; }
+    .stage-archive { background: rgba(120,120,120,0.18); color: #555; }
+    .stage-sfx    { background: rgba(60,140,200,0.15); color: #2a6a8a; }
     .track-where { color: var(--ww-ink-2); font-size: 12px; margin: 0 0 8px; }
     .track-vibe { font-size: 13px; color: var(--ww-ink-1); margin: 8px 0 10px; line-height: 1.5; }
     audio { width: 100%; margin-top: 4px; }
@@ -122,9 +124,11 @@
         border-radius: 4px;
     }
     @media (prefers-color-scheme: dark) {
-        .stage-live   { color: #6dd9a3; }
-        .stage-staged { color: #b3a8ff; }
-        .stage-synth  { color: #d9b86d; }
+        .stage-live    { color: #6dd9a3; }
+        .stage-staged  { color: #b3a8ff; }
+        .stage-synth   { color: #d9b86d; }
+        .stage-archive { color: #b8b8b8; }
+        .stage-sfx     { color: #6db8d9; }
     }
 </style>
 </head>
@@ -207,14 +211,77 @@
         <div class="filename"><a href="chiptune_loop.mp3" download>chiptune_loop.mp3</a> · 29.2 s · 128 kbps</div>
     </div>
 
+    <div class="section-label">Sound effects</div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">WEFTY-letters power-up</h3>
+            <span class="track-stage stage-sfx">SFX</span>
+        </div>
+        <p class="track-where">
+            Wefty Run — fires when you collect all five W-E-F-T-Y
+            letters. <code>wefty-run.html</code> dispatches the
+            <code>'power-up'</code> event, which plays this mp3
+            <em>plus</em> a 3-note ascending C5-E5-G5 fanfare via
+            <code>Sound.playGameStart()</code> (the synth jingle layered
+            on top). Same flow on Android via
+            <code>SoundManager.playGameStart()</code>.
+        </p>
+        <audio controls preload="metadata" src="wefty_powerup.mp3"></audio>
+        <div class="filename"><a href="wefty_powerup.mp3" download>wefty_powerup.mp3</a> · ~1 s · static SFX</div>
+    </div>
+
+    <div class="section-label">Originals — preserved for posterity</div>
+
+    <p class="synth-note">
+        These are the pre-Lyria 3-overtone synth versions of the same
+        Jazz and Chiptune melodies, rendered offline from the exact
+        algorithm in <code>SoundManager.kt</code> (sine fundamental at
+        0.7 + sine 2× at <code>overtone2</code> + sine 3× at
+        <code>overtone3</code>, with a 10% linear attack/release
+        envelope). The live game now plays the Lyria versions above;
+        these stay around in case the originals come back into
+        rotation.
+    </p>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Jazz (synth original)</h3>
+            <span class="track-stage stage-archive">Archive</span>
+        </div>
+        <p class="track-where">Pre-Lyria render. Three loops of the original 20-note phrase.</p>
+        <p class="track-vibe">
+            The MIDI-style "Jazz" you knew before the Lyria swap.
+            <code>volume 0.15, overtone2 0.15, overtone3 0.08, gap 50 ms,
+            loopPause 300 ms</code>.
+        </p>
+        <audio controls preload="metadata" loop src="jazz_synth_loop.mp3"></audio>
+        <div class="filename"><a href="jazz_synth_loop.mp3" download>jazz_synth_loop.mp3</a> · 28.5 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Chiptune (synth original)</h3>
+            <span class="track-stage stage-archive">Archive</span>
+        </div>
+        <p class="track-where">Pre-Lyria render. Six loops of the original 20-note phrase.</p>
+        <p class="track-vibe">
+            The MIDI-style "Chiptune" before the Lyria swap.
+            <code>volume 0.12, overtone2 0.25, overtone3 0.20, gap 20 ms,
+            loopPause 200 ms</code>.
+        </p>
+        <audio controls preload="metadata" loop src="chiptune_synth_loop.mp3"></audio>
+        <div class="filename"><a href="chiptune_synth_loop.mp3" download>chiptune_synth_loop.mp3</a> · 26.1 s · 128 kbps</div>
+    </div>
+
     <div class="section-label">Synth (no static file — rendered in-app)</div>
 
     <p class="synth-note">
         Lullaby, Bossa Nova, and Blues are still rendered live by
         <code>sound.js</code> (web) / <code>SoundManager.kt</code>
-        (Android) using the 3-overtone synth — pick them in Settings →
-        Music to hear, or open the main game and let it idle. Lyria
-        rerolls available on request.
+        (Android) using the same 3-overtone synth — pick them in
+        Settings → Music to hear, or open the main game and let it
+        idle. Lyria rerolls available on request.
     </p>
 
     <div class="section-label">Staged for upcoming levels</div>
