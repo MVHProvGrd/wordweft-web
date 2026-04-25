@@ -104,6 +104,7 @@ const Room = (() => {
                 // events).
                 if (wantPublic) {
                     await publicRef(code).set({
+                        hostUid: uid,
                         hostName: name,
                         hostAvatar: avatar || '',
                         gameMode: 'ONE_WORD',
@@ -433,6 +434,7 @@ const Room = (() => {
             if (!v.hostName) return;
             list.push({
                 code: child.key,
+                hostUid: v.hostUid || '',
                 hostName: v.hostName,
                 hostAvatar: v.hostAvatar || '',
                 gameMode: v.gameMode || 'ONE_WORD',

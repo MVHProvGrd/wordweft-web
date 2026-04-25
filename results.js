@@ -635,8 +635,14 @@ const Results = (() => {
             try {
                 const maxImpactVal = Math.max(...allStats.map(s => s.impactScore || 0));
                 const myWon = (myStats.impactScore || 0) === maxImpactVal;
+                const blocked = (Auth && Auth.blockedUids) || new Set();
                 for (const p of _players) {
                     if (!p.uid || p.uid === Auth.uid) continue;
+                    // Block-prevents-friend: blocked players don't accrue
+                    // friend stats. Existing friend records aren't deleted
+                    // here — Settings → Blocked users stays the explicit
+                    // surface for that.
+                    if (blocked.has && blocked.has(p.uid)) continue;
                     const friendRef = db.ref('users/' + Auth.uid + '/friends/' + p.uid);
                     const fSnap = await friendRef.once('value');
                     const existing = fSnap.val() || {};

@@ -605,19 +605,43 @@ const App = (() => {
 
     // ── Public lobbies discovery ─────────────────────────────────────
     let publicRoomsCallback = null;
+    let publicRoomsLast = [];
+    let publicBlockedDispose = null;
     function setupPublicLobbiesView() {
         teardownPublicLobbiesView();
         const list = document.getElementById('public-rooms-list');
         if (!list) return;
         list.innerHTML = '<div class="public-empty">Loading\u2026</div>';
-        publicRoomsCallback = (rooms) => renderPublicRooms(rooms);
+        publicRoomsCallback = (rooms) => {
+            publicRoomsLast = rooms || [];
+            renderPublicRooms(applyBlockFilter(publicRoomsLast));
+        };
         Room.listenPublicRooms(publicRoomsCallback);
+        // Re-render when the blocked set changes so newly-blocked hosts
+        // disappear from the list without leaving + re-entering the screen.
+        if (typeof Auth !== 'undefined' && Auth.observeBlockedUids) {
+            publicBlockedDispose = Auth.observeBlockedUids(() => {
+                renderPublicRooms(applyBlockFilter(publicRoomsLast));
+            });
+        }
     }
     function teardownPublicLobbiesView() {
         if (publicRoomsCallback) {
             Room.unlistenPublicRooms(publicRoomsCallback);
             publicRoomsCallback = null;
         }
+        if (publicBlockedDispose) {
+            try { publicBlockedDispose(); } catch (_) {}
+            publicBlockedDispose = null;
+        }
+        publicRoomsLast = [];
+    }
+    function applyBlockFilter(rooms) {
+        if (typeof Auth === 'undefined' || !Auth.blockedUids || Auth.blockedUids.size === 0) {
+            return rooms;
+        }
+        const blocked = Auth.blockedUids;
+        return rooms.filter((r) => !r.hostUid || !blocked.has(r.hostUid));
     }
     function modeLabelFor(name) {
         return MODE_LABELS[name] || name || 'Unknown';

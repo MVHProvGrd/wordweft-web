@@ -25,6 +25,7 @@ const Auth = (() => {
                 currentUser = user;
                 loadLocalProfile();
                 updateUI();
+                rewireBlockedListener();
                 if (onAuthReady) {
                     onAuthReady(user);
                     onAuthReady = null;
@@ -506,6 +507,34 @@ const Auth = (() => {
 
     /* ── Moderation ─────────────────────────────────────────────── */
 
+    // Module-level cache so callers can synchronously check
+    // `Auth.blockedUids.has(uid)` (matchmaking filter, friend tracking,
+    // friends-list display) without firing a fresh RTDB read each time.
+    // Kept current by an internal listener wired on auth-state change;
+    // also fanned out to any external observeBlockedUids subscribers.
+    let blockedUidsSet = new Set();
+    const blockedSubscribers = new Set();
+    let blockedRef = null;
+    let blockedCb = null;
+    function rewireBlockedListener() {
+        if (blockedRef && blockedCb) {
+            blockedRef.off('value', blockedCb);
+            blockedRef = null;
+            blockedCb = null;
+        }
+        blockedUidsSet = new Set();
+        if (!auth.currentUser) {
+            blockedSubscribers.forEach((fn) => { try { fn([]); } catch (_) {} });
+            return;
+        }
+        blockedRef = db.ref(`users/${auth.currentUser.uid}/blocked`);
+        blockedCb = blockedRef.on('value', (snap) => {
+            blockedUidsSet = new Set(Object.keys(snap.val() || {}));
+            const arr = Array.from(blockedUidsSet);
+            blockedSubscribers.forEach((fn) => { try { fn(arr); } catch (_) {} });
+        });
+    }
+
     async function blockUser(blockedUid) {
         if (!auth.currentUser || !blockedUid) return false;
         try {
@@ -530,12 +559,11 @@ const Auth = (() => {
     }
     /** Attach a live listener. Returns a teardown function. */
     function observeBlockedUids(onChange) {
-        if (!auth.currentUser) return () => {};
-        const ref = db.ref(`users/${auth.currentUser.uid}/blocked`);
-        const cb = ref.on('value', (snap) => {
-            onChange(Object.keys(snap.val() || {}));
-        });
-        return () => { ref.off('value', cb); };
+        blockedSubscribers.add(onChange);
+        // Fire once with current value so subscribers don't have to wait
+        // for the next RTDB push.
+        try { onChange(Array.from(blockedUidsSet)); } catch (_) {}
+        return () => { blockedSubscribers.delete(onChange); };
     }
     async function fileReport({ reportedUid, roomId, content, reason = 'other', details }) {
         if (!auth.currentUser || !reportedUid) return false;
@@ -605,6 +633,7 @@ const Auth = (() => {
         get user() { return currentUser; },
         get name() { return playerName; },
         get avatar() { return playerAvatar; },
+        get blockedUids() { return blockedUidsSet; },
         get isSignedIn() { return !!currentUser; },
         get isAnonymous() { return currentUser ? currentUser.isAnonymous : true; },
         AVATARS,

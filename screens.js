@@ -496,7 +496,17 @@ const Screens = (() => {
             }
 
             list.innerHTML = '';
-            const entries = Object.entries(friends).sort((a, b) => (b[1].gamesTogether || 0) - (a[1].gamesTogether || 0));
+            // Hide blocked friends from the list. The friend record stays
+            // in RTDB so unblocking restores them (and their head-to-head
+            // history) without losing data.
+            const blocked = (typeof Auth !== 'undefined' && Auth.blockedUids) || new Set();
+            const entries = Object.entries(friends)
+                .filter(([fuid]) => !(blocked.has && blocked.has(fuid)))
+                .sort((a, b) => (b[1].gamesTogether || 0) - (a[1].gamesTogether || 0));
+            if (entries.length === 0) {
+                list.innerHTML = '<div class="leaderboard-empty">No friends yet. Play games with others to see them here!</div>';
+                return;
+            }
             for (const [fuid, fdata] of entries) {
                 // Load friend's profile
                 let profile = {};

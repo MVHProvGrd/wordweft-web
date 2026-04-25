@@ -750,6 +750,11 @@ const Game = (() => {
                 if (i === currentPlayerIndex) chip.style.background = getPlayerColor(p.color) + '30';
                 chip.innerHTML = '<span class="po-avatar">' + (p.avatar || '\u{1F60A}') + '</span>' +
                     '<span class="po-name" style="color:' + getPlayerColor(p.color) + '">' + p.name + '</span>';
+                // In-match moderation: long-press / right-click any other
+                // player's chip to block or report. Misbehavior happens
+                // mid-game (offensive words, name-baiting), so the menu
+                // needs to be reachable without leaving the match.
+                attachModerationMenu(chip, p);
                 bar.appendChild(chip);
             });
         }
