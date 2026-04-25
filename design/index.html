@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Graphics Gallery</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        transition: background 0.15s;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 32px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 20px;
+        font-size: 14px;
+        max-width: 760px;
+        line-height: 1.55;
+    }
+    .lede code, .legend code, .card code {
+        font-family: "JetBrains Mono", monospace;
+        background: rgba(124,111,232,0.18);
+        color: #B8A8FF;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    .legend {
+        background: #1E1238;
+        border: 1px solid rgba(238,230,255,0.12);
+        border-radius: 14px;
+        padding: 14px 18px;
+        margin-bottom: 28px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: #C7B8E8;
+        max-width: 760px;
+    }
+    .legend b { color: #EEE6FF; }
+    .legend a { color: #B8A8FF; }
+
+    .toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 28px;
+        padding: 14px 16px;
+        background: rgba(40,24,71,0.55);
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 14px;
+    }
+    .toc a {
+        color: #C7B8E8;
+        text-decoration: none;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.10);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        transition: background 0.12s, color 0.12s;
+    }
+    .toc a:hover { background: rgba(124,111,232,0.32); color: #FFF; }
+
+    .section {
+        margin: 36px 0 12px;
+        scroll-margin-top: 16px;
+    }
+    .section h2 {
+        margin: 0 0 4px;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+    }
+    .section .desc {
+        color: #8D7FAE;
+        font-size: 13px;
+        margin: 0 0 16px;
+        max-width: 760px;
+        line-height: 1.55;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+    }
+    .grid.tight {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+    }
+    .card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: border-color 0.15s, transform 0.15s;
+    }
+    .card:hover { border-color: rgba(184,168,255,0.45); }
+    .card .frame {
+        position: relative;
+        border-radius: 10px;
+        overflow: hidden;
+        cursor: zoom-in;
+        background:
+            linear-gradient(45deg, #1a0e14 25%, transparent 25%),
+            linear-gradient(-45deg, #1a0e14 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #1a0e14 75%),
+            linear-gradient(-45deg, transparent 75%, #1a0e14 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        background-color: #0F0F23;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+    }
+    .card .frame.tall { aspect-ratio: 3 / 4; }
+    .card .frame.wide { aspect-ratio: 4 / 3; }
+    .card .frame.banner { aspect-ratio: 16 / 9; }
+    .card .frame img {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+        display: block;
+        object-fit: contain;
+    }
+    .card .frame::after {
+        content: "⤢";
+        position: absolute;
+        top: 6px; right: 8px;
+        font-size: 14px;
+        color: rgba(238,230,255,0.4);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.12s;
+    }
+    .card:hover .frame::after { opacity: 1; }
+    .card .name {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: #EEE6FF;
+        word-break: break-all;
+        line-height: 1.3;
+    }
+    .card .use {
+        font-size: 12px;
+        color: #C7B8E8;
+        line-height: 1.4;
+    }
+    .card .lvl {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.18);
+        color: #B8A8FF;
+        align-self: flex-start;
+    }
+    .lvl.run     { background: rgba(76,160,200,0.20); color: #6EBFD9; }
+    .lvl.climb   { background: rgba(120,200,140,0.18); color: #8FD9A3; }
+    .lvl.both    { background: rgba(180,140,60,0.18); color: #D9B86D; }
+    .lvl.shared  { background: rgba(180,80,140,0.20); color: #E08FB8; }
+    .lvl.tutorial{ background: rgba(140,140,200,0.20); color: #B8B8E0; }
+
+    /* Lightbox */
+    .lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(8,4,20,0.92);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 24px;
+        cursor: zoom-out;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+        max-width: 95vw;
+        max-height: 88vh;
+        background:
+            linear-gradient(45deg, #1a0e14 25%, transparent 25%),
+            linear-gradient(-45deg, #1a0e14 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #1a0e14 75%),
+            linear-gradient(-45deg, transparent 75%, #1a0e14 75%);
+        background-size: 32px 32px;
+        background-position: 0 0, 0 16px, 16px -16px, -16px 0;
+        background-color: #0F0F23;
+        border: 1px solid rgba(238,230,255,0.18);
+        border-radius: 12px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+        cursor: default;
+    }
+    .lightbox .meta {
+        position: fixed;
+        left: 24px; right: 24px; bottom: 16px;
+        display: flex; gap: 12px; align-items: center; justify-content: center;
+        flex-wrap: wrap;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: #C7B8E8;
+        pointer-events: auto;
+    }
+    .lightbox .meta a {
+        color: #B8A8FF;
+        text-decoration: none;
+        padding: 4px 10px;
+        background: rgba(124,111,232,0.20);
+        border-radius: 999px;
+    }
+    .lightbox .meta a:hover { background: rgba(124,111,232,0.40); color: #FFF; }
+    .lightbox .close {
+        position: fixed;
+        top: 16px; right: 20px;
+        font-size: 24px;
+        color: #EEE6FF;
+        background: rgba(40,24,71,0.85);
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 999px;
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        line-height: 1;
+        user-select: none;
+    }
+    .lightbox .close:hover { background: rgba(60,36,100,0.95); }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="/">← Back</a></header>
+    <h1>WordWeft · Graphics Gallery</h1>
+    <p class="lede">
+        Every static graphic shipping in <code>wordweft-web/</code>, grouped
+        by where it lands in the game. Click any thumbnail to expand and
+        review at full size; the lightbox links to the raw file so you can
+        right-click → save / open in your editor.
+    </p>
+
+    <div class="legend">
+        <b>Sister pages.</b>
+        <a href="island-splits/">/design/island-splits/</a> for the per-island
+        back/front depth-split detail (used by the Wefty Run depth renderer).
+        <a href="../music.html">/music.html</a> for every loop + SFX with an
+        in-page player. Edits to any sprite go in
+        <code>wordweft-web/&lt;file&gt;.png</code> AND its Android twin under
+        <code>android-app/app/src/main/res/drawable*/</code> — keep parity.
+    </div>
+
+    <nav class="toc" id="toc"></nav>
+
+    <main id="sections"></main>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="close" id="lb-close" aria-label="Close">×</div>
+    <img id="lb-img" src="" alt="">
+    <div class="meta">
+        <span id="lb-name"></span>
+        <a id="lb-open" target="_blank" rel="noopener">Open raw ↗</a>
+    </div>
+</div>
+
+<script>
+// ── Asset catalog. Each section: { id, title, desc, lvl, items[] } ─────
+// item: { f: filename, use: short use-case, frame?: 'tall'|'wide'|'banner' }
+// `lvl` shorthand renders the corresponding pill on each card.
+// "../" prefix because /design/ is one level below /.
+const SECTIONS = [
+{
+    id: 'mascot',
+    title: 'Wefty — mascot sprites',
+    lvl: 'shared',
+    desc: 'The yarn-ball protagonist across every level. Animation states cycle in Run and Climb engines; idle frames also drive Hub and Results screens.',
+    items: [
+        { f: 'wefty.png',              use: 'Idle / default. Used wherever a static Wefty is needed (lobby, results card).' },
+        { f: 'wefty_blink.png',        use: 'Blink frame. Cycled with the idle for a slow eye-blink.' },
+        { f: 'wefty_wave.png',         use: 'Hello wave. Hub greeting + first-run tutorial intro.' },
+        { f: 'wefty_run_a.png',        use: 'Run cycle frame A. Wefty Run grounded animation.' },
+        { f: 'wefty_run_b.png',        use: 'Run cycle frame B. Pairs with run_a at ~6 fps.' },
+        { f: 'wefty_jump_squash.png',  use: 'Jump anticipation (squash). Played 80 ms before takeoff.' },
+        { f: 'wefty_jump_stretch.png', use: 'Jump apex (stretch). Held while airborne until apex passes.' },
+        { f: 'wefty_fall.png',         use: 'Falling. Past-apex descent until ground contact.' },
+        { f: 'wefty_roll.png',         use: 'Rolling. Wefty Climb horizontal movement (yarn-ball roll).' },
+        { f: 'wefty_glider.png',       use: 'Gliding. Active when GLIDE power-up is consumed in Run.' },
+        { f: 'wefty_spring.png',       use: 'Spring-launched. Held during spring_pad bounce arc.' },
+        { f: 'wefty_shield.png',       use: 'Shielded. Active while SHIELD power-up absorbs hits.' },
+        { f: 'wefty_arm.png',          use: 'Detached lasso arm. Drawn from Wefty toward the lassoed target.' },
+        { f: 'wefty_celebrate.png',    use: 'Celebrate. Results / new-PB / achievement-unlock moments.' },
+        { f: 'wefty_whoosh.png',       use: 'Dust puff for takeoff. Pinned to ground at jump frame.' },
+    ],
+},
+{
+    id: 'run-islands',
+    title: 'Wefty Run · Islands (meadow)',
+    lvl: 'run',
+    desc: 'Ten meadow island variants. Each is split into _back (trees behind Wefty) and _front (grass / flowers / mushrooms / opossum in front of Wefty) by the depth renderer — see /design/island-splits/ for the per-variant split crops.',
+    items: [
+        ...Array.from({length: 10}, (_, i) => ({
+            f: `run_island_v${i}.png`,
+            use: i === 3 ? 'Opossum island (v3) — flagship variant.'
+                 : i === 7 ? 'Oversized tree crown — rendered at 0.9 scale.'
+                 : `Meadow island variant v${i}.`,
+            frame: 'wide',
+        })),
+    ],
+},
+{
+    id: 'run-islands-storm',
+    title: 'Wefty Run · Islands (storm)',
+    lvl: 'run',
+    desc: 'Storm-biome retint of the meadow set, applied during the 30–75 m storm window. Same physical hitboxes; greyer water + dust palette.',
+    items: [
+        ...Array.from({length: 10}, (_, i) => ({
+            f: `run_island_storm_v${i}.png`,
+            use: `Storm island variant v${i}.`,
+            frame: 'wide',
+        })),
+    ],
+},
+{
+    id: 'run-ledges',
+    title: 'Wefty Run · Ledges',
+    lvl: 'run',
+    desc: 'Mid-air ledges that bridge gaps between islands. Drawn between platforms when the platform layout calls for a step-up.',
+    items: [
+        { f: 'run_ledge_meadow_v0.png', use: 'Meadow ledge v0.' },
+        { f: 'run_ledge_meadow_v1.png', use: 'Meadow ledge v1.' },
+        { f: 'run_ledge_meadow_v2.png', use: 'Meadow ledge v2.' },
+        { f: 'run_ledge_meadow_v3.png', use: 'Meadow ledge v3.' },
+        { f: 'run_ledge_storm_v0.png',  use: 'Storm ledge v0 (greyed retint).' },
+    ],
+},
+{
+    id: 'run-bg',
+    title: 'Wefty Run · Backgrounds & water',
+    lvl: 'run',
+    desc: 'Parallax sky layers + water tiles. The chevron tile drives the per-gap up/down scroll motion; legacy water_block.png is the pre-chevron solid fill, kept as a fallback.',
+    items: [
+        { f: 'parallax_bg.png',        use: 'Pink-sky parallax. Scrolls slower than the foreground for depth.', frame: 'banner' },
+        { f: 'parallax_woodland.png',  use: 'Woodland panorama. Cross-blends in over the 650–850 m fade-in.', frame: 'banner' },
+        { f: 'water_chevron_blue.png', use: 'Chevron water tile. Scrolls per-gap with an alternating ±1 waterDir.' },
+        { f: 'water_block.png',        use: 'Legacy solid water. Pre-chevron block fill — fallback only.' },
+        { f: 'water_tile_f0.png', use: 'Animated water · frame 0 of 6.' },
+        { f: 'water_tile_f1.png', use: 'Animated water · frame 1 of 6.' },
+        { f: 'water_tile_f2.png', use: 'Animated water · frame 2 of 6.' },
+        { f: 'water_tile_f3.png', use: 'Animated water · frame 3 of 6.' },
+        { f: 'water_tile_f4.png', use: 'Animated water · frame 4 of 6.' },
+        { f: 'water_tile_f5.png', use: 'Animated water · frame 5 of 6.' },
+    ],
+},
+{
+    id: 'run-hud',
+    title: 'Wefty Run · HUD & structure',
+    lvl: 'run',
+    desc: 'The fixed bottom HUD band sits beneath the dock + Lasso/Jump buttons. The first-bridge plates kick off every run.',
+    items: [
+        { f: 'hud_chevron_green.png', use: 'Green chevron HUD band. Anchored to viewport bottom (108 px + safe-area).', frame: 'banner' },
+        { f: 'first_bridge_bg.png',   use: 'First-bridge background plate. Renders behind Wefty on takeoff.', frame: 'wide' },
+        { f: 'first_bridge_fg.png',   use: 'First-bridge foreground plate. Renders in front of Wefty on takeoff.', frame: 'wide' },
+        { f: 'wordweft_logo.png',     use: 'Brand logo. Splash + share-card + Hub header.', frame: 'wide' },
+    ],
+},
+{
+    id: 'run-powerups',
+    title: 'Wefty Run · Power-ups & pickups',
+    lvl: 'run',
+    desc: 'Items Wefty collects mid-run. Each pickup feeds a different slot in the power-up dock; cooldown ring + per-slot accent are wired in wefty-run.html.',
+    items: [
+        { f: 'lasso.png',         use: 'Lasso ability icon + sprite. Bottom-left button + projectile rope.' },
+        { f: 'glider_kite.png',   use: 'GLIDE kite. Spawns mid-air; activates Wefty\'s glider state.' },
+        { f: 'spring_pad.png',    use: 'Spring pad v1. Surface pickup that launches Wefty up.' },
+        { f: 'spring_pad_v2.png', use: 'Spring pad v2. Refined silhouette / brighter springs.' },
+        { f: 'double_jump.png',   use: 'DOUBLE jump pickup. Adds one mid-air jump charge.' },
+        { f: 'pickup_heart.png',  use: 'Heart pickup. Restores 1 HP (cap = 5 in Climb, fewer in Run).' },
+        { f: 'slowmo_yarn.png',   use: 'SLOW-MO yarn pickup. Activates time-slow window.' },
+        { f: 'yarn_knot.png',     use: 'Yarn-knot pickup. Score / collectible token.' },
+        { f: 'yarn_shield.png',   use: 'SHIELD yarn pickup. One-hit shield orbiting Wefty.' },
+        { f: 'needle_icon.png',   use: 'Needle icon. UI affordance; threading / sewing motif.' },
+    ],
+},
+{
+    id: 'run-hazards',
+    title: 'Wefty Run · Hazards',
+    lvl: 'run',
+    desc: 'Scissors are the L1 hazard. Two pose frames + a stylized "hazard" plate used in tutorial / warnings.',
+    items: [
+        { f: 'scissors_open.png',   use: 'Scissor sprite · open frame (mouth wide).' },
+        { f: 'scissors_closed.png', use: 'Scissor sprite · closed frame (snap moment).' },
+        { f: 'scissors_hazard.png', use: 'Scissor hazard plate. Tutorial / pre-storm warning art.' },
+    ],
+},
+{
+    id: 'textures',
+    title: 'Shared textures',
+    lvl: 'shared',
+    desc: 'Tileable textures used as fills under sprites — yarn for the body / shield, rope for the lasso.',
+    items: [
+        { f: 'yarn_texture.png', use: 'Yarn fabric tile. Body fill on Wefty + shield outer ring.' },
+        { f: 'rope_texture.png', use: 'Rope tile. Lasso projectile body + tether to lassoed target.' },
+    ],
+},
+{
+    id: 'climb-bg',
+    title: 'Wefty Climb · Biome backgrounds',
+    lvl: 'climb',
+    desc: 'Three biome backdrops, switched as Wefty climbs through height bands. Currently solid-fills; the polish-parity roadmap entry will add parallax silhouettes + weather VFX.',
+    items: [
+        { f: 'climb_bg_green.png', use: 'Green biome — bottom band. Forest / spring vibe.', frame: 'tall' },
+        { f: 'climb_bg_brown.png', use: 'Brown biome — mid band. Cliffs / dust.', frame: 'tall' },
+        { f: 'climb_bg_snow.png',  use: 'Snow biome — top band. Glacial / chill peak.', frame: 'tall' },
+    ],
+},
+{
+    id: 'climb-ledges',
+    title: 'Wefty Climb · Ledges',
+    lvl: 'climb',
+    desc: '4 variants × 3 biomes. Spawn density: 30% triple / 45% double / 25% single per row. snow_v* tree variants render at widthScale 1.20 to match the meadow flowers reference.',
+    items: [
+        ...['green','brown','snow'].flatMap(biome =>
+            [0,1,2,3].map(v => ({
+                f: `climb_ledge_${biome}_v${v}.png`,
+                use: `${biome[0].toUpperCase() + biome.slice(1)} ledge v${v}.`,
+                frame: 'wide',
+            }))
+        ),
+    ],
+},
+{
+    id: 'tutorial',
+    title: 'Tutorial illustrations (SVG)',
+    lvl: 'tutorial',
+    desc: 'In-game tutorial overlays for first-run players. SVG so they scale crisp on any display. Shown over a live demo playthrough in Wefty Climb (web); flat overlay on Android.',
+    items: [
+        { f: 'tut_meet_wefty.svg',     use: 'Slide 1 — meet the mascot.' },
+        { f: 'tut_tap_jump.svg',       use: 'Slide — tap to jump.' },
+        { f: 'tut_keys.svg',           use: 'Slide — keyboard controls (web).' },
+        { f: 'tut_bridge_gaps.svg',    use: 'Slide — bridge gaps with the lasso.' },
+        { f: 'tut_dodge_scissors.svg', use: 'Slide — dodge the scissors.' },
+        { f: 'tut_spring_pad.svg',     use: 'Slide — spring-pad bounce.' },
+        { f: 'tut_powerups.svg',       use: 'Slide — power-up dock primer.' },
+        { f: 'tut_storm.svg',          use: 'Slide — storm biome warning.' },
+        { f: 'tut_spell_wefty.svg',    use: 'Slide — collect W-E-F-T-Y letters.' },
+        { f: 'tut_best.svg',           use: 'Slide — beat your personal best.' },
+    ],
+},
+];
+
+// Path resolver: design/index.html sits one level under /, so use ../
+function pathFor(filename) { return '../' + filename; }
+
+const tocEl = document.getElementById('toc');
+const sectionsEl = document.getElementById('sections');
+
+SECTIONS.forEach((s) => {
+    const a = document.createElement('a');
+    a.href = '#' + s.id;
+    a.textContent = s.title;
+    tocEl.appendChild(a);
+
+    const sec = document.createElement('section');
+    sec.className = 'section';
+    sec.id = s.id;
+    const head = document.createElement('div');
+    head.innerHTML = `<h2>${s.title}</h2><p class="desc">${s.desc}</p>`;
+    sec.appendChild(head);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid' + ((s.id === 'tutorial' || s.id === 'run-bg') ? '' : '');
+    s.items.forEach((it) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const lvlLabel = ({
+            run: 'Wefty Run',
+            climb: 'Wefty Climb',
+            both: 'Run + Climb',
+            shared: 'Shared',
+            tutorial: 'Tutorial',
+        })[s.lvl] || s.lvl;
+        card.innerHTML = `
+            <span class="lvl ${s.lvl}">${lvlLabel}</span>
+            <div class="frame ${it.frame || ''}" data-src="${pathFor(it.f)}" data-name="${it.f}">
+                <img loading="lazy" src="${pathFor(it.f)}" alt="${it.f}">
+            </div>
+            <div class="name">${it.f}</div>
+            <div class="use">${it.use}</div>
+        `;
+        grid.appendChild(card);
+    });
+    sec.appendChild(grid);
+    sectionsEl.appendChild(sec);
+});
+
+// ── Lightbox ───────────────────────────────────────────────────────────
+const lb = document.getElementById('lightbox');
+const lbImg = document.getElementById('lb-img');
+const lbName = document.getElementById('lb-name');
+const lbOpen = document.getElementById('lb-open');
+const lbClose = document.getElementById('lb-close');
+
+function openLightbox(src, name) {
+    lbImg.src = src;
+    lbImg.alt = name;
+    lbName.textContent = name;
+    lbOpen.href = src;
+    lb.classList.add('open');
+    lb.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+    lb.classList.remove('open');
+    lb.setAttribute('aria-hidden', 'true');
+    lbImg.src = '';
+    document.body.style.overflow = '';
+}
+document.addEventListener('click', (ev) => {
+    const frame = ev.target.closest('.frame');
+    if (frame) {
+        ev.preventDefault();
+        openLightbox(frame.dataset.src, frame.dataset.name);
+    }
+});
+lb.addEventListener('click', (ev) => {
+    // Close on backdrop / close-button click. Don't close if the click
+    // landed on the image itself or one of the meta links.
+    if (ev.target === lb || ev.target === lbClose) closeLightbox();
+});
+document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+});
+</script>
+</body>
+</html>
