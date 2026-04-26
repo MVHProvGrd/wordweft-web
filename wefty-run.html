@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Wefty Run</title>
 <style>
     /* Self-hosted variable fonts so the Wefty face-lift works
@@ -44,13 +47,41 @@
     }
     html, body {
         margin: 0;
-        width: 100%; height: 100%;
+        width: 100%;
+        /* Dynamic viewport height (100dvh) lets the playfield grow when
+         * iOS Safari auto-collapses the URL bar. Older browsers fall
+         * back to 100% which still works (just doesn't grow). */
+        height: 100%;
+        height: 100dvh;
         font-family: "Nunito", -apple-system, "Segoe UI", system-ui, sans-serif;
         color: #fff;
         background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
         overflow: hidden;
         user-select: none;
     }
+    /* Pseudo-fullscreen mode for iPhone Safari (which has no Fullscreen
+     * API). Hides the top bar and gives the playfield the entire dvh.
+     * An "× exit FS" pill replaces the chrome so the player can leave. */
+    body.fs-mode header.top-bar { display: none; }
+    .fs-exit {
+        position: fixed;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: calc(8px + env(safe-area-inset-right, 0px));
+        z-index: 50;
+        display: none;
+        align-items: center; justify-content: center;
+        width: 36px; height: 36px;
+        border-radius: 999px;
+        border: 1px solid rgba(251,243,231,0.32);
+        background: rgba(26,14,20,0.65);
+        color: #fbf3e7;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+    body.fs-mode .fs-exit { display: inline-flex; }
     /* ── Face-lift top bar ────────────────────────────────────────
        Dense HUD row: back · title · distance card · WEFTY pills ·
        hearts · level chip · mute/pause/help. Reads every frame from
@@ -1025,6 +1056,7 @@
 </style>
 </head>
 <body>
+<button class="fs-exit" id="btn-fs-exit" title="Exit fullscreen" aria-label="Exit fullscreen">×</button>
 <header class="top-bar">
     <a class="tb-tile" href="wefty-hub.html" title="Back to hub">←</a>
     <div class="tb-title">
@@ -4142,11 +4174,11 @@
     // toggles pause, and two listeners caused double-fire → net
     // no-op when the user pressed P.)
     // iPhone Safari has never supported the Fullscreen API for arbitrary
-    // HTML elements (only <video>). Detect it so the FS button can show
-    // an Add-to-Home-Screen tip instead of silently failing. iPad Safari
-    // since iOS 13 DOES support webkitRequestFullscreen, so we let that
-    // path through. The PWA standalone-display mode already removes the
-    // URL bar — no tip needed when the app launches from Home Screen.
+    // HTML elements (only <video>) — both requestFullscreen and
+    // webkitRequestFullscreen are undefined on documentElement. Detect
+    // that combo and fall back to "in-app pseudo-fullscreen": hide the
+    // top-bar (CSS .fs-mode), and let 100dvh + a scrollTo nudge collapse
+    // Safari's URL bar so the playfield reaches edge-to-edge.
     function isIOSiPhoneSafari() {
         const ua = navigator.userAgent;
         if (!/iPhone|iPod/.test(ua) || window.MSStream) return false;
@@ -4156,38 +4188,28 @@
         const root = document.documentElement;
         return !root.requestFullscreen && !root.webkitRequestFullscreen;
     }
-    function showFullscreenInstallTip() {
-        if (document.getElementById('fs-tip')) return;
-        const o = document.createElement('div');
-        o.id = 'fs-tip';
-        o.style.cssText =
-            'position:fixed;inset:0;background:rgba(8,4,20,0.78);z-index:10000;' +
-            'display:flex;align-items:center;justify-content:center;padding:20px;' +
-            'font-family:"Nunito",-apple-system,system-ui,sans-serif;color:#EEE6FF;';
-        o.innerHTML =
-            '<div style="max-width:380px;background:#291847;border:1px solid rgba(238,230,255,0.16);' +
-            'border-radius:16px;padding:22px 22px 18px;text-align:center;">' +
-                '<h3 style="margin:0 0 8px;font-family:Fraunces,Georgia,serif;font-weight:800;font-size:18px;">' +
-                    'iPhone Safari can\'t go fullscreen' +
-                '</h3>' +
-                '<p style="margin:0 0 14px;font-size:13px;color:#C7B8E8;line-height:1.5;">' +
-                    'iOS blocks the Fullscreen API in Safari. To play WordWeft ' +
-                    'edge-to-edge, tap <b>Share</b> → <b>Add to Home Screen</b>, ' +
-                    'then launch the app from the home screen icon.' +
-                '</p>' +
-                '<button id="fs-tip-close" style="padding:8px 18px;border:none;border-radius:999px;' +
-                'background:#7C6FE8;color:#FFF;font-weight:700;font-family:inherit;cursor:pointer;">' +
-                    'Got it' +
-                '</button>' +
-            '</div>';
-        document.body.appendChild(o);
-        const close = () => o.remove();
-        o.addEventListener('click', (ev) => { if (ev.target === o) close(); });
-        document.getElementById('fs-tip-close').addEventListener('click', close);
+    function enterPseudoFullscreen() {
+        document.body.classList.add('fs-mode');
+        // Nudge Safari to collapse the URL bar. Even with overflow:hidden
+        // on body, requesting a tiny scroll on documentElement during a
+        // user gesture is the recipe Safari respects.
+        try { window.scrollTo(0, 1); } catch (_) {}
+        try {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(() => {});
+            }
+        } catch (_) {}
+        // Re-tick layout after the URL bar transition settles.
+        setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch (_) {} }, 350);
+    }
+    function exitPseudoFullscreen() {
+        document.body.classList.remove('fs-mode');
+        setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch (_) {} }, 50);
     }
     async function toggleFullscreen() {
         if (isIOSiPhoneSafari()) {
-            showFullscreenInstallTip();
+            if (document.body.classList.contains('fs-mode')) exitPseudoFullscreen();
+            else enterPseudoFullscreen();
             return;
         }
         const root = document.documentElement;
@@ -4205,6 +4227,7 @@
         } catch (_) {}
         updateRotate();
     }
+    document.getElementById('btn-fs-exit').addEventListener('click', exitPseudoFullscreen);
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
     document.getElementById('btn-fs').addEventListener('click', (e) => {
         e.stopPropagation();
