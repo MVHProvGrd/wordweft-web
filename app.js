@@ -607,6 +607,7 @@ const App = (() => {
     let publicRoomsCallback = null;
     let publicRoomsLast = [];
     let publicBlockedDispose = null;
+    let publicBlockedByDispose = null;
     function setupPublicLobbiesView() {
         teardownPublicLobbiesView();
         const list = document.getElementById('public-rooms-list');
@@ -617,10 +618,16 @@ const App = (() => {
             renderPublicRooms(applyBlockFilter(publicRoomsLast));
         };
         Room.listenPublicRooms(publicRoomsCallback);
-        // Re-render when the blocked set changes so newly-blocked hosts
-        // disappear from the list without leaving + re-entering the screen.
+        // Re-render when either direction of the block index changes so
+        // newly-blocked hosts (or hosts who newly blocked us) disappear
+        // without leaving + re-entering the screen.
         if (typeof Auth !== 'undefined' && Auth.observeBlockedUids) {
             publicBlockedDispose = Auth.observeBlockedUids(() => {
+                renderPublicRooms(applyBlockFilter(publicRoomsLast));
+            });
+        }
+        if (typeof Auth !== 'undefined' && Auth.observeBlockedByUids) {
+            publicBlockedByDispose = Auth.observeBlockedByUids(() => {
                 renderPublicRooms(applyBlockFilter(publicRoomsLast));
             });
         }
@@ -634,14 +641,28 @@ const App = (() => {
             try { publicBlockedDispose(); } catch (_) {}
             publicBlockedDispose = null;
         }
+        if (publicBlockedByDispose) {
+            try { publicBlockedByDispose(); } catch (_) {}
+            publicBlockedByDispose = null;
+        }
         publicRoomsLast = [];
     }
     function applyBlockFilter(rooms) {
-        if (typeof Auth === 'undefined' || !Auth.blockedUids || Auth.blockedUids.size === 0) {
-            return rooms;
-        }
+        if (typeof Auth === 'undefined') return rooms;
         const blocked = Auth.blockedUids;
-        return rooms.filter((r) => !r.hostUid || !blocked.has(r.hostUid));
+        const blockedBy = Auth.blockedByUids;
+        const aSize = blocked ? blocked.size : 0;
+        const bSize = blockedBy ? blockedBy.size : 0;
+        if (aSize === 0 && bSize === 0) return rooms;
+        return rooms.filter((r) => {
+            if (!r.hostUid) return true;
+            if (aSize && blocked.has(r.hostUid)) return false;
+            // Reverse-direction: hosts who blocked us also disappear,
+            // so the blocked party can't even see (let alone join) the
+            // blocker's public rooms.
+            if (bSize && blockedBy.has(r.hostUid)) return false;
+            return true;
+        });
     }
     function modeLabelFor(name) {
         return MODE_LABELS[name] || name || 'Unknown';

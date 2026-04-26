@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Admin · Reports</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 22px;
+        font-size: 14px;
+        max-width: 760px;
+        line-height: 1.55;
+    }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .auth-card, .denied-card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 24px;
+        margin-top: 28px;
+        text-align: center;
+    }
+    .auth-card button, .ban-btn, .dismiss-btn, .unban-btn {
+        background: #7C6FE8;
+        border: none;
+        color: #FFF;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+    }
+    .auth-card button:hover { background: #9385ED; }
+
+    .denied-card { border-color: rgba(232,111,90,0.5); }
+    .denied-card h2 { color: #E86F5A; margin: 0 0 8px; }
+
+    .toolbar {
+        display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .toolbar button {
+        background: rgba(124,111,232,0.20);
+        color: #C7B8E8;
+        border: 1px solid rgba(238,230,255,0.16);
+        padding: 6px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+    }
+    .toolbar button.active { background: #7C6FE8; color: #FFF; border-color: transparent; }
+    .toolbar .grow { flex: 1; }
+    .toolbar .me { font-size: 12px; color: #8D7FAE; font-family: monospace; }
+
+    .summary {
+        background: #1E1238;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 14px;
+        padding: 16px 18px;
+        margin-bottom: 18px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+    }
+    .stat { display: flex; flex-direction: column; gap: 2px; }
+    .stat .n { font-size: 22px; font-weight: 800; color: #EEE6FF; }
+    .stat .l { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #8D7FAE; }
+
+    table { width: 100%; border-collapse: collapse; }
+    .group {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        margin-bottom: 12px;
+        overflow: hidden;
+    }
+    .group-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        cursor: pointer;
+        background: rgba(40,24,71,0.5);
+    }
+    .group-head:hover { background: rgba(60,36,100,0.5); }
+    .group-head .uid { font-family: monospace; font-size: 12px; color: #B8A8FF; word-break: break-all; }
+    .group-head .count {
+        background: rgba(232,111,90,0.18);
+        color: #E86F5A;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .group-head .grow { flex: 1; }
+    .group-head .actions { display: flex; gap: 6px; }
+    .ban-btn { background: #E86F5A; }
+    .ban-btn:hover { background: #F08672; }
+    .ban-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .unban-btn { background: rgba(120,200,140,0.20); color: #8FD9A3; }
+    .unban-btn:hover { background: rgba(120,200,140,0.32); color: #FFF; }
+    .group-body { display: none; }
+    .group.open .group-body { display: block; }
+    .report {
+        padding: 12px 16px;
+        border-top: 1px solid rgba(238,230,255,0.10);
+        display: grid;
+        grid-template-columns: 100px 1fr auto;
+        gap: 8px 14px;
+        font-size: 13px;
+        align-items: start;
+    }
+    .report .lbl { color: #8D7FAE; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; align-self: center; }
+    .report .val { color: #C7B8E8; font-family: monospace; font-size: 12px; word-break: break-all; }
+    .report.resolved { opacity: 0.55; }
+    .report .resolved-tag { background: rgba(120,200,140,0.18); color: #8FD9A3; padding: 2px 8px; border-radius: 999px; font-size: 10px; letter-spacing: 0.1em; }
+    .reason-pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(232,111,90,0.18);
+        color: #E86F5A;
+    }
+    .reason-pill.spam { background: rgba(180,140,60,0.18); color: #D9B86D; }
+    .reason-pill.other { background: rgba(140,140,200,0.20); color: #B8B8E0; }
+    .reason-pill.inappropriate { background: rgba(232,111,90,0.18); color: #E86F5A; }
+    .reason-pill.harassment { background: rgba(232,90,90,0.25); color: #FF8585; }
+
+    .empty {
+        text-align: center;
+        color: #8D7FAE;
+        padding: 48px 16px;
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 14px;
+    }
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        color: #EEE6FF;
+        padding: 10px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s;
+    }
+    .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="/">← Back</a></header>
+    <h1>Admin · Reports console</h1>
+    <p class="lede">
+        Manual review for <code>reports/</code>. Gated by
+        <code>admins/{your-uid}: true</code> in RTDB.
+        Grouped by <code>reportedUser</code>; expand to see individual
+        reports. <b>Ban</b> writes <code>bannedUsers/{uid}</code> via
+        the <code>banUser</code> Cloud Function and revokes the
+        target's auth refresh tokens.
+    </p>
+
+    <div id="auth-gate"></div>
+
+    <div id="main" style="display:none;">
+        <div class="summary">
+            <div class="stat"><span class="n" id="stat-targets">—</span><span class="l">Targets</span></div>
+            <div class="stat"><span class="n" id="stat-open">—</span><span class="l">Open reports</span></div>
+            <div class="stat"><span class="n" id="stat-resolved">—</span><span class="l">Resolved</span></div>
+        </div>
+        <div class="toolbar">
+            <button data-filter="open" class="active">Open</button>
+            <button data-filter="all">All</button>
+            <span class="grow"></span>
+            <span class="me" id="me-uid"></span>
+        </div>
+        <div id="report-list"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-functions-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+const gate = document.getElementById('auth-gate');
+const main = document.getElementById('main');
+const reportList = document.getElementById('report-list');
+const meUid = document.getElementById('me-uid');
+let currentFilter = 'open';
+let allGroups = {};
+let myUid = null;
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+function renderSignedOut() {
+    gate.innerHTML = `
+        <div class="auth-card">
+            <h2>Sign in</h2>
+            <p>Use the same Google account that's listed in
+            <code>admins/{uid}: true</code>.</p>
+            <button id="btn-sign-in">Sign in with Google</button>
+        </div>`;
+    document.getElementById('btn-sign-in').addEventListener('click', async () => {
+        try {
+            await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        } catch (e) { toast('Sign-in failed: ' + e.message); }
+    });
+}
+
+function renderDenied(reason) {
+    gate.innerHTML = `
+        <div class="denied-card">
+            <h2>Access denied</h2>
+            <p>${escapeHtml(reason)}</p>
+            <p style="font-size:12px;color:#8D7FAE;margin-top:12px;">
+                You're signed in as <code>${escapeHtml(myUid || '—')}</code>.<br>
+                An existing admin can grant you by setting
+                <code>admins/${escapeHtml(myUid || '<your-uid>')}: true</code>.
+            </p>
+            <button id="btn-sign-out" style="margin-top:14px;">Sign out</button>
+        </div>`;
+    document.getElementById('btn-sign-out').addEventListener('click', () => auth.signOut());
+}
+
+async function loadReports() {
+    try {
+        const snap = await db.ref('reports').once('value');
+        const all = snap.val() || {};
+        const bansSnap = await db.ref('bannedUsers').once('value');
+        const bans = bansSnap.val() || {};
+        // Group by reportedUser
+        const groups = {};
+        Object.entries(all).forEach(([id, r]) => {
+            if (!r || typeof r !== 'object') return;
+            const target = r.reportedUser || '_unknown';
+            if (!groups[target]) groups[target] = [];
+            groups[target].push({ id, ...r });
+        });
+        // Sort each group's reports newest-first; sort groups by open count.
+        Object.values(groups).forEach((arr) => arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)));
+        allGroups = { groups, bans };
+        renderReports();
+    } catch (e) {
+        renderDenied('Could not read /reports — ' + (e.message || 'permission denied') +
+            '. RTDB rule requires admins/{uid}: true.');
+        gate.style.display = '';
+        main.style.display = 'none';
+    }
+}
+
+function renderReports() {
+    const { groups, bans } = allGroups;
+    const targetUids = Object.keys(groups);
+    const isOpen = (r) => !r.resolved;
+    let openCount = 0, resolvedCount = 0;
+    targetUids.forEach((u) => {
+        groups[u].forEach((r) => { if (isOpen(r)) openCount++; else resolvedCount++; });
+    });
+    document.getElementById('stat-targets').textContent = targetUids.length;
+    document.getElementById('stat-open').textContent = openCount;
+    document.getElementById('stat-resolved').textContent = resolvedCount;
+
+    // Apply filter
+    const filtered = targetUids
+        .map((u) => ({ uid: u, reports: groups[u].filter((r) => currentFilter === 'all' || isOpen(r)) }))
+        .filter((g) => g.reports.length > 0)
+        .sort((a, b) => b.reports.length - a.reports.length);
+
+    if (filtered.length === 0) {
+        reportList.innerHTML = `<div class="empty">No ${currentFilter === 'open' ? 'open' : ''} reports right now.</div>`;
+        return;
+    }
+    reportList.innerHTML = '';
+    filtered.forEach((g) => {
+        const banned = !!bans[g.uid];
+        const groupEl = document.createElement('div');
+        groupEl.className = 'group';
+        groupEl.innerHTML = `
+            <div class="group-head" data-uid="${escapeHtml(g.uid)}">
+                <span class="count">${g.reports.length}</span>
+                <span class="uid">${escapeHtml(g.uid)}</span>
+                <span class="grow"></span>
+                <span class="actions">
+                    ${banned
+                        ? `<button class="unban-btn" data-action="unban" data-uid="${escapeHtml(g.uid)}">Unban</button>`
+                        : `<button class="ban-btn" data-action="ban" data-uid="${escapeHtml(g.uid)}">Ban user</button>`}
+                </span>
+            </div>
+            <div class="group-body">
+                ${g.reports.map((r) => renderReport(r)).join('')}
+            </div>`;
+        reportList.appendChild(groupEl);
+    });
+}
+
+function renderReport(r) {
+    const ts = r.createdAt ? new Date(r.createdAt).toISOString().replace('T',' ').replace(/\..+/,'') : '—';
+    const reasonClass = String(r.reason || 'other').toLowerCase().replace(/[^a-z]/g,'');
+    return `
+        <div class="report ${r.resolved ? 'resolved' : ''}">
+            <span class="lbl">When</span>
+            <span class="val">${escapeHtml(ts)}</span>
+            <span>
+                <span class="reason-pill ${reasonClass}">${escapeHtml(r.reason || 'other')}</span>
+                ${r.resolved ? `<span class="resolved-tag" style="margin-left:6px;">RESOLVED</span>` : ''}
+            </span>
+
+            <span class="lbl">Reporter</span>
+            <span class="val" style="grid-column:span 2;">${escapeHtml(r.reporter || '')}</span>
+
+            ${r.roomId ? `<span class="lbl">Room</span><span class="val" style="grid-column:span 2;">${escapeHtml(r.roomId)}</span>` : ''}
+            ${r.content ? `<span class="lbl">Content</span><span class="val" style="grid-column:span 2;color:#EEE6FF;">${escapeHtml(r.content)}</span>` : ''}
+            ${r.details ? `<span class="lbl">Details</span><span class="val" style="grid-column:span 2;color:#EEE6FF;">${escapeHtml(r.details)}</span>` : ''}
+
+            ${!r.resolved
+                ? `<span class="lbl">Action</span><span style="grid-column:span 2;"><button class="dismiss-btn" data-action="dismiss" data-id="${escapeHtml(r.id)}">Dismiss</button></span>`
+                : `<span class="lbl">By</span><span class="val" style="grid-column:span 2;">${escapeHtml((r.resolved && r.resolved.resolvedBy) || '')} · ${escapeHtml((r.resolved && r.resolved.action) || '')}</span>`}
+        </div>`;
+}
+
+document.addEventListener('click', async (ev) => {
+    const head = ev.target.closest('.group-head');
+    if (head && !ev.target.closest('button')) {
+        head.parentElement.classList.toggle('open');
+        return;
+    }
+    const btn = ev.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    if (action === 'ban' || action === 'unban') {
+        const uid = btn.dataset.uid;
+        if (!uid) return;
+        if (action === 'ban') {
+            const reason = prompt('Ban reason (shown to the user):',
+                'Repeated reports for harassment / inappropriate content.');
+            if (!reason) return;
+            btn.disabled = true; btn.textContent = '…';
+            try {
+                const fn = fbFunctions.httpsCallable('banUser');
+                await fn({ targetUid: uid, reason });
+                toast('Banned ' + uid);
+                await loadReports();
+            } catch (e) { toast('Ban failed: ' + e.message); btn.disabled = false; btn.textContent = 'Ban user'; }
+        } else {
+            btn.disabled = true; btn.textContent = '…';
+            try {
+                const fn = fbFunctions.httpsCallable('unbanUser');
+                await fn({ targetUid: uid });
+                toast('Unbanned ' + uid);
+                await loadReports();
+            } catch (e) { toast('Unban failed: ' + e.message); btn.disabled = false; btn.textContent = 'Unban'; }
+        }
+    } else if (action === 'dismiss') {
+        const id = btn.dataset.id;
+        btn.disabled = true; btn.textContent = '…';
+        try {
+            const fn = fbFunctions.httpsCallable('resolveReport');
+            await fn({ reportId: id, action: 'dismissed' });
+            toast('Dismissed');
+            await loadReports();
+        } catch (e) { toast('Dismiss failed: ' + e.message); btn.disabled = false; btn.textContent = 'Dismiss'; }
+    }
+});
+
+document.querySelectorAll('.toolbar button[data-filter]').forEach((b) => {
+    b.addEventListener('click', () => {
+        document.querySelectorAll('.toolbar button[data-filter]').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+        currentFilter = b.dataset.filter;
+        renderReports();
+    });
+});
+
+auth.onAuthStateChanged(async (user) => {
+    if (!user || user.isAnonymous) {
+        myUid = null;
+        gate.style.display = '';
+        main.style.display = 'none';
+        renderSignedOut();
+        return;
+    }
+    myUid = user.uid;
+    meUid.textContent = 'me: ' + user.uid;
+    // Try to read admins/{me} (allowed by rule). If not true, deny.
+    try {
+        const snap = await db.ref(`admins/${user.uid}`).once('value');
+        if (snap.val() !== true) {
+            renderDenied('Your account is not an admin.');
+            return;
+        }
+    } catch (e) {
+        renderDenied('Failed to verify admin status: ' + (e.message || 'unknown'));
+        return;
+    }
+    gate.style.display = 'none';
+    main.style.display = '';
+    await loadReports();
+});
+</script>
+</body>
+</html>

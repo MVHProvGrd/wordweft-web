@@ -26,6 +26,7 @@ const Auth = (() => {
                 loadLocalProfile();
                 updateUI();
                 rewireBlockedListener();
+                checkBannedAndBoot();
                 if (onAuthReady) {
                     onAuthReady(user);
                     onAuthReady = null;
@@ -507,24 +508,36 @@ const Auth = (() => {
 
     /* ── Moderation ─────────────────────────────────────────────── */
 
-    // Module-level cache so callers can synchronously check
-    // `Auth.blockedUids.has(uid)` (matchmaking filter, friend tracking,
-    // friends-list display) without firing a fresh RTDB read each time.
-    // Kept current by an internal listener wired on auth-state change;
-    // also fanned out to any external observeBlockedUids subscribers.
+    // Module-level caches so callers can synchronously check
+    // `Auth.blockedUids.has(uid)` / `Auth.blockedByUids.has(uid)`
+    // (matchmaking filter, friend tracking, friends-list display)
+    // without firing a fresh RTDB read each time. Kept current by
+    // internal listeners wired on auth-state change; fanned out to
+    // external observe* subscribers.
     let blockedUidsSet = new Set();
+    let blockedByUidsSet = new Set();
     const blockedSubscribers = new Set();
+    const blockedBySubscribers = new Set();
     let blockedRef = null;
     let blockedCb = null;
+    let blockedByRef = null;
+    let blockedByCb = null;
     function rewireBlockedListener() {
         if (blockedRef && blockedCb) {
             blockedRef.off('value', blockedCb);
             blockedRef = null;
             blockedCb = null;
         }
+        if (blockedByRef && blockedByCb) {
+            blockedByRef.off('value', blockedByCb);
+            blockedByRef = null;
+            blockedByCb = null;
+        }
         blockedUidsSet = new Set();
+        blockedByUidsSet = new Set();
         if (!auth.currentUser) {
             blockedSubscribers.forEach((fn) => { try { fn([]); } catch (_) {} });
+            blockedBySubscribers.forEach((fn) => { try { fn([]); } catch (_) {} });
             return;
         }
         blockedRef = db.ref(`users/${auth.currentUser.uid}/blocked`);
@@ -533,6 +546,20 @@ const Auth = (() => {
             const arr = Array.from(blockedUidsSet);
             blockedSubscribers.forEach((fn) => { try { fn(arr); } catch (_) {} });
         });
+        // blockedBy is admin-write-only (mirrorBlock CF) and owner-read-
+        // only. Reverse-direction matchmaking unions blocked + blockedBy
+        // so a blocked user can't see the blocker's public rooms either.
+        blockedByRef = db.ref(`blockedBy/${auth.currentUser.uid}`);
+        blockedByCb = blockedByRef.on('value', (snap) => {
+            blockedByUidsSet = new Set(Object.keys(snap.val() || {}));
+            const arr = Array.from(blockedByUidsSet);
+            blockedBySubscribers.forEach((fn) => { try { fn(arr); } catch (_) {} });
+        });
+    }
+    function observeBlockedByUids(onChange) {
+        blockedBySubscribers.add(onChange);
+        try { onChange(Array.from(blockedByUidsSet)); } catch (_) {}
+        return () => { blockedBySubscribers.delete(onChange); };
     }
 
     async function blockUser(blockedUid) {
@@ -565,6 +592,38 @@ const Auth = (() => {
         try { onChange(Array.from(blockedUidsSet)); } catch (_) {}
         return () => { blockedSubscribers.delete(onChange); };
     }
+    /** One-shot banned check on auth-state change. If the current user
+     *  has a `bannedUsers/{uid}` entry the page is replaced with a
+     *  suspension notice and the session is signed out so the banned
+     *  account can't continue using the app from this tab. */
+    let bannedNoticeShown = false;
+    async function checkBannedAndBoot() {
+        if (!auth.currentUser || bannedNoticeShown) return;
+        try {
+            const snap = await db.ref(`bannedUsers/${auth.currentUser.uid}`).once('value');
+            const v = snap.val();
+            if (!v) return;
+            bannedNoticeShown = true;
+            const reason = (typeof v === 'object' && v.reason) ? v.reason : 'Terms-of-service violation.';
+            try { await auth.signOut(); } catch (_) {}
+            // Replace the entire body so no in-flight UI keeps running.
+            document.body.innerHTML =
+                '<div style="font-family:system-ui;color:#EEE6FF;background:linear-gradient(180deg,#160B2E,#1E1238);' +
+                'min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;">' +
+                '<div style="max-width:520px;background:#291847;border:1px solid rgba(232,111,90,0.5);border-radius:18px;padding:28px 26px;">' +
+                '<h1 style="margin:0 0 8px;color:#E86F5A;font-size:24px;">Account suspended</h1>' +
+                '<p style="margin:0 0 12px;color:#C7B8E8;font-size:14px;line-height:1.55;">' +
+                'Your WordWeft account has been suspended for violating our community ' +
+                'guidelines.</p>' +
+                '<p style="margin:0 0 16px;color:#8D7FAE;font-size:12px;font-family:monospace;">' +
+                'Reason: ' + String(reason).replace(/[<>&]/g, '') + '</p>' +
+                '<p style="margin:0;color:#8D7FAE;font-size:12px;">' +
+                'If you believe this is a mistake, email <a href="mailto:wordweftgame@gmail.com" ' +
+                'style="color:#B8A8FF;">wordweftgame@gmail.com</a>.</p>' +
+                '</div></div>';
+        } catch (e) { /* read denied for non-bannees by rule, treat as not-banned */ }
+    }
+
     async function fileReport({ reportedUid, roomId, content, reason = 'other', details }) {
         if (!auth.currentUser || !reportedUid) return false;
         try {
@@ -625,6 +684,7 @@ const Auth = (() => {
         unblockUser,
         getBlockedUids,
         observeBlockedUids,
+        observeBlockedByUids,
         fileReport,
         saveLocalProfile,
         saveProfileToFirebase,
@@ -634,6 +694,7 @@ const Auth = (() => {
         get name() { return playerName; },
         get avatar() { return playerAvatar; },
         get blockedUids() { return blockedUidsSet; },
+        get blockedByUids() { return blockedByUidsSet; },
         get isSignedIn() { return !!currentUser; },
         get isAnonymous() { return currentUser ? currentUser.isAnonymous : true; },
         AVATARS,

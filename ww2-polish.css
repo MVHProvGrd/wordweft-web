@@ -566,3 +566,118 @@ body.light-theme .podium-rank  { text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 .moderation-menu .mm-block  { color: var(--ww-coral); }
 .moderation-menu .mm-report { color: var(--ww-gold); }
 .moderation-menu .mm-cancel { color: var(--ww-ink-2); }
+
+/* Styled report dialog + post-submit confirmation card. Mirrors the
+ * Android ReportDialog + suspension card chrome so the experience
+ * reads the same on both platforms. */
+.moderation-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(8,4,20,0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+.moderation-modal .mmod-card {
+  background: var(--ww-bg-2);
+  border: 1px solid var(--ww-hair-2);
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--ww-shadow-raised);
+}
+.moderation-modal .mmod-title {
+  margin: 0 0 6px;
+  font-family: var(--ww-display);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--ww-ink-0);
+}
+.moderation-modal .mmod-sub {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--ww-ink-2);
+  line-height: 1.45;
+}
+.moderation-modal .mmod-form { display: flex; flex-direction: column; gap: 8px; }
+.moderation-modal .mmod-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ww-ink-1);
+  border: 1px solid transparent;
+}
+.moderation-modal .mmod-radio:has(input:checked) {
+  background: rgba(124,111,232,0.12);
+  border-color: rgba(124,111,232,0.4);
+  color: var(--ww-ink-0);
+}
+.moderation-modal .mmod-radio input { accent-color: #7C6FE8; }
+.moderation-modal .mmod-details {
+  margin-top: 6px;
+  width: 100%;
+  background: var(--ww-bg-0);
+  color: var(--ww-ink-0);
+  border: 1px solid var(--ww-hair-2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-family: var(--ww-body);
+  font-size: 13px;
+  resize: vertical;
+}
+.moderation-modal .mmod-details:focus {
+  outline: none;
+  border-color: rgba(124,111,232,0.6);
+}
+.moderation-modal .mmod-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.moderation-modal .mmod-actions button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  font-family: var(--ww-body);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.moderation-modal .mmod-cancel,
+.moderation-modal .mmod-done {
+  background: transparent;
+  color: var(--ww-ink-2);
+  border: 1px solid var(--ww-hair-2) !important;
+}
+.moderation-modal .mmod-cancel:hover,
+.moderation-modal .mmod-done:hover { color: var(--ww-ink-0); background: var(--ww-hair); }
+.moderation-modal .mmod-submit { background: var(--ww-coral); color: #FFF; }
+.moderation-modal .mmod-submit:hover { filter: brightness(1.08); }
+.moderation-modal .mmod-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.moderation-modal .mmod-block-too {
+  background: rgba(232,111,90,0.18);
+  color: var(--ww-coral);
+  border: 1px solid rgba(232,111,90,0.4) !important;
+}
+.moderation-modal .mmod-block-too:hover { background: rgba(232,111,90,0.30); }
+.moderation-modal .mmod-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(76,194,154,0.18);
+  color: #4AC29A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0 auto 12px;
+}

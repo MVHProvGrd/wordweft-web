@@ -607,19 +607,104 @@ const Game = (() => {
             const ok = await Auth.blockUser(player.uid);
             showToast(ok ? ('Blocked ' + player.name) : 'Block failed', ok ? '#4AC29A' : '#EF4444');
         });
-        menu.querySelector('.mm-report').addEventListener('click', async () => {
+        menu.querySelector('.mm-report').addEventListener('click', () => {
             close();
-            const reason = prompt('Report ' + player.name + ' for:\n' +
-                'harassment / inappropriate / spam / other', 'inappropriate');
-            if (!reason) return;
+            openReportDialog(player);
+        });
+        menu.querySelector('.mm-cancel').addEventListener('click', close);
+    }
+
+    /**
+     * Styled report dialog — radio-button reasons + optional details
+     * textarea, mirroring Android's `ReportDialog`. After a successful
+     * submit shows a sticky "Report received" confirmation card with
+     * an option to also block the reported player. Replaces the older
+     * `prompt()` flow that bounced through a browser dialog + a toast.
+     */
+    function openReportDialog(player) {
+        document.querySelectorAll('.moderation-modal').forEach(n => n.remove());
+        const reasons = [
+            ['harassment',    'Harassment / abusive behaviour'],
+            ['inappropriate', 'Inappropriate content'],
+            ['spam',          'Spam'],
+            ['other',         'Other'],
+        ];
+        const overlay = document.createElement('div');
+        overlay.className = 'moderation-modal';
+        overlay.innerHTML =
+            '<div class="mmod-card" role="dialog" aria-modal="true">' +
+                '<h3 class="mmod-title">Report ' + escapeHtml(player.name) + '</h3>' +
+                '<p class="mmod-sub">Reports queue for off-band review. Block too if you ' +
+                'don\'t want to wait.</p>' +
+                '<form class="mmod-form">' +
+                    reasons.map(([k, label], i) =>
+                        '<label class="mmod-radio">' +
+                            '<input type="radio" name="reason" value="' + k + '"' +
+                                (i === 0 ? ' checked' : '') + '>' +
+                            '<span>' + escapeHtml(label) + '</span>' +
+                        '</label>'
+                    ).join('') +
+                    '<textarea class="mmod-details" maxlength="500" rows="2" ' +
+                        'placeholder="Optional details (max 500 chars)"></textarea>' +
+                    '<div class="mmod-actions">' +
+                        '<button type="button" class="mmod-cancel">Cancel</button>' +
+                        '<button type="submit" class="mmod-submit">Submit report</button>' +
+                    '</div>' +
+                '</form>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        const form = overlay.querySelector('.mmod-form');
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
+        overlay.querySelector('.mmod-cancel').addEventListener('click', close);
+        form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const reason = form.querySelector('input[name="reason"]:checked').value;
+            const details = form.querySelector('.mmod-details').value.trim().slice(0, 500);
+            const submitBtn = form.querySelector('.mmod-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting…';
             const ok = await Auth.fileReport({
                 reportedUid: player.uid,
                 roomId: (typeof Room !== 'undefined' && Room.code) ? Room.code : undefined,
-                reason: reason.trim().toLowerCase(),
+                reason,
+                details: details || undefined,
             });
-            showToast(ok ? 'Report submitted' : 'Report failed', ok ? '#4AC29A' : '#EF4444');
+            close();
+            if (ok) showReportConfirmation(player);
+            else showToast('Report failed', '#EF4444');
         });
-        menu.querySelector('.mm-cancel').addEventListener('click', close);
+    }
+
+    function showReportConfirmation(player) {
+        document.querySelectorAll('.moderation-modal').forEach(n => n.remove());
+        const overlay = document.createElement('div');
+        overlay.className = 'moderation-modal';
+        overlay.innerHTML =
+            '<div class="mmod-card" role="dialog" aria-modal="true">' +
+                '<div class="mmod-check">✓</div>' +
+                '<h3 class="mmod-title">Report received</h3>' +
+                '<p class="mmod-sub">' +
+                    'Thanks — we\'ll review this within 48 hours. ' +
+                    'Reports don\'t auto-punish; serial abusers get removed.' +
+                '</p>' +
+                '<div class="mmod-actions">' +
+                    '<button type="button" class="mmod-block-too">Block ' +
+                        escapeHtml(player.name) + ' too</button>' +
+                    '<button type="button" class="mmod-done">Done</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
+        overlay.querySelector('.mmod-done').addEventListener('click', close);
+        overlay.querySelector('.mmod-block-too').addEventListener('click', async (ev) => {
+            ev.target.disabled = true;
+            const ok = await Auth.blockUser(player.uid);
+            close();
+            showToast(ok ? ('Blocked ' + player.name) : 'Block failed',
+                ok ? '#4AC29A' : '#EF4444');
+        });
     }
 
     function escapeHtml(s) {
