@@ -140,12 +140,11 @@
         justify-self: end;
     }
     .tb-distance-delta {
-        grid-column: 2; grid-row: 2;
-        justify-self: end;
-        align-self: center;
-        font-size: 11px; font-weight: 800;
-        padding: 2px 9px;
-        border-radius: 9px;
+        align-self: flex-start;
+        margin-top: 3px;
+        font-size: 10px; font-weight: 800;
+        padding: 1px 7px;
+        border-radius: 8px;
         background: rgba(143,209,158,0.22);
         border: 1px solid rgba(143,209,158,0.55);
         color: #c4ebce;
@@ -165,11 +164,11 @@
         display: flex; gap: 4px;
     }
     .tb-letter {
-        width: 28px; height: 28px;
-        border-radius: 14px;
+        width: 22px; height: 22px;
+        border-radius: 11px;
         display: inline-flex; align-items: center; justify-content: center;
         font-family: "Fraunces", "Georgia", serif;
-        font-weight: 900; font-size: 13px;
+        font-weight: 900; font-size: 11px;
         background: rgba(232,179,76,0.13);
         border: 2px solid rgba(232,179,76,0.45);
         color: rgba(42,27,34,0.5);
@@ -193,42 +192,50 @@
         transition: width 0.3s;
     }
     .tb-hearts {
-        display: flex; gap: 4px;
-        margin-left: 14px;          /* breathe after the last WEFTY letter */
+        display: flex; gap: 3px;
+        margin-left: 10px;          /* breathe after the last WEFTY letter */
     }
     .tb-heart {
-        width: 28px; height: 28px;   /* match the WEFTY letter-pill size */
+        width: 22px; height: 22px;   /* match the WEFTY letter-pill size */
         display: inline-block;
     }
     .tb-heart svg { width: 100%; height: 100%; display: block; }
     .tb-level {
         display: inline-flex; align-items: center;
-        height: 30px; padding: 0 4px 0 4px;
-        border-radius: 15px;
+        height: 24px; padding: 0 3px 0 3px;
+        border-radius: 12px;
         background: rgba(251,243,231,0.14);
         border: 1px solid rgba(251,243,231,0.25);
-        gap: 6px;
+        gap: 4px;
         flex-shrink: 0;
     }
     .tb-level-num {
-        width: 18px; height: 18px;
-        border-radius: 9px;
+        width: 16px; height: 16px;
+        border-radius: 8px;
         background: #e8b34c;
         color: #2a1b22;
         display: inline-flex; align-items: center; justify-content: center;
-        font-family: "Fraunces", "Georgia", serif; font-weight: 900; font-size: 11px;
+        font-family: "Fraunces", "Georgia", serif; font-weight: 900; font-size: 10px;
     }
     .tb-level-word {
-        font-size: 11px; font-weight: 700; color: #fbf3e7;
+        font-size: 9px; font-weight: 700; color: #fbf3e7;
         letter-spacing: 0.4px;
     }
     .tb-level-mult {
         font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px; font-weight: 700;
+        font-size: 9px; font-weight: 700;
         color: rgba(251,243,231,0.7);
-        padding-right: 6px;
+        padding-right: 4px;
     }
     .tb-spacer { flex: 1 1 auto; }
+    /* Right-side control cluster — kept right-aligned even when the
+     * top row wraps onto a second line (margin-left: auto pushes the
+     * whole group to the right of whatever line it's on). */
+    .tb-controls {
+        display: inline-flex; align-items: center; gap: 8px;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
     #stage {
         position: absolute;
         inset: 0;
@@ -454,9 +461,12 @@
        slice mask overlay — not an opacity dim. */
     .action-btn {
         /* Both buttons same size and larger (76px) for easier thumb
-           hit-boxes on mobile. */
+           hit-boxes on mobile. Pushed close to the viewport bottom in
+           non-fullscreen so the iOS URL bar doesn't squeeze them up
+           into the play area. safe-area-inset-bottom still reserves
+           space for the home indicator. */
         position: absolute;
-        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(4px + env(safe-area-inset-bottom, 0px));
         width: 76px; height: 76px;
         border-radius: 50%;
         border: 2px solid;
@@ -513,10 +523,12 @@
         position: absolute;
         /* Centered bottom — Lasso now occupies bottom-left, Jump
            bottom-right, dock sits between them. Gap shrinks on
-           landscape phones where vertical space is at a premium. */
+           landscape phones where vertical space is at a premium.
+           Hugging the viewport bottom (2px) so iOS Safari's URL bar
+           doesn't clip the dock when not in fullscreen. */
         left: 50%;
         transform: translateX(-50%);
-        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(2px + env(safe-area-inset-bottom, 0px));
         display: flex;
         gap: 6px;
         z-index: 6;
@@ -529,7 +541,7 @@
         .dock {
             transform: translateX(-50%) scale(0.72);
             transform-origin: bottom center;
-            bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+            bottom: calc(0px + env(safe-area-inset-bottom, 0px));
         }
     }
     .dock-slot {
@@ -1018,6 +1030,10 @@
     <div class="tb-title">
         <div class="tb-title-main">WEFTY RUN</div>
         <div class="tb-title-sub" id="tb-eyebrow">LEVEL 1</div>
+        <!-- "17m to last" delta lives under the title now so it doesn't
+             stretch the distance card to a 3rd row + cause the right-
+             side controls to wrap below to the left. -->
+        <div class="tb-distance-delta hidden" id="tb-delta"></div>
     </div>
     <div class="tb-distance">
         <div class="tb-distance-label">DISTANCE</div>
@@ -1025,7 +1041,6 @@
             <span id="tb-cur">0</span><span class="tb-m">m</span>
         </div>
         <div class="tb-distance-pb" id="tb-pb">BEST 0m</div>
-        <div class="tb-distance-delta hidden" id="tb-delta"></div>
     </div>
     <span class="tb-spacer"></span>
     <div class="tb-letters-wrap">
@@ -1045,10 +1060,16 @@
         <span class="tb-level-word">LEVEL</span>
         <span class="tb-level-mult" id="tb-level-mult">1.0×</span>
     </div>
-    <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
-    <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
-    <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
-    <button id="btn-help"  class="tb-tile" title="Help">?</button>
+    <!-- Right-side cluster: kept together via .tb-controls so when the
+         row wraps on narrow viewports the four tiles stay grouped and
+         right-aligned (margin-left:auto pushes them to the right edge
+         of whatever line they end up on, instead of left-aligning). -->
+    <div class="tb-controls">
+        <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
+        <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
+        <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
+        <button id="btn-help"  class="tb-tile" title="Help">?</button>
+    </div>
 </header>
 <div id="stage">
     <canvas id="bg"></canvas>

@@ -146,6 +146,13 @@
         letter-spacing: 0.5px;
     }
     .tb-spacer { flex: 1 1 auto; }
+    /* Right-side control cluster — kept right-aligned even when the
+     * top row wraps onto a second line. Parity with Wefty Run. */
+    .tb-controls {
+        display: inline-flex; align-items: center; gap: 8px;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
     /* Legacy hud / needles selectors kept as a safety net — ignored
        because the old elements are replaced below. */
     header .hud, header .needles, header .header-btn { display: none; }
@@ -370,9 +377,11 @@
        same silhouette, borders, drop shadows, palette. */
     .jump-btn, .lasso-btn {
         /* Both buttons are the SAME size and larger (76px) so each
-           thumb has a forgiving hit box on mobile. */
+           thumb has a forgiving hit box on mobile. Hugging the
+           viewport bottom so iOS Safari's URL bar in non-fullscreen
+           doesn't squeeze the buttons up into the playfield. */
         position: absolute;
-        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(4px + env(safe-area-inset-bottom, 0px));
         width: 76px; height: 76px;
         border-radius: 50%;
         border: 2px solid;
@@ -513,10 +522,15 @@
     <span class="tb-spacer"></span>
     <!-- Biome chip removed — already shown in the subtitle under the
          title, and it was clipping into the tile row on narrow phones. -->
-    <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
-    <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
-    <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
-    <button id="btn-help"  class="tb-tile" title="Help">?</button>
+    <!-- Right-side cluster — kept grouped + right-aligned via .tb-controls
+         so the four tiles don't wrap to the left of a second line on
+         narrow phones. Mirrors the Wefty Run fix. -->
+    <div class="tb-controls">
+        <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
+        <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
+        <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
+        <button id="btn-help"  class="tb-tile" title="Help">?</button>
+    </div>
 </header>
 <span id="hud" style="display:none;"></span>
 <span id="needles" style="display:none;"></span>
