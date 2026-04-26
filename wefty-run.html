@@ -82,6 +82,102 @@
         -webkit-backdrop-filter: blur(6px);
     }
     body.fs-mode .fs-exit { display: inline-flex; }
+
+    /* ── HUD layout / drag-to-place edit mode ─────────────────────
+       Long-press LASSO or JUMP, OR Pause → "HUD layout" → "Drag to
+       place" enters edit mode. Body gets .btn-edit; the two action
+       buttons gain a dashed outline + lift to z-index 200; a top
+       bar appears with Save / Reset / Cancel. World is paused while
+       editing so Wefty doesn't die mid-config. */
+    body.btn-edit .lasso-btn,
+    body.btn-edit .jump-btn {
+        outline: 3px dashed #FFB66B;
+        outline-offset: 4px;
+        cursor: move;
+        z-index: 200;
+        touch-action: none;
+        animation: edit-wiggle 1.6s ease-in-out infinite;
+    }
+    @keyframes edit-wiggle {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-2px); }
+    }
+    .edit-bar {
+        position: fixed;
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+        align-items: center; gap: 10px;
+        padding: 8px 12px;
+        background: rgba(40,24,71,0.92);
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 999px;
+        z-index: 201;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        font-size: 13px;
+        color: #FFE6B8;
+        font-weight: 700;
+    }
+    body.btn-edit .edit-bar { display: inline-flex; }
+    .edit-bar .edit-hint { padding: 0 4px; color: rgba(255,230,184,0.85); }
+    .edit-bar button {
+        padding: 6px 12px;
+        border: 1px solid rgba(238,230,255,0.22);
+        border-radius: 999px;
+        background: transparent;
+        color: #EEE6FF;
+        font-weight: 700;
+        font-family: inherit;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    .edit-bar button:hover { background: rgba(255,255,255,0.08); }
+    .edit-bar button.primary {
+        background: #4AC29A;
+        border-color: #4AC29A;
+        color: #0F2418;
+    }
+    /* Layout sheet preset chips. */
+    .layout-presets {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin: 14px 0 6px;
+    }
+    .layout-preset {
+        display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(238,230,255,0.16);
+        background: rgba(26,14,20,0.45);
+        color: #EEE6FF;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 700;
+    }
+    .layout-preset.active {
+        border-color: #4AC29A;
+        background: rgba(74,194,154,0.18);
+    }
+    .layout-preset .lp-name { text-align: left; font-size: 13px; }
+    .layout-preset .lp-mini {
+        position: relative;
+        height: 26px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(238,230,255,0.10);
+    }
+    .layout-preset .dot { position: absolute; bottom: 4px; width: 8px; height: 8px; border-radius: 50%; background: #FFB66B; }
+    .layout-preset .dot.dot-l    { left: 4px; }
+    .layout-preset .dot.dot-r    { right: 4px; background: #8FD19E; }
+    .layout-preset .dot.dot-cl   { left: 24%; }
+    .layout-preset .dot.dot-cr   { right: 24%; background: #8FD19E; }
+    .layout-preset .dot.dot-rL   { right: 4px; }
+    .layout-preset .dot.dot-lJ   { left: 4px; background: #8FD19E; }
+    .layout-preset .dot.dot-c    { left: 36%; }
+    .layout-preset .dot.dot-c2   { left: 56%; background: #8FD19E; }
     /* ── Face-lift top bar ────────────────────────────────────────
        Dense HUD row: back · title · distance card · WEFTY pills ·
        hearts · level chip · mute/pause/help. Reads every frame from
@@ -1200,9 +1296,53 @@
         <div class="sheet-buttons">
             <button class="sheet-btn primary" id="ps-resume">RESUME (P)</button>
             <button class="sheet-btn" id="ps-help">HOW TO PLAY</button>
+            <button class="sheet-btn" id="ps-layout">HUD LAYOUT</button>
             <button class="sheet-btn" id="ps-end">END RUN</button>
         </div>
     </div>
+</div>
+<!-- HUD layout sheet — picks a preset or enters drag-to-place mode for
+     the LASSO + JUMP buttons. Default left+right corners is fine for
+     most thumbs; "Center-in" pulls Jump closer to the middle for one-
+     thumb players; "Lefty" swaps sides; Custom enters edit mode. -->
+<div id="layout-overlay" class="sheet-overlay hidden">
+    <div class="sheet accent-teal">
+        <div class="sheet-eyebrow">HUD LAYOUT</div>
+        <h2>Move the buttons</h2>
+        <p class="sub">Pick a preset or drag to wherever your thumbs reach.</p>
+        <div class="layout-presets" id="layout-presets">
+            <button class="layout-preset" data-preset="default">
+                <div class="lp-name">Default</div>
+                <div class="lp-mini"><span class="dot dot-l"></span><span class="dot dot-r"></span></div>
+            </button>
+            <button class="layout-preset" data-preset="center-in">
+                <div class="lp-name">Center-in</div>
+                <div class="lp-mini"><span class="dot dot-cl"></span><span class="dot dot-cr"></span></div>
+            </button>
+            <button class="layout-preset" data-preset="lefty">
+                <div class="lp-name">Lefty</div>
+                <div class="lp-mini"><span class="dot dot-rL"></span><span class="dot dot-lJ"></span></div>
+            </button>
+            <button class="layout-preset" data-preset="custom">
+                <div class="lp-name">Custom</div>
+                <div class="lp-mini"><span class="dot dot-c"></span><span class="dot dot-c2"></span></div>
+            </button>
+        </div>
+        <div class="sheet-buttons">
+            <button class="sheet-btn primary" id="layout-customize">DRAG TO PLACE</button>
+            <button class="sheet-btn" id="layout-cancel">DONE</button>
+        </div>
+    </div>
+</div>
+<!-- Edit-mode chrome: floating top bar appears only when body has
+     .btn-edit. Save commits the dragged positions, Reset returns to the
+     default preset, Cancel restores whatever was loaded at edit-mode
+     entry. World is paused while editing so Wefty doesn't die. -->
+<div class="edit-bar" id="edit-bar">
+    <span class="edit-hint">Drag LASSO + JUMP wherever you want</span>
+    <button id="edit-reset">Reset</button>
+    <button id="edit-cancel">Cancel</button>
+    <button id="edit-save" class="primary">Save</button>
 </div>
 <div id="rotate-overlay" class="rotate-overlay hidden">
     <div>
@@ -4187,6 +4327,201 @@
         setPaused(false);
         world.events.push('game-over');
     });
+
+    // ── HUD layout: presets + drag-to-place ─────────────────────────
+    // Persist normalized x/y (0–1 of viewport) so the saved layout
+    // survives orientation + safe-area changes. Defaults match the
+    // CSS: lasso bottom-left, jump bottom-right, both 76 px circles.
+    const HUD_LAYOUT_KEY = 'wefty_run_btn_layout_v1';
+    const lassoBtn = document.getElementById('btn-lasso');
+    const jumpBtn  = document.getElementById('btn-jump');
+    function presetPositions(name, w, h) {
+        // Returns absolute positions in px from top-left for both
+        // buttons. 76 px is the action-btn diameter; 20 px is the
+        // baseline horizontal gutter.
+        const safeBot = parseFloat(getComputedStyle(document.documentElement)
+            .getPropertyValue('--ww-safe-bot') || '0') || 0;
+        const sb = safeBot;
+        const yBot = h - 76 - sb;       // y of button TOP, hugging safe-area bottom
+        switch (name) {
+            case 'center-in':
+                return { lasso: { x: w * 0.18, y: yBot }, jump: { x: w * 0.62, y: yBot } };
+            case 'lefty':
+                return { lasso: { x: w - 76 - 20, y: yBot }, jump: { x: 20, y: yBot } };
+            case 'default':
+            default:
+                return { lasso: { x: 20, y: yBot }, jump: { x: w - 76 - 20, y: yBot } };
+        }
+    }
+    function loadLayout() {
+        try {
+            const raw = localStorage.getItem(HUD_LAYOUT_KEY);
+            if (!raw) return { preset: 'default' };
+            return JSON.parse(raw) || { preset: 'default' };
+        } catch (_) { return { preset: 'default' }; }
+    }
+    function saveLayout(layout) {
+        try { localStorage.setItem(HUD_LAYOUT_KEY, JSON.stringify(layout)); } catch (_) {}
+    }
+    function applyLayoutToButtons(layout) {
+        // For preset positions we re-derive on every viewport-change
+        // event (orientation, fullscreen toggle). For custom positions
+        // we use stored normalized coords so they ride viewport changes.
+        const w = window.innerWidth, h = window.innerHeight;
+        let lassoPos, jumpPos;
+        if (layout.preset === 'custom' && layout.lasso && layout.jump) {
+            lassoPos = { x: layout.lasso.x * w, y: layout.lasso.y * h };
+            jumpPos  = { x: layout.jump.x  * w, y: layout.jump.y  * h };
+        } else {
+            const p = presetPositions(layout.preset || 'default', w, h);
+            lassoPos = p.lasso; jumpPos = p.jump;
+        }
+        // Clamp inside the viewport so a too-old layout doesn't strand
+        // a button off-screen.
+        function clamp(p) {
+            return {
+                x: Math.max(0, Math.min(w - 76, p.x)),
+                y: Math.max(0, Math.min(h - 76, p.y)),
+            };
+        }
+        lassoPos = clamp(lassoPos); jumpPos = clamp(jumpPos);
+        // Apply via inline style. Wipe the default `right` so left wins.
+        lassoBtn.style.left = lassoPos.x + 'px';
+        lassoBtn.style.top  = lassoPos.y + 'px';
+        lassoBtn.style.bottom = 'auto';
+        lassoBtn.style.right  = 'auto';
+        jumpBtn.style.left  = jumpPos.x + 'px';
+        jumpBtn.style.top   = jumpPos.y + 'px';
+        jumpBtn.style.bottom = 'auto';
+        jumpBtn.style.right  = 'auto';
+    }
+    let currentLayout = loadLayout();
+    applyLayoutToButtons(currentLayout);
+    window.addEventListener('resize', () => applyLayoutToButtons(currentLayout));
+    window.addEventListener('orientationchange',
+        () => setTimeout(() => applyLayoutToButtons(currentLayout), 200));
+
+    // Layout sheet
+    const layoutOverlay = document.getElementById('layout-overlay');
+    function showLayoutSheet() {
+        document.querySelectorAll('.layout-preset').forEach((b) => {
+            b.classList.toggle('active', b.dataset.preset === currentLayout.preset);
+        });
+        pauseOverlay.classList.add('hidden');
+        layoutOverlay.classList.remove('hidden');
+    }
+    function hideLayoutSheet() {
+        layoutOverlay.classList.add('hidden');
+        if (world.isPaused) pauseOverlay.classList.remove('hidden');
+    }
+    document.getElementById('ps-layout').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showLayoutSheet();
+    });
+    document.querySelectorAll('.layout-preset').forEach((b) => {
+        b.addEventListener('click', () => {
+            const p = b.dataset.preset;
+            if (p === 'custom') {
+                // Custom = enter drag mode, prefilled with current.
+                hideLayoutSheet();
+                enterEditMode();
+                return;
+            }
+            currentLayout = { preset: p };
+            saveLayout(currentLayout);
+            applyLayoutToButtons(currentLayout);
+            document.querySelectorAll('.layout-preset').forEach((x) => {
+                x.classList.toggle('active', x.dataset.preset === p);
+            });
+        });
+    });
+    document.getElementById('layout-customize').addEventListener('click', () => {
+        hideLayoutSheet();
+        enterEditMode();
+    });
+    document.getElementById('layout-cancel').addEventListener('click', hideLayoutSheet);
+
+    // Edit-mode (drag-to-place) ---------------------------------------
+    let editSnapshot = null;
+    let pausedForEdit = false;
+    function enterEditMode() {
+        editSnapshot = { ...currentLayout, lasso: currentLayout.lasso && {...currentLayout.lasso}, jump: currentLayout.jump && {...currentLayout.jump} };
+        pausedForEdit = !world.isPaused;
+        if (pausedForEdit) world.isPaused = true;
+        document.body.classList.add('btn-edit');
+    }
+    function exitEditMode(save) {
+        document.body.classList.remove('btn-edit');
+        if (!save && editSnapshot) {
+            currentLayout = editSnapshot;
+            applyLayoutToButtons(currentLayout);
+        } else if (save) {
+            saveLayout(currentLayout);
+        }
+        editSnapshot = null;
+        if (pausedForEdit) {
+            world.isPaused = false;
+            pausedForEdit = false;
+        }
+    }
+    function makeDraggable(btn, key) {
+        let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+        function down(ev) {
+            if (!document.body.classList.contains('btn-edit')) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            const r = btn.getBoundingClientRect();
+            baseX = r.left; baseY = r.top;
+            const p = ev.touches ? ev.touches[0] : ev;
+            startX = p.clientX; startY = p.clientY;
+            dragging = true;
+            try { btn.setPointerCapture && btn.setPointerCapture(ev.pointerId); } catch (_) {}
+        }
+        function move(ev) {
+            if (!dragging) return;
+            ev.preventDefault();
+            const p = ev.touches ? ev.touches[0] : ev;
+            const w = window.innerWidth, h = window.innerHeight;
+            const nx = Math.max(0, Math.min(w - 76, baseX + (p.clientX - startX)));
+            const ny = Math.max(0, Math.min(h - 76, baseY + (p.clientY - startY)));
+            btn.style.left = nx + 'px';
+            btn.style.top  = ny + 'px';
+            btn.style.right = 'auto';
+            btn.style.bottom = 'auto';
+            currentLayout = currentLayout.preset === 'custom' ? currentLayout : { preset: 'custom' };
+            currentLayout[key] = { x: nx / w, y: ny / h };
+        }
+        function up() { dragging = false; }
+        btn.addEventListener('pointerdown', down);
+        btn.addEventListener('pointermove', move);
+        btn.addEventListener('pointerup',   up);
+        btn.addEventListener('pointercancel', up);
+        // Long-press → enter edit mode without going through pause sheet.
+        let lpTimer = null;
+        btn.addEventListener('pointerdown', (ev) => {
+            if (document.body.classList.contains('btn-edit')) return;
+            lpTimer = setTimeout(() => { enterEditMode(); lpTimer = null; }, 700);
+        });
+        btn.addEventListener('pointerup',     () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+        btn.addEventListener('pointercancel', () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+        btn.addEventListener('pointermove',   () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+    }
+    makeDraggable(lassoBtn, 'lasso');
+    makeDraggable(jumpBtn,  'jump');
+    document.getElementById('edit-save').addEventListener('click',   () => exitEditMode(true));
+    document.getElementById('edit-cancel').addEventListener('click', () => exitEditMode(false));
+    document.getElementById('edit-reset').addEventListener('click',  () => {
+        currentLayout = { preset: 'default' };
+        applyLayoutToButtons(currentLayout);
+    });
+    // Suppress action-button clicks while editing so a drag-end doesn't
+    // also fire the lasso / jump. Edit-bar clicks are exempt.
+    document.addEventListener('click', (ev) => {
+        if (!document.body.classList.contains('btn-edit')) return;
+        if (ev.target.closest('.edit-bar')) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+    }, true);
     // Keyboard P to toggle pause matches the "RESUME (P)" affordance.
     // (A second P keydown listener used to live here; dropping it
     // because the document-level KeyP handler at line ~2884 already
