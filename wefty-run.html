@@ -1528,9 +1528,21 @@
             world.tutorialMode = false;
             resetWorld();
             startPreRunCountdown();
+        } else if (world.isPaused && !world._pausedBeforeTutorial) {
+            // We paused the world when the help button opened the tutorial
+            // mid-run. Unpause now so the player resumes where they were.
+            world.isPaused = false;
+            try {
+                const pb = document.getElementById('btn-pause');
+                if (pb) pb.classList.remove('is-paused');
+            } catch (_) {}
+        } else if (world._pausedBeforeTutorial) {
+            // Player paused first then opened tutorial — restore the
+            // pause overlay so they can decide to unpause manually.
+            world._pausedBeforeTutorial = false;
+            const po = document.getElementById('pause-overlay');
+            if (po) po.classList.remove('hidden');
         }
-        // If the tutorial was opened while paused (help mid-run), leave
-        // the world alone. Player can unpause to resume where they were.
     }
 
     // ── Pre-run countdown (Part E) ─────────────────────────────
@@ -1598,22 +1610,29 @@
         else closeTutorial();
     });
     document.getElementById('tut-skip').addEventListener('click', closeTutorial);
-    // Help button: always restart the scripted demo behind the tutorial
-    // panels so the player always sees Wefty weaving through obstacles
-    // while they're reading — in-progress run state is sacrificed for
-    // consistency.
+    // Help button: pause the run while the tutorial overlay is open so
+    // the player doesn't get game-overed by Wefty falling into the first
+    // pit while reading instructions. Restore the pause state on close.
+    // First-time players (cold start, no `wefty_run_tutorial_v3` flag)
+    // still get the scripted demo path further down.
     document.getElementById('btn-help').addEventListener('click', () => {
-        // If the player paused first and THEN tapped the help icon,
-        // preserve their paused run state — show the tutorial without
-        // the scripted demo wiping the world. closeTutorial() restores
-        // the pause sheet on dismiss.
         if (world.isPaused) {
+            // Already paused — preserve their paused run state. Hide the
+            // pause sheet so it doesn't double-overlay with the tutorial.
             world._pausedBeforeTutorial = true;
             const po = document.getElementById('pause-overlay');
             if (po) po.classList.add('hidden');
             openTutorial(false);
         } else {
-            openTutorial(true);
+            // Mid-run: freeze the world so progress doesn't tick + Wefty
+            // can't die while the player is reading. closeTutorial()
+            // unpauses (no _pausedBeforeTutorial flag means we paused it).
+            world.isPaused = true;
+            try {
+                const pb = document.getElementById('btn-pause');
+                if (pb) pb.classList.add('is-paused');
+            } catch (_) {}
+            openTutorial(false);
         }
     });
     if (!localStorage.getItem('wefty_run_tutorial_v3')) {

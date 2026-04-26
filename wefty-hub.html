@@ -256,8 +256,11 @@
     // Retroactive unlocks — grant the Level 2 / Climb flags if the
     // user's server best already crossed the milestone.
     (function retroactiveUnlocks() {
+        // Level 2 unlocks at 300 m (matches the in-game banner + the
+        // wefty_run.html threshold at world-distance >= 30 units). Hub
+        // copy was previously 500 m which mismatched the actual unlock.
         const best = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
-        if (best >= 500 && !localStorage.getItem('wefty_run_level2_unlocked')) {
+        if (best >= 300 && !localStorage.getItem('wefty_run_level2_unlocked')) {
             localStorage.setItem('wefty_run_level2_unlocked', '1');
         }
         if (best >= 750 && !localStorage.getItem('wefty_run_level3_unlocked')) {
@@ -271,7 +274,7 @@
                     .once('value').then(snap => {
                         const serverBest = parseInt(snap.val() || 0, 10) || 0;
                         let changed = false;
-                        if (serverBest >= 500 && !localStorage.getItem('wefty_run_level2_unlocked')) {
+                        if (serverBest >= 300 && !localStorage.getItem('wefty_run_level2_unlocked')) {
                             localStorage.setItem('wefty_run_level2_unlocked', '1'); changed = true;
                         }
                         if (serverBest >= 750 && !localStorage.getItem('wefty_run_level3_unlocked')) {
@@ -285,7 +288,7 @@
 
     if (localStorage.getItem('wefty_run_level2_unlocked')) {
         const sub = document.getElementById('run-sub');
-        if (sub) sub.textContent = 'Auto-runner — Level 2 storm biome unlocked past 500 m.';
+        if (sub) sub.textContent = 'Auto-runner — Level 2 storm biome unlocked past 300 m.';
         const t = document.getElementById('run-tile');
         if (t && !t.querySelector('.tile-badges')) {
             const b = document.createElement('div');
