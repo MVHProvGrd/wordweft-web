@@ -32,7 +32,13 @@
         --bg-1: #1A1A2E;
         --muted: #A0A0B8;
     }
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
     html, body {
         margin: 0;
         width: 100%; height: 100%;

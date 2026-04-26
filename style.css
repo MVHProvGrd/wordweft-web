@@ -63,6 +63,21 @@ html, body {
 }
 
 /* Buttons */
+/* Suppress iOS Safari's text-selection callout on every interactive
+ * surface — long-pressing the LASSO / JUMP / dock / chip buttons
+ * during gameplay was triggering the "Copy / Look Up / Translate"
+ * popover, which steals taps. Limit to interactive elements so
+ * inputs + story text stay selectable. */
+button,
+.btn,
+.player-order-chip,
+.player-item,
+.icon-btn,
+[role="button"] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
 .btn {
     display: inline-flex;
     align-items: center;
