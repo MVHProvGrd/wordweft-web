@@ -578,27 +578,25 @@ const Results = (() => {
                 lastPlayed: firebase.database.ServerValue.TIMESTAMP
             };
             await statsRef.update(newStats);
-            // Gate leaderboard writes on non-anonymous: anonymous users get a
-            // fresh UID per install, so writing them to the global board just
-            // accumulates orphan entries that can never be reclaimed.
-            if (!Auth.isAnonymous) {
-                // Write both `xp` (web's historical field) and `totalXp` (Android's
-                // field) plus level/rank/gamesPlayed/gamesWon so the Android
-                // leaderboard reader has full info. See UserRepository.updateLeaderboard.
-                const lbLevel = (typeof Auth.calculateLevel === 'function') ? Auth.calculateLevel(newStats.totalXp) : 0;
-                const lbRank = (typeof Auth.getRank === 'function') ? Auth.getRank(lbLevel) : '';
-                const lbEntry = {
-                    xp: newStats.totalXp,
-                    totalXp: newStats.totalXp,
-                    displayName: Auth.name,
-                    avatar: Auth.avatar,
-                    level: lbLevel,
-                    rank: lbRank,
-                    gamesPlayed: newStats.gamesPlayed,
-                    gamesWon: newStats.gamesWon
-                };
-                await db.ref('leaderboard/allTime/' + Auth.uid).set(lbEntry);
-                await db.ref('leaderboard/weekly/' + Auth.uid).set(lbEntry);
+            // Authoritative XP + leaderboard write moved to the
+            // submitGameResult Cloud Function (anti-cheat, server
+            // re-derives XP). The local stats update above stays so
+            // the results screen has fresh numbers without a round-
+            // trip; CF idempotently overwrites them with identical
+            // values seconds later.
+            //
+            // Skip the CF call for solo offline rooms (no Room.code)
+            // — there's nothing for the server to read. Skip on
+            // anonymous too; CF returns skipped:true but we save the
+            // round-trip.
+            if (!Auth.isAnonymous && Room.code && firebase.functions) {
+                try {
+                    const callable = firebase.functions().httpsCallable('submitGameResult');
+                    await callable({ roomCode: Room.code });
+                } catch (e) {
+                    console.warn('submitGameResult failed (non-fatal):',
+                        e && (e.code + ' ' + e.message));
+                }
             }
 
             const xpSection = document.getElementById('xp-earned-section');
