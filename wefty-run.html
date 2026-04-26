@@ -492,12 +492,13 @@
        slice mask overlay — not an opacity dim. */
     .action-btn {
         /* Both buttons same size and larger (76px) for easier thumb
-           hit-boxes on mobile. Pushed close to the viewport bottom in
-           non-fullscreen so the iOS URL bar doesn't squeeze them up
-           into the play area. safe-area-inset-bottom still reserves
-           space for the home indicator. */
+           hit-boxes on mobile. Pinned to the safe-area edge (0 px
+           offset) so on every platform — iOS Safari, Android Chrome,
+           desktop — the buttons hug the lowest reachable line. The
+           safe-area-inset-bottom envelope still reserves the home-
+           indicator / gesture-nav strip so we don't overlap. */
         position: absolute;
-        bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+        bottom: env(safe-area-inset-bottom, 0px);
         width: 76px; height: 76px;
         border-radius: 50%;
         border: 2px solid;
@@ -553,13 +554,12 @@
     .dock {
         position: absolute;
         /* Centered bottom — Lasso now occupies bottom-left, Jump
-           bottom-right, dock sits between them. Gap shrinks on
-           landscape phones where vertical space is at a premium.
-           Hugging the viewport bottom (2px) so iOS Safari's URL bar
-           doesn't clip the dock when not in fullscreen. */
+           bottom-right, dock sits between them. Pinned to the safe-
+           area edge so it's always at the lowest legal line on every
+           platform. */
         left: 50%;
         transform: translateX(-50%);
-        bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+        bottom: env(safe-area-inset-bottom, 0px);
         display: flex;
         gap: 6px;
         z-index: 6;
@@ -572,7 +572,7 @@
         .dock {
             transform: translateX(-50%) scale(0.72);
             transform-origin: bottom center;
-            bottom: calc(0px + env(safe-area-inset-bottom, 0px));
+            bottom: env(safe-area-inset-bottom, 0px);
         }
     }
     .dock-slot {

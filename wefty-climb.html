@@ -408,11 +408,11 @@
        same silhouette, borders, drop shadows, palette. */
     .jump-btn, .lasso-btn {
         /* Both buttons are the SAME size and larger (76px) so each
-           thumb has a forgiving hit box on mobile. Hugging the
-           viewport bottom so iOS Safari's URL bar in non-fullscreen
-           doesn't squeeze the buttons up into the playfield. */
+           thumb has a forgiving hit box on mobile. Pinned to the
+           safe-area edge so they hug the lowest reachable line on
+           every platform — iOS Safari, Android Chrome, desktop. */
         position: absolute;
-        bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+        bottom: env(safe-area-inset-bottom, 0px);
         width: 76px; height: 76px;
         border-radius: 50%;
         border: 2px solid;
