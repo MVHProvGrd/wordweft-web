@@ -1168,8 +1168,56 @@
                 setPaused(!world.isPaused);
             }
         });
+        // iPhone Safari has never supported the Fullscreen API for
+        // arbitrary HTML elements (only <video>). Detect it so the FS
+        // button can show an Add-to-Home-Screen tip instead of silently
+        // failing. iPad Safari since iOS 13 DOES support
+        // webkitRequestFullscreen, so we let that path through. The PWA
+        // standalone-display mode already removes the URL bar.
+        function isIOSiPhoneSafari() {
+            const ua = navigator.userAgent;
+            if (!/iPhone|iPod/.test(ua) || window.MSStream) return false;
+            const standalone = window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true;
+            if (standalone) return false;
+            const root = document.documentElement;
+            return !root.requestFullscreen && !root.webkitRequestFullscreen;
+        }
+        function showFullscreenInstallTip() {
+            if (document.getElementById('fs-tip')) return;
+            const o = document.createElement('div');
+            o.id = 'fs-tip';
+            o.style.cssText =
+                'position:fixed;inset:0;background:rgba(8,4,20,0.78);z-index:10000;' +
+                'display:flex;align-items:center;justify-content:center;padding:20px;' +
+                'font-family:"Nunito",-apple-system,system-ui,sans-serif;color:#EEE6FF;';
+            o.innerHTML =
+                '<div style="max-width:380px;background:#291847;border:1px solid rgba(238,230,255,0.16);' +
+                'border-radius:16px;padding:22px 22px 18px;text-align:center;">' +
+                    '<h3 style="margin:0 0 8px;font-family:Fraunces,Georgia,serif;font-weight:800;font-size:18px;">' +
+                        'iPhone Safari can\'t go fullscreen' +
+                    '</h3>' +
+                    '<p style="margin:0 0 14px;font-size:13px;color:#C7B8E8;line-height:1.5;">' +
+                        'iOS blocks the Fullscreen API in Safari. To play WordWeft ' +
+                        'edge-to-edge, tap <b>Share</b> → <b>Add to Home Screen</b>, ' +
+                        'then launch the app from the home screen icon.' +
+                    '</p>' +
+                    '<button id="fs-tip-close" style="padding:8px 18px;border:none;border-radius:999px;' +
+                    'background:#7C6FE8;color:#FFF;font-weight:700;font-family:inherit;cursor:pointer;">' +
+                        'Got it' +
+                    '</button>' +
+                '</div>';
+            document.body.appendChild(o);
+            const close = () => o.remove();
+            o.addEventListener('click', (ev) => { if (ev.target === o) close(); });
+            document.getElementById('fs-tip-close').addEventListener('click', close);
+        }
         // Fullscreen — portrait-lock on mobile if the browser allows.
         document.getElementById('btn-fs').addEventListener('click', async () => {
+            if (isIOSiPhoneSafari()) {
+                showFullscreenInstallTip();
+                return;
+            }
             const root = document.documentElement;
             try {
                 if (document.fullscreenElement || document.webkitFullscreenElement) {
