@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#160B2E">
+<title>WordWeft · Tester Feedback</title>
+<link rel="icon" href="assets/favicon.ico">
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 22px;
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    .card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 24px;
+        margin-top: 16px;
+    }
+
+    label {
+        display: block;
+        font-weight: 700;
+        font-size: 13px;
+        color: #B8A8FF;
+        margin: 0 0 8px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+    label .hint {
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: 400;
+        color: #8D7FAE;
+        margin-left: 6px;
+        font-size: 12px;
+    }
+    textarea {
+        width: 100%;
+        min-height: 140px;
+        background: #1A0E2E;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 12px;
+        padding: 12px;
+        color: #EEE6FF;
+        font-family: inherit;
+        font-size: 14px;
+        line-height: 1.55;
+        resize: vertical;
+    }
+    textarea:focus {
+        outline: none;
+        border-color: #7C6FE8;
+        box-shadow: 0 0 0 3px rgba(124,111,232,0.25);
+    }
+    .char-count {
+        font-size: 11px;
+        color: #8D7FAE;
+        text-align: right;
+        margin-top: 4px;
+    }
+
+    .file-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+    .file-btn {
+        background: #1A0E2E;
+        border: 1px dashed rgba(238,230,255,0.32);
+        color: #B8A8FF;
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+        transition: background 0.15s;
+    }
+    .file-btn:hover { background: rgba(124,111,232,0.18); }
+    .file-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    input[type="file"] { display: none; }
+
+    .thumbs {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+    }
+    .thumb {
+        position: relative;
+        width: 110px;
+        height: 110px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #1A0E2E;
+        border: 1px solid rgba(238,230,255,0.16);
+    }
+    .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .thumb .remove {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.7);
+        color: #FFF;
+        border: none;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        font-family: inherit;
+    }
+    .thumb .remove:hover { background: #E86F5A; }
+
+    .submit-btn {
+        background: #7C6FE8;
+        border: none;
+        color: #FFF;
+        padding: 12px 24px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: inherit;
+        margin-top: 20px;
+        width: 100%;
+    }
+    .submit-btn:hover { background: #9385ED; }
+    .submit-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .status {
+        margin-top: 16px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+        line-height: 1.5;
+        display: none;
+    }
+    .status.ok {
+        display: block;
+        background: rgba(124,232,156,0.15);
+        border: 1px solid rgba(124,232,156,0.4);
+        color: #BFEBC9;
+    }
+    .status.err {
+        display: block;
+        background: rgba(232,111,90,0.15);
+        border: 1px solid rgba(232,111,90,0.4);
+        color: #F0A99C;
+    }
+    .status.info {
+        display: block;
+        background: rgba(124,111,232,0.15);
+        border: 1px solid rgba(124,111,232,0.4);
+        color: #B8A8FF;
+    }
+
+    .field { margin-top: 18px; }
+    .field:first-of-type { margin-top: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a class="back" href="/">← WordWeft</a>
+    </header>
+    <h1>Report a bug</h1>
+    <p class="lede">
+        Tell us what broke and (optionally) attach up to 3 screenshots.
+        Anonymous reports are fine — we'll capture your tester ID
+        automatically so we can follow up if needed.
+    </p>
+
+    <form class="card" id="bug-form" onsubmit="return false">
+        <div class="field">
+            <label for="bug-text">
+                What happened?
+                <span class="hint">required · 5-4000 chars</span>
+            </label>
+            <textarea
+                id="bug-text"
+                placeholder="Describe what you were doing, what you expected, and what actually happened. Include device + browser if it helps."
+                maxlength="4000"
+                required></textarea>
+            <div class="char-count" id="char-count">0 / 4000</div>
+        </div>
+
+        <div class="field">
+            <label>
+                Screenshots
+                <span class="hint">optional · up to 3</span>
+            </label>
+            <div class="file-row">
+                <label for="bug-files" class="file-btn" id="file-btn-label">
+                    + Add screenshot
+                </label>
+                <input
+                    type="file"
+                    id="bug-files"
+                    accept="image/*"
+                    multiple>
+                <span id="file-status" style="font-size:12px; color:#8D7FAE;"></span>
+            </div>
+            <div class="thumbs" id="thumbs"></div>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submit-btn" disabled>
+            Sign-in pending...
+        </button>
+
+        <div class="status" id="status"></div>
+    </form>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+(() => {
+    const MAX_SCREENSHOTS = 3;
+    const MAX_DIM_PX = 1280;          // longest edge after resize
+    const JPEG_QUALITY = 0.7;
+
+    const textEl   = document.getElementById('bug-text');
+    const countEl  = document.getElementById('char-count');
+    const fileEl   = document.getElementById('bug-files');
+    const fileLbl  = document.getElementById('file-btn-label');
+    const fileSt   = document.getElementById('file-status');
+    const thumbsEl = document.getElementById('thumbs');
+    const submitEl = document.getElementById('submit-btn');
+    const statusEl = document.getElementById('status');
+
+    // In-memory list of {dataUrl, name, sizeKB} — what gets submitted.
+    const screenshots = [];
+    let currentUid = null;
+
+    // ── auth: anonymous sign-in if not already signed in ─────────────
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentUid = user.uid;
+            submitEl.disabled = false;
+            submitEl.textContent = 'Submit report';
+        } else {
+            auth.signInAnonymously().catch((e) => {
+                showStatus('err', `Couldn't sign in to file a report: ${e.message}`);
+            });
+        }
+    });
+
+    // ── text input + char counter ───────────────────────────────────
+    textEl.addEventListener('input', () => {
+        countEl.textContent = `${textEl.value.length} / 4000`;
+    });
+
+    // ── file input → resize → dataURL → render thumb ────────────────
+    fileEl.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        for (const f of files) {
+            if (screenshots.length >= MAX_SCREENSHOTS) {
+                showStatus('err', `Max ${MAX_SCREENSHOTS} screenshots per report.`);
+                break;
+            }
+            if (!f.type.startsWith('image/')) continue;
+            try {
+                fileSt.textContent = `Resizing ${f.name}...`;
+                const dataUrl = await resizeImageToDataUrl(f);
+                screenshots.push({
+                    dataUrl,
+                    name: f.name,
+                    sizeKB: Math.round(dataUrl.length * 0.75 / 1024),
+                });
+                renderThumbs();
+            } catch (err) {
+                showStatus('err', `Couldn't process ${f.name}: ${err.message}`);
+            }
+        }
+        fileSt.textContent = '';
+        // Reset the input so the same file can be re-added if removed.
+        fileEl.value = '';
+    });
+
+    function renderThumbs() {
+        thumbsEl.innerHTML = '';
+        for (let i = 0; i < screenshots.length; i++) {
+            const s = screenshots[i];
+            const thumb = document.createElement('div');
+            thumb.className = 'thumb';
+            thumb.title = `${s.name} · ${s.sizeKB} KB`;
+
+            const img = document.createElement('img');
+            img.src = s.dataUrl;
+            thumb.appendChild(img);
+
+            const rm = document.createElement('button');
+            rm.type = 'button';
+            rm.className = 'remove';
+            rm.textContent = '×';
+            rm.title = 'Remove';
+            rm.onclick = () => {
+                screenshots.splice(i, 1);
+                renderThumbs();
+            };
+            thumb.appendChild(rm);
+            thumbsEl.appendChild(thumb);
+        }
+        const remaining = MAX_SCREENSHOTS - screenshots.length;
+        fileLbl.style.display = remaining > 0 ? '' : 'none';
+        fileSt.textContent = remaining > 0 ?
+            `${remaining} remaining` :
+            `Max reached (${MAX_SCREENSHOTS})`;
+    }
+
+    /**
+     * Resize an image File to fit within MAX_DIM_PX on the longest edge,
+     * encode as JPEG at JPEG_QUALITY, return as a data: URL. Smaller-
+     * than-target images are passed through at original size but still
+     * re-encoded to JPEG so the size stays predictable.
+     */
+    function resizeImageToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('Read failed'));
+            reader.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error('Decode failed'));
+                img.onload = () => {
+                    let { width, height } = img;
+                    const longest = Math.max(width, height);
+                    if (longest > MAX_DIM_PX) {
+                        const scale = MAX_DIM_PX / longest;
+                        width = Math.round(width * scale);
+                        height = Math.round(height * scale);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+                    resolve(dataUrl);
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ── submit handler ──────────────────────────────────────────────
+    submitEl.addEventListener('click', async () => {
+        const text = textEl.value.trim();
+        if (text.length < 5) {
+            showStatus('err', 'Please describe the bug in at least 5 characters.');
+            return;
+        }
+        if (text.length > 4000) {
+            showStatus('err', 'Description is over 4000 characters.');
+            return;
+        }
+        if (!currentUid) {
+            showStatus('err', 'Still signing in — try again in a moment.');
+            return;
+        }
+
+        submitEl.disabled = true;
+        submitEl.textContent = 'Submitting...';
+        showStatus('info', 'Uploading...');
+
+        try {
+            const user = auth.currentUser;
+            const profileSnap = await db.ref(`users/${user.uid}/profile`).get();
+            const profile = profileSnap.val() || {};
+            const payload = {
+                text,
+                screenshots: screenshots.map(s => s.dataUrl),
+                userAgent: navigator.userAgent.slice(0, 500),
+                url: location.href.slice(0, 500),
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                uid: user.uid,
+                displayName: (profile.displayName || '').slice(0, 64),
+                isAnonymous: user.isAnonymous,
+            };
+            const ref = await db.ref('bugReports').push(payload);
+            showStatus(
+                'ok',
+                `Thanks! Report filed as ${ref.key.slice(-8)}. ` +
+                'You can close this tab or file another below.'
+            );
+            // Reset the form for another report.
+            textEl.value = '';
+            countEl.textContent = '0 / 4000';
+            screenshots.length = 0;
+            renderThumbs();
+            submitEl.textContent = 'Submit another report';
+            submitEl.disabled = false;
+        } catch (err) {
+            console.error('Bug-report submit failed', err);
+            showStatus(
+                'err',
+                `Submit failed: ${err.message || err}. ` +
+                'Please screenshot this page + email wordweftgame@gmail.com.'
+            );
+            submitEl.disabled = false;
+            submitEl.textContent = 'Submit report';
+        }
+    });
+
+    function showStatus(kind, msg) {
+        statusEl.className = `status ${kind}`;
+        statusEl.textContent = msg;
+    }
+})();
+</script>
+</body>
+</html>
