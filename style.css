@@ -1454,6 +1454,23 @@ button,
     border-radius: var(--radius-sm);
     font-weight: 600;
 }
+.btn-game-moderate {
+    background: transparent;
+    border: 1px solid rgba(238,230,255,0.18);
+    color: #B8A8FF;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-game-moderate:hover { background: rgba(124,111,232,0.18); }
 .btn-finish:hover { background: rgba(245,158,11,0.15); }
 .btn-finish.voted {
     color: var(--text-muted) !important;

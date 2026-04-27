@@ -95,15 +95,20 @@ const Results = (() => {
         const retryEl = document.getElementById('result-retry-grade');
         if (retryEl) retryEl.classList.add('hidden');
 
-        const gradeChar = (data.storyGrade || 'C').charAt(0);
+        // Honest fallback for missing storyGrade. Previously fell back
+        // to 'C' which looked like a real grade; users could see a
+        // brief 'C' before the real value (e.g. 'F') landed on a
+        // re-post. Show '—' so the loading/missing state is unambiguous.
+        const hasGrade = !!(data.storyGrade && data.storyGrade.length);
+        const gradeChar = hasGrade ? data.storyGrade.charAt(0) : '';
         const gradeColors = { A: '#10B981', B: '#7C6FE8', C: '#F59E0B', D: '#EF4444', F: '#EF4444' };
-        const gradeColor = gradeColors[gradeChar] || '#F59E0B';
+        const gradeColor = gradeColors[gradeChar] || '#7C6FE8';
 
         const illustrationEl = document.getElementById('result-illustration');
         if (illustrationEl) illustrationEl.textContent = data.illustration || '';
 
         const gradeEl = document.getElementById('result-grade');
-        gradeEl.textContent = data.storyGrade || 'C';
+        gradeEl.textContent = hasGrade ? data.storyGrade : '—';
         gradeEl.style.cssText = 'font-size:64px;font-weight:900;color:' + gradeColor;
         gradeEl.style.webkitBackgroundClip = '';
         gradeEl.style.webkitTextFillColor = '';
@@ -472,9 +477,23 @@ const Results = (() => {
         const showWords = _words.slice(0, upToIndex);
         const oq = document.createElement('span');
         oq.textContent = '\u201C'; oq.style.color = 'var(--text-muted)'; el.appendChild(oq);
+        // Live-blocked set used to redact words from blocked players on
+        // the results screen the same way renderStory does in-game.
+        // Without this, the story shown post-game leaks the full text
+        // even after a block was applied mid-match.
+        const blocked = (typeof Auth !== 'undefined' && Auth.blockedUids) || new Set();
         showWords.forEach((w, i) => {
             const span = document.createElement('span');
             const player = _players.find(p => p.id === w.playerId);
+            const isBlocked = !!(player && player.uid && blocked.has && blocked.has(player.uid));
+            if (isBlocked) {
+                span.classList.add('story-word-redacted');
+                span.style.color = '#666680';
+                span.style.fontStyle = 'italic';
+                span.textContent = (i > 0 ? ' ' : '') + '⟨hidden⟩';
+                el.appendChild(span);
+                return;
+            }
             if (player) span.style.color = _getPlayerColor(player.color);
             else if (w.playerId === -1) { span.style.color = 'var(--text-muted)'; span.style.fontStyle = 'italic'; }
             span.textContent = (i > 0 ? ' ' : '') + w.word;

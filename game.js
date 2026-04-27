@@ -410,6 +410,15 @@ const Game = (() => {
             Room.ref.child('meta/timeExtensionVotes/' + Room.myIndex).set(true);
         });
 
+        // Visible-affordance moderation entry. Long-press on a player
+        // chip works too, but most players never discover it; the
+        // header button surfaces Block / Report / Unblock as a single
+        // tap → player picker → action flow.
+        const modBtn = document.getElementById('btn-game-moderate');
+        if (modBtn) {
+            modBtn.addEventListener('click', openModerationPicker);
+        }
+
         // Typing indicators
         Room.listen('typing', (snap) => {
             const data = snap.val();
@@ -580,11 +589,20 @@ const Game = (() => {
     function showModerationMenuFor(player, anchorEl) {
         // One menu at a time — clear any existing.
         document.querySelectorAll('.moderation-menu').forEach(n => n.remove());
+        // If the player is already blocked, surface Unblock instead of
+        // Block so a misclick can be undone in-game without diving into
+        // Settings → Blocked users. Use Auth.blockedUids directly for
+        // freshness — never trust the closure copy.
+        const liveBlocked = (typeof Auth !== 'undefined' && Auth.blockedUids) || blockedUids;
+        const isBlocked = liveBlocked.has(player.uid);
         const menu = document.createElement('div');
         menu.className = 'moderation-menu';
+        const primary = isBlocked ?
+            '<button class="mm-action mm-unblock" data-act="unblock">↩️ Unblock</button>' :
+            '<button class="mm-action mm-block" data-act="block">🚫 Block</button>';
         menu.innerHTML =
             '<div class="mm-header">' + escapeHtml(player.name) + '</div>' +
-            '<button class="mm-action mm-block" data-act="block">🚫 Block</button>' +
+            primary +
             '<button class="mm-action mm-report" data-act="report">⚠️ Report</button>' +
             '<button class="mm-action mm-cancel" data-act="cancel">Cancel</button>';
         // Position next to the anchor; fall back to center if off-screen.
@@ -602,15 +620,90 @@ const Game = (() => {
         };
         setTimeout(() => document.addEventListener('click', onOutside, true), 0);
 
-        menu.querySelector('.mm-block').addEventListener('click', () => {
-            close();
-            openBlockConfirmDialog(player);
-        });
+        if (isBlocked) {
+            menu.querySelector('.mm-unblock').addEventListener('click', async () => {
+                close();
+                const ok = await Auth.unblockUser(player.uid);
+                showToast(ok ? ('Unblocked ' + player.name) : 'Unblock failed',
+                    ok ? '#4AC29A' : '#EF4444');
+            });
+        } else {
+            menu.querySelector('.mm-block').addEventListener('click', () => {
+                close();
+                openBlockConfirmDialog(player);
+            });
+        }
         menu.querySelector('.mm-report').addEventListener('click', () => {
             close();
             openReportDialog(player);
         });
         menu.querySelector('.mm-cancel').addEventListener('click', close);
+    }
+
+    /**
+     * Player-picker modal opened from the ⚠️ button in the game header.
+     * Lists every other player in the room with per-row Block / Unblock
+     * (depending on current state) + Report action. Skips the local
+     * player. Reuses the .moderation-modal styling for consistency.
+     */
+    function openModerationPicker() {
+        document.querySelectorAll('.moderation-modal').forEach(n => n.remove());
+        const others = players.filter(p =>
+            p && p.uid && (typeof Auth === 'undefined' || p.uid !== Auth.uid));
+        if (others.length === 0) {
+            showToast('No other players in this room', '#7C6FE8');
+            return;
+        }
+        const overlay = document.createElement('div');
+        overlay.className = 'moderation-modal';
+        const liveBlocked = (typeof Auth !== 'undefined' && Auth.blockedUids) || blockedUids;
+        const rows = others.map((p) => {
+            const isBlocked = liveBlocked.has(p.uid);
+            const action = isBlocked ?
+                '<button data-uid="' + escapeHtml(p.uid) + '" data-act="unblock" class="mmod-pick-action mmod-pick-unblock">Unblock</button>' :
+                '<button data-uid="' + escapeHtml(p.uid) + '" data-act="block" class="mmod-pick-action mmod-pick-block">Block</button>';
+            return '<div class="mmod-pick-row">' +
+                '<span class="mmod-pick-name">' + escapeHtml(p.name) + '</span>' +
+                '<div class="mmod-pick-actions">' +
+                    action +
+                    '<button data-uid="' + escapeHtml(p.uid) + '" data-act="report" class="mmod-pick-action mmod-pick-report">Report</button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+        overlay.innerHTML =
+            '<div class="mmod-card" role="dialog" aria-modal="true">' +
+                '<h3 class="mmod-title">Block or report a player</h3>' +
+                '<p class="mmod-sub">Pick a player below. Blocking hides their words; reporting flags them for review.</p>' +
+                '<div class="mmod-pick-list">' + rows + '</div>' +
+                '<div class="mmod-actions">' +
+                    '<button type="button" class="mmod-cancel">Done</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
+        overlay.querySelector('.mmod-cancel').addEventListener('click', close);
+        overlay.querySelectorAll('.mmod-pick-action').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const uid = btn.getAttribute('data-uid');
+                const act = btn.getAttribute('data-act');
+                const target = others.find(p => p.uid === uid);
+                if (!target) return;
+                if (act === 'block') {
+                    close();
+                    openBlockConfirmDialog(target);
+                } else if (act === 'unblock') {
+                    btn.disabled = true;
+                    const ok = await Auth.unblockUser(uid);
+                    showToast(ok ? ('Unblocked ' + target.name) : 'Unblock failed',
+                        ok ? '#4AC29A' : '#EF4444');
+                    close();
+                } else if (act === 'report') {
+                    close();
+                    openReportDialog(target);
+                }
+            });
+        });
     }
 
     /**
@@ -792,12 +885,27 @@ const Game = (() => {
             return;
         }
 
+        // Read Auth.blockedUids directly (always-fresh module-level Set
+        // in auth.js) instead of relying on the closure's blockedUids,
+        // which only updates when observeBlockedUids fires. Belt-and-
+        // suspenders against any subscription timing race. Falls back
+        // to the local copy if Auth isn't available.
+        const liveBlocked = (typeof Auth !== 'undefined' && Auth.blockedUids) || blockedUids;
+        // One-time per-render diagnostic: helps debug "I blocked them
+        // but still see their words." Logs the blocked set + whether
+        // each player record has a uid attached. Only logs when the
+        // blocked set is non-empty so it doesn't spam normal play.
+        if (liveBlocked.size > 0) {
+            console.log('renderStory: blocked=', Array.from(liveBlocked),
+                'players=', players.map(p => ({ id: p.id, name: p.name, uid: p.uid || '(no-uid)' })));
+        }
+
         textEl.innerHTML = '';
         words.forEach((w, i) => {
             const span = document.createElement('span');
             span.className = 'story-word';
             const player = players.find(p => p.id === w.playerId);
-            const isBlocked = !!(player && player.uid && blockedUids.has(player.uid));
+            const isBlocked = !!(player && player.uid && liveBlocked.has && liveBlocked.has(player.uid));
             if (isBlocked) {
                 // Redact the word but keep a placeholder so story
                 // length/flow is preserved. "⟨hidden⟩" ~matches the

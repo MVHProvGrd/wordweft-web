@@ -668,6 +668,58 @@ body.light-theme .podium-rank  { text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
   border: 1px solid rgba(232,111,90,0.4) !important;
 }
 .moderation-modal .mmod-block-too:hover { background: rgba(232,111,90,0.30); }
+
+/* Player-picker modal opened from the in-game ⚠️ button */
+.moderation-modal .mmod-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.moderation-modal .mmod-pick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(124,111,232,0.08);
+  border: 1px solid rgba(238,230,255,0.10);
+  border-radius: 10px;
+}
+.moderation-modal .mmod-pick-name {
+  color: var(--ww-ink-0);
+  font-weight: 600;
+  font-size: 14px;
+}
+.moderation-modal .mmod-pick-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.moderation-modal .mmod-pick-action {
+  background: transparent;
+  border: 1px solid rgba(238,230,255,0.22);
+  color: var(--ww-ink-1);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.moderation-modal .mmod-pick-block {
+  color: var(--ww-coral);
+  border-color: rgba(232,111,90,0.4);
+}
+.moderation-modal .mmod-pick-block:hover { background: rgba(232,111,90,0.18); }
+.moderation-modal .mmod-pick-unblock {
+  color: #4AC29A;
+  border-color: rgba(74,194,154,0.4);
+}
+.moderation-modal .mmod-pick-unblock:hover { background: rgba(74,194,154,0.15); }
+.moderation-modal .mmod-pick-report:hover { background: rgba(124,111,232,0.18); }
 .moderation-modal .mmod-check {
   width: 48px;
   height: 48px;
