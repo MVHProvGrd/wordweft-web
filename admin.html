@@ -179,6 +179,64 @@
         transition: opacity 0.18s;
     }
     .toast.show { opacity: 1; }
+
+    .tab-sep {
+        display: inline-block;
+        width: 1px;
+        height: 22px;
+        background: rgba(238,230,255,0.18);
+        margin: 0 8px;
+    }
+    .toolbar button[data-tab] {
+        background: transparent;
+        border: 1px solid rgba(238,230,255,0.18);
+        color: #C7B8E8;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+    }
+    .toolbar button[data-tab].active {
+        background: #7C6FE8;
+        border-color: #7C6FE8;
+        color: #FFF;
+    }
+    .name-pill {
+        font-weight: 700;
+        color: #FFE6B8;
+    }
+    .uid-mono {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        color: #8D7FAE;
+        margin-left: 6px;
+    }
+    .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 4px 0 0 0;
+        font-size: 11px;
+        color: #8D7FAE;
+    }
+    .meta-row .meta-pill {
+        background: rgba(124,111,232,0.15);
+        border: 1px solid rgba(124,111,232,0.30);
+        padding: 2px 8px;
+        border-radius: 999px;
+    }
+    .meta-row .meta-pill.warn {
+        background: rgba(232,179,76,0.15);
+        border-color: rgba(232,179,76,0.40);
+        color: #FFE6B8;
+    }
+    .meta-row .meta-pill.danger {
+        background: rgba(232,111,90,0.15);
+        border-color: rgba(232,111,90,0.50);
+        color: #F0A99C;
+    }
 </style>
 </head>
 <body>
@@ -203,12 +261,16 @@
             <div class="stat"><span class="n" id="stat-resolved">—</span><span class="l">Resolved</span></div>
         </div>
         <div class="toolbar">
-            <button data-filter="open" class="active">Open</button>
-            <button data-filter="all">All</button>
+            <button data-tab="targets" class="active">By target</button>
+            <button data-tab="reporters">Top reporters</button>
+            <span class="tab-sep"></span>
+            <button data-filter="open" class="active filter-btn">Open</button>
+            <button data-filter="all" class="filter-btn">All</button>
             <span class="grow"></span>
             <span class="me" id="me-uid"></span>
         </div>
         <div id="report-list"></div>
+        <div id="reporter-list" style="display:none;"></div>
     </div>
 </div>
 
@@ -223,10 +285,32 @@
 const gate = document.getElementById('auth-gate');
 const main = document.getElementById('main');
 const reportList = document.getElementById('report-list');
+const reporterList = document.getElementById('reporter-list');
 const meUid = document.getElementById('me-uid');
 let currentFilter = 'open';
+let currentTab = 'targets';     // 'targets' | 'reporters'
 let allGroups = {};
 let myUid = null;
+// Resolved display-name cache. Filled lazily from users/{uid}/profile.
+// Persists across tab switches so we don't re-fetch the same UIDs.
+const NAME_CACHE = new Map();
+async function resolveName(uid) {
+    if (!uid) return '';
+    if (NAME_CACHE.has(uid)) return NAME_CACHE.get(uid);
+    try {
+        const snap = await db.ref('users/' + uid + '/profile/displayName').once('value');
+        const name = snap.val() || '';
+        NAME_CACHE.set(uid, name);
+        return name;
+    } catch (_) {
+        NAME_CACHE.set(uid, '');
+        return '';
+    }
+}
+async function preloadNames(uids) {
+    const fresh = uids.filter((u) => u && !NAME_CACHE.has(u));
+    await Promise.all(fresh.map(resolveName));
+}
 
 function toast(msg) {
     const t = document.getElementById('toast');
@@ -277,24 +361,68 @@ async function loadReports() {
         const all = snap.val() || {};
         const bansSnap = await db.ref('bannedUsers').once('value');
         const bans = bansSnap.val() || {};
-        // Group by reportedUser
+        // Group by reportedUser AND by reporter. Distinct-reporter
+        // count per target is the anti-grudge signal — 5 reports
+        // from 5 different users is a real abuse pattern, 5 from 1
+        // reporter is a vendetta. Top-Reporters tab inverts: shows
+        // each reporter's filed-against-X-people count + total
+        // submissions, surfacing potential abuse-by-reporting.
         const groups = {};
+        const byReporter = {};
         Object.entries(all).forEach(([id, r]) => {
             if (!r || typeof r !== 'object') return;
             const target = r.reportedUser || '_unknown';
+            const reporter = r.reporter || '_unknown';
+            const entry = { id, ...r };
             if (!groups[target]) groups[target] = [];
-            groups[target].push({ id, ...r });
+            groups[target].push(entry);
+            if (!byReporter[reporter]) byReporter[reporter] = [];
+            byReporter[reporter].push(entry);
         });
-        // Sort each group's reports newest-first; sort groups by open count.
         Object.values(groups).forEach((arr) => arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)));
-        allGroups = { groups, bans };
-        renderReports();
+        Object.values(byReporter).forEach((arr) => arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)));
+        allGroups = { groups, byReporter, bans };
+        // Preload display names for everyone involved so renders are
+        // synchronous from here on.
+        const allUids = new Set();
+        Object.keys(groups).forEach((u) => allUids.add(u));
+        Object.keys(byReporter).forEach((u) => allUids.add(u));
+        await preloadNames(Array.from(allUids));
+        renderActiveTab();
     } catch (e) {
         renderDenied('Could not read /reports — ' + (e.message || 'permission denied') +
             '. RTDB rule requires admins/{uid}: true.');
         gate.style.display = '';
         main.style.display = 'none';
     }
+}
+
+function renderActiveTab() {
+    if (currentTab === 'targets') {
+        reportList.style.display = '';
+        reporterList.style.display = 'none';
+        renderReports();
+    } else {
+        reportList.style.display = 'none';
+        reporterList.style.display = '';
+        renderTopReporters();
+    }
+}
+
+function nameWithUid(uid) {
+    if (!uid || uid === '_unknown') {
+        return '<span class="uid-mono">(unknown)</span>';
+    }
+    const name = NAME_CACHE.get(uid) || '';
+    const safeUid = escapeHtml(uid);
+    if (name) {
+        return '<span class="name-pill">' + escapeHtml(name) + '</span>' +
+               '<span class="uid-mono">' + safeUid + '</span>';
+    }
+    return '<span class="uid-mono">' + safeUid + '</span>';
+}
+function tsFmt(ms) {
+    return ms ? new Date(ms).toISOString().replace('T', ' ').replace(/\..+/, '') : '—';
 }
 
 function renderReports() {
@@ -322,18 +450,32 @@ function renderReports() {
     reportList.innerHTML = '';
     filtered.forEach((g) => {
         const banned = !!bans[g.uid];
+        // Anti-grudge signal: count how many distinct reporters filed
+        // against this user. 5 reports / 5 reporters is real abuse;
+        // 5 reports / 1 reporter is a vendetta.
+        const distinctReporters = new Set(g.reports.map((r) => r.reporter).filter(Boolean));
+        const earliest = g.reports.reduce((m, r) => Math.min(m, r.createdAt || Date.now()), Date.now());
+        const latest   = g.reports.reduce((m, r) => Math.max(m, r.createdAt || 0), 0);
+        const distinctClass = distinctReporters.size >= 3 ? 'danger'
+            : distinctReporters.size >= 2 ? 'warn' : '';
         const groupEl = document.createElement('div');
         groupEl.className = 'group';
         groupEl.innerHTML = `
             <div class="group-head" data-uid="${escapeHtml(g.uid)}">
                 <span class="count">${g.reports.length}</span>
-                <span class="uid">${escapeHtml(g.uid)}</span>
+                <span class="uid">${nameWithUid(g.uid)}</span>
                 <span class="grow"></span>
                 <span class="actions">
                     ${banned
                         ? `<button class="unban-btn" data-action="unban" data-uid="${escapeHtml(g.uid)}">Unban</button>`
                         : `<button class="ban-btn" data-action="ban" data-uid="${escapeHtml(g.uid)}">Ban user</button>`}
                 </span>
+            </div>
+            <div class="meta-row" style="margin: 4px 0 0 12px;">
+                <span class="meta-pill ${distinctClass}">${distinctReporters.size} distinct reporter${distinctReporters.size === 1 ? '' : 's'}</span>
+                <span class="meta-pill">First: ${tsFmt(earliest)}</span>
+                <span class="meta-pill">Latest: ${tsFmt(latest)}</span>
+                ${banned ? '<span class="meta-pill danger">BANNED</span>' : ''}
             </div>
             <div class="group-body">
                 ${g.reports.map((r) => renderReport(r)).join('')}
@@ -343,7 +485,7 @@ function renderReports() {
 }
 
 function renderReport(r) {
-    const ts = r.createdAt ? new Date(r.createdAt).toISOString().replace('T',' ').replace(/\..+/,'') : '—';
+    const ts = tsFmt(r.createdAt);
     const reasonClass = String(r.reason || 'other').toLowerCase().replace(/[^a-z]/g,'');
     return `
         <div class="report ${r.resolved ? 'resolved' : ''}">
@@ -355,15 +497,92 @@ function renderReport(r) {
             </span>
 
             <span class="lbl">Reporter</span>
-            <span class="val" style="grid-column:span 2;">${escapeHtml(r.reporter || '')}</span>
+            <span class="val" style="grid-column:span 2;">${nameWithUid(r.reporter || '')}</span>
 
             ${r.roomId ? `<span class="lbl">Room</span><span class="val" style="grid-column:span 2;">${escapeHtml(r.roomId)}</span>` : ''}
             ${r.content ? `<span class="lbl">Content</span><span class="val" style="grid-column:span 2;color:#EEE6FF;">${escapeHtml(r.content)}</span>` : ''}
-            ${r.details ? `<span class="lbl">Details</span><span class="val" style="grid-column:span 2;color:#EEE6FF;">${escapeHtml(r.details)}</span>` : ''}
+            ${r.details ? `<span class="lbl">Why</span><span class="val" style="grid-column:span 2;color:#EEE6FF;">${escapeHtml(r.details)}</span>` : `<span class="lbl">Why</span><span class="val" style="grid-column:span 2;color:#8D7FAE;font-style:italic;">(no details — pre-2026-04-27 report)</span>`}
 
             ${!r.resolved
                 ? `<span class="lbl">Action</span><span style="grid-column:span 2;"><button class="dismiss-btn" data-action="dismiss" data-id="${escapeHtml(r.id)}">Dismiss</button></span>`
                 : `<span class="lbl">By</span><span class="val" style="grid-column:span 2;">${escapeHtml((r.resolved && r.resolved.resolvedBy) || '')} · ${escapeHtml((r.resolved && r.resolved.action) || '')}</span>`}
+        </div>`;
+}
+
+/**
+ * Top Reporters tab — inverts the grouping: shows each unique
+ * reporter ranked by submitted-report count, with how many distinct
+ * targets they filed against and earliest/latest timestamps. The
+ * anti-abuse signal here is the OPPOSITE of the Targets tab: a user
+ * who filed 30 reports against 30 different people is a serial
+ * reporter (vendetta tax), the volume is the red flag.
+ */
+function renderTopReporters() {
+    const { byReporter, bans } = allGroups;
+    const reporters = Object.keys(byReporter);
+    if (reporters.length === 0) {
+        reporterList.innerHTML = '<div class="empty">No reports filed yet.</div>';
+        return;
+    }
+    const isOpen = (r) => !r.resolved;
+    const rows = reporters.map((uid) => {
+        const reports = byReporter[uid];
+        const distinctTargets = new Set(reports.map((r) => r.reportedUser).filter(Boolean));
+        const open = reports.filter(isOpen).length;
+        const earliest = reports.reduce((m, r) => Math.min(m, r.createdAt || Date.now()), Date.now());
+        const latest   = reports.reduce((m, r) => Math.max(m, r.createdAt || 0), 0);
+        return { uid, reports, distinctTargets, open, earliest, latest };
+    }).sort((a, b) => b.reports.length - a.reports.length);
+
+    reporterList.innerHTML = '';
+    const heading = document.createElement('p');
+    heading.className = 'lede';
+    heading.style.marginTop = '8px';
+    heading.innerHTML = 'Sorted by total reports filed. Watch for users with high volume + many ' +
+        'distinct targets — that\'s the abuse-by-reporting pattern. Tap a row to expand.';
+    reporterList.appendChild(heading);
+
+    rows.forEach((row) => {
+        const volumeClass = row.reports.length >= 10 ? 'danger'
+            : row.reports.length >= 5 ? 'warn' : '';
+        const targetsClass = row.distinctTargets.size >= 5 ? 'danger'
+            : row.distinctTargets.size >= 3 ? 'warn' : '';
+        const groupEl = document.createElement('div');
+        groupEl.className = 'group';
+        groupEl.innerHTML = `
+            <div class="group-head" data-uid="${escapeHtml(row.uid)}">
+                <span class="count">${row.reports.length}</span>
+                <span class="uid">${nameWithUid(row.uid)}</span>
+                <span class="grow"></span>
+            </div>
+            <div class="meta-row" style="margin: 4px 0 0 12px;">
+                <span class="meta-pill ${volumeClass}">${row.reports.length} total</span>
+                <span class="meta-pill ${targetsClass}">${row.distinctTargets.size} distinct target${row.distinctTargets.size === 1 ? '' : 's'}</span>
+                <span class="meta-pill">${row.open} still open</span>
+                <span class="meta-pill">First: ${tsFmt(row.earliest)}</span>
+                <span class="meta-pill">Latest: ${tsFmt(row.latest)}</span>
+            </div>
+            <div class="group-body">
+                ${row.reports.map((r) => renderReporterRow(r)).join('')}
+            </div>`;
+        reporterList.appendChild(groupEl);
+    });
+}
+
+function renderReporterRow(r) {
+    const ts = tsFmt(r.createdAt);
+    const reasonClass = String(r.reason || 'other').toLowerCase().replace(/[^a-z]/g,'');
+    return `
+        <div class="report ${r.resolved ? 'resolved' : ''}">
+            <span class="lbl">When</span>
+            <span class="val">${escapeHtml(ts)}</span>
+            <span>
+                <span class="reason-pill ${reasonClass}">${escapeHtml(r.reason || 'other')}</span>
+                ${r.resolved ? `<span class="resolved-tag" style="margin-left:6px;">RESOLVED</span>` : ''}
+            </span>
+            <span class="lbl">Target</span>
+            <span class="val" style="grid-column:span 2;">${nameWithUid(r.reportedUser || '')}</span>
+            ${r.details ? `<span class="lbl">Why</span><span class="val" style="grid-column:span 2;color:#EEE6FF;">${escapeHtml(r.details)}</span>` : ''}
         </div>`;
 }
 
@@ -416,7 +635,23 @@ document.querySelectorAll('.toolbar button[data-filter]').forEach((b) => {
         document.querySelectorAll('.toolbar button[data-filter]').forEach((x) => x.classList.remove('active'));
         b.classList.add('active');
         currentFilter = b.dataset.filter;
-        renderReports();
+        // Filter only applies to the targets view; Top reporters
+        // shows everything by design (volume IS the signal).
+        if (currentTab === 'targets') renderReports();
+    });
+});
+
+document.querySelectorAll('.toolbar button[data-tab]').forEach((b) => {
+    b.addEventListener('click', () => {
+        document.querySelectorAll('.toolbar button[data-tab]').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+        currentTab = b.dataset.tab;
+        // Hide the Open/All filter chips when on the reporters tab —
+        // they have no meaning there.
+        document.querySelectorAll('.filter-btn').forEach((x) => {
+            x.style.display = currentTab === 'targets' ? '' : 'none';
+        });
+        renderActiveTab();
     });
 });
 

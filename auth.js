@@ -600,12 +600,25 @@ const Auth = (() => {
     async function checkBannedAndBoot() {
         if (!auth.currentUser || bannedNoticeShown) return;
         try {
-            const snap = await db.ref(`bannedUsers/${auth.currentUser.uid}`).once('value');
+            const uid = auth.currentUser.uid;
+            const snap = await db.ref(`bannedUsers/${uid}`).once('value');
             const v = snap.val();
             if (!v) return;
             bannedNoticeShown = true;
             const reason = (typeof v === 'object' && v.reason) ? v.reason : 'Terms-of-service violation.';
+            const safeReason = String(reason).replace(/[<>&]/g, '');
             try { await auth.signOut(); } catch (_) {}
+            // Pre-fill an appeal email so the user lands in their mail
+            // client with their UID + suspension reason already in the
+            // body. Saves the back-and-forth of "what's your UID?" when
+            // the appeal hits the inbox.
+            const subject = encodeURIComponent('Suspension appeal · WordWeft');
+            const body = encodeURIComponent(
+                'My UID: ' + uid + '\n' +
+                'Suspension reason: ' + reason + '\n\n' +
+                'What happened (your side):\n'
+            );
+            const mailto = 'mailto:wordweftgame@gmail.com?subject=' + subject + '&body=' + body;
             // Replace the entire body so no in-flight UI keeps running.
             document.body.innerHTML =
                 '<div style="font-family:system-ui;color:#EEE6FF;background:linear-gradient(180deg,#160B2E,#1E1238);' +
@@ -615,27 +628,37 @@ const Auth = (() => {
                 '<p style="margin:0 0 12px;color:#C7B8E8;font-size:14px;line-height:1.55;">' +
                 'Your WordWeft account has been suspended for violating our community ' +
                 'guidelines.</p>' +
-                '<p style="margin:0 0 16px;color:#8D7FAE;font-size:12px;font-family:monospace;">' +
-                'Reason: ' + String(reason).replace(/[<>&]/g, '') + '</p>' +
-                '<p style="margin:0;color:#8D7FAE;font-size:12px;">' +
-                'If you believe this is a mistake, email <a href="mailto:wordweftgame@gmail.com" ' +
-                'style="color:#B8A8FF;">wordweftgame@gmail.com</a>.</p>' +
+                '<p style="margin:0 0 18px;color:#8D7FAE;font-size:12px;font-family:monospace;">' +
+                'Reason: ' + safeReason + '</p>' +
+                '<a href="' + mailto + '" ' +
+                'style="display:block;background:#7C6FE8;color:#FFF;padding:12px 18px;' +
+                'border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;' +
+                'margin-bottom:10px;">Appeal this suspension</a>' +
+                '<p style="margin:0;color:#8D7FAE;font-size:11px;">' +
+                'Or email <a href="mailto:wordweftgame@gmail.com" ' +
+                'style="color:#B8A8FF;">wordweftgame@gmail.com</a> directly. ' +
+                'Your UID is <code style="background:#1A0E2E;padding:2px 5px;border-radius:4px;color:#B8A8FF;">' + uid + '</code>.</p>' +
                 '</div></div>';
         } catch (e) { /* read denied for non-bannees by rule, treat as not-banned */ }
     }
 
     async function fileReport({ reportedUid, roomId, content, reason = 'other', details }) {
         if (!auth.currentUser || !reportedUid) return false;
+        // Details are now required (mirrors the RTDB .validate). Bail
+        // early so the caller's UI sees a clean false rather than a
+        // server-side rejection.
+        const cleanDetails = (details || '').trim().slice(0, 500);
+        if (cleanDetails.length < 10) return false;
         try {
             const payload = {
                 reporter: auth.currentUser.uid,
                 reportedUser: reportedUid,
                 reason,
+                details: cleanDetails,
                 createdAt: firebase.database.ServerValue.TIMESTAMP,
             };
             if (roomId) payload.roomId = roomId;
             if (content) payload.content = String(content).slice(0, 500);
-            if (details) payload.details = String(details).slice(0, 1000);
             await db.ref('reports').push().set(payload);
             return true;
         } catch (e) { console.error('fileReport failed:', e); return false; }

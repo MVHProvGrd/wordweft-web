@@ -758,6 +758,7 @@ const Game = (() => {
             ['spam',          'Spam'],
             ['other',         'Other'],
         ];
+        const MIN_DETAILS = 10;
         const overlay = document.createElement('div');
         overlay.className = 'moderation-modal';
         overlay.innerHTML =
@@ -773,35 +774,50 @@ const Game = (() => {
                             '<span>' + escapeHtml(label) + '</span>' +
                         '</label>'
                     ).join('') +
-                    '<textarea class="mmod-details" maxlength="500" rows="2" ' +
-                        'placeholder="Optional details (max 500 chars)"></textarea>' +
+                    '<textarea class="mmod-details" maxlength="500" rows="3" required ' +
+                        'placeholder="Required · what happened? (' + MIN_DETAILS + '–500 chars)"></textarea>' +
+                    '<div class="mmod-details-counter" aria-live="polite">' +
+                        '0/' + MIN_DETAILS + ' min' +
+                    '</div>' +
                     '<div class="mmod-actions">' +
                         '<button type="button" class="mmod-cancel">Cancel</button>' +
-                        '<button type="submit" class="mmod-submit">Submit report</button>' +
+                        '<button type="submit" class="mmod-submit" disabled>Submit report</button>' +
                     '</div>' +
                 '</form>' +
             '</div>';
         document.body.appendChild(overlay);
         const form = overlay.querySelector('.mmod-form');
+        const detailsEl = form.querySelector('.mmod-details');
+        const counterEl = form.querySelector('.mmod-details-counter');
+        const submitBtn = form.querySelector('.mmod-submit');
+        // Live counter + Submit gate. Server-side RTDB rule mirrors the
+        // MIN_DETAILS check so a stale client can't sneak a 0-length
+        // report past the validate.
+        detailsEl.addEventListener('input', () => {
+            const len = detailsEl.value.trim().length;
+            counterEl.textContent = len + '/' + MIN_DETAILS + (len >= MIN_DETAILS ? ' ✓' : ' min');
+            counterEl.classList.toggle('ok', len >= MIN_DETAILS);
+            submitBtn.disabled = len < MIN_DETAILS;
+        });
         const close = () => overlay.remove();
         overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
         overlay.querySelector('.mmod-cancel').addEventListener('click', close);
         form.addEventListener('submit', async (ev) => {
             ev.preventDefault();
             const reason = form.querySelector('input[name="reason"]:checked').value;
-            const details = form.querySelector('.mmod-details').value.trim().slice(0, 500);
-            const submitBtn = form.querySelector('.mmod-submit');
+            const details = detailsEl.value.trim().slice(0, 500);
+            if (details.length < MIN_DETAILS) return;     // belt-and-suspenders
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting…';
             const ok = await Auth.fileReport({
                 reportedUid: player.uid,
                 roomId: (typeof Room !== 'undefined' && Room.code) ? Room.code : undefined,
                 reason,
-                details: details || undefined,
+                details,
             });
             close();
             if (ok) showReportConfirmation(player);
-            else showToast('Report failed', '#EF4444');
+            else showToast('Report failed — check your details and try again', '#EF4444');
         });
     }
 
