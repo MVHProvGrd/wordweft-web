@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WordWeft · Island mockup</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
 <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; padding: 0; }
@@ -109,7 +110,12 @@
         </div>
         <div class="actions">
             <button class="primary" id="shuffle">Shuffle</button>
+            <button class="secondary" id="pause">Pause sway</button>
             <button class="secondary" id="download">Download PNG</button>
+            <button class="secondary" id="record-gif">Record sway GIF</button>
+        </div>
+        <div class="ctrl" style="grid-column: 1 / -1;">
+            <div class="hint" id="gif-status" style="font-size:12px;color:#B8A8FF;">Sway loop = 4 s. GIF = ~96 frames at 24 fps. Encoding takes a few seconds; status shows here.</div>
         </div>
     </div>
 
@@ -157,6 +163,30 @@ const TREE_NAMES = new Set([
 ]);
 const TRUNK_SAMPLE_FRAC = 0.08; // bottom-most 8% of element bbox = trunk band
 const TREE_TRUNK_MARGIN_PX = 4; // extra clearance between trunk x-ranges
+
+// Sway loop = 4 s. All freqs are multiples of 0.25 Hz so each element
+// completes an integer number of cycles per loop → seamless GIF export.
+const LOOP_DURATION_S = 4;
+const SWAY = {
+    tree_evergreen_tall:  { ampDeg: 2.6, freqHz: 0.25 },
+    tree_evergreen_short: { ampDeg: 1.8, freqHz: 0.50 },
+    tree_round_green:     { ampDeg: 2.0, freqHz: 0.25 },
+    tree_round_dark:      { ampDeg: 2.2, freqHz: 0.25 },
+    tree_stump_mossy:     { ampDeg: 0,   freqHz: 0    }, // dead wood
+    tree_stump_plain:     { ampDeg: 0,   freqHz: 0    },
+    bush_round:           { ampDeg: 1.0, freqHz: 0.50 },
+    bush_berry:           { ampDeg: 1.0, freqHz: 0.50 },
+    grass_clump_small:    { ampDeg: 1.6, freqHz: 1.00 },
+    grass_clump_wide:     { ampDeg: 1.6, freqHz: 1.00 },
+    mushroom_red:         { ampDeg: 0.4, freqHz: 0.75 },
+    mushroom_brown:       { ampDeg: 0.4, freqHz: 0.75 },
+    mushroom_purple:      { ampDeg: 0.4, freqHz: 0.75 },
+    flower_red:           { ampDeg: 1.5, freqHz: 0.75 },
+    flower_yellow:        { ampDeg: 1.5, freqHz: 0.75 },
+    flower_blue:          { ampDeg: 1.5, freqHz: 0.75 },
+    flower_pink:          { ampDeg: 1.5, freqHz: 0.75 },
+    flower_purple:        { ampDeg: 1.5, freqHz: 0.75 },
+};
 function targetH(name) {
     if (TARGET_H[name] != null) return TARGET_H[name];
     if (name.startsWith('flower_')) return TARGET_H.flower;
@@ -303,7 +333,7 @@ const allNames = Object.values(ELEMENTS).flat();
         }
     }));
 
-    render();
+    computePlacements();
 })();
 
 function pickWeighted(rng, names, weights) {
@@ -316,66 +346,11 @@ function pickWeighted(rng, names, weights) {
     return names[names.length - 1];
 }
 
-function render() {
-    if (!baseline || !runLine) return;
-    const density = parseInt(densityEl.value, 10);
-    const treesPct = parseInt(treesEl.value, 10);
-    const seed = parseInt(seedEl.value, 10);
-    densityVal.textContent = density;
-    treesVal.textContent = treesPct + '%';
-    seedVal.textContent = seed;
-
-    const rng = mulberry32(seed * 1000 + density + treesPct);
-
-    // Category weights (normalized later)
-    const treeShare = treesPct / 100;
-    const restShare = 1 - treeShare;
-    const wFlower = restShare * 0.45;
-    const wGrass = restShare * 0.30;
-    const wMush = restShare * 0.20;
-    const wTree = treeShare * 0.55;
-    const wBush = treeShare * 0.45;
-
-    // Bucket per category
-    const treeNames = ELEMENTS.tree;
-    const bushNames = ['bush_round', 'bush_berry'];
-    const grassNames = ['grass_clump_small', 'grass_clump_wide'];
-    const mushNames = ELEMENTS.mushroom;
-    const flowerNames = ELEMENTS.flower;
-
-    // Find the painted-island vertical extent per column so interior
-    // scatter has a real upper/lower bound (Gemini sometimes leaves a
-    // small transparent gap above the canvas bottom).
-    stageCtx.clearRect(0, 0, baseW, baseH);
-    stageCtx.drawImage(baseline, 0, 0);
-    const baselineImd = stageCtx.getImageData(0, 0, baseW, baseH).data;
-    const paintedBot = new Array(baseW).fill(-1);
-    for (let x = 0; x < baseW; x++) {
-        for (let y = baseH - 1; y >= 0; y--) {
-            if (baselineImd[(y * baseW + x) * 4 + 3] > ALPHA_THRESHOLD) { paintedBot[x] = y; break; }
-        }
-    }
-
-    // Find usable x range — skip the taper tips where the topline rises to baseline
-    const validX = [];
-    for (let x = 0; x < baseW; x++) {
-        const y = runLine[x];
-        if (y < baseH - 6 && paintedBot[x] > y + 4) validX.push(x);
-    }
-    if (validX.length === 0) {
-        meta.textContent = 'No valid placement zone (run-line never rises above baseline).';
-        return;
-    }
-
-    const placements = [];
-    const placedStumpsX = [];
-    const placedTreeTrunks = []; // [{leftX, rightX}] on canvas
-    const stumpMinSpacing = STUMP_MIN_SPACING_FRAC * baseW;
-    let stumpsSkipped = 0, treesSkipped = 0;
-
-    // Pre-compute, per tree, the trunk x extent on the canvas so the
-    // overlap check is a cheap interval comparison.
-    const treeCanvasTrunk = {};
+// Cache of per-tree on-canvas trunk geometry (depends on baseH so recomputed once).
+let treeCanvasTrunkCache = null;
+function getTreeCanvasTrunk() {
+    if (treeCanvasTrunkCache) return treeCanvasTrunkCache;
+    const out = {};
     for (const tn of TREE_NAMES) {
         const bbox = elementBBoxes[tn];
         const trunk = elementTrunkXRange[tn];
@@ -386,7 +361,112 @@ function render() {
         const trunkCenterImg = (trunk.minX + trunk.maxX) / 2;
         const trunkOffsetCanvas = (trunkCenterImg - bboxCenterX) * scale;
         const trunkHalfWCanvas = ((trunk.maxX - trunk.minX) / 2) * scale;
-        treeCanvasTrunk[tn] = { trunkOffsetCanvas, trunkHalfWCanvas };
+        out[tn] = { trunkOffsetCanvas, trunkHalfWCanvas };
+    }
+    treeCanvasTrunkCache = out;
+    return out;
+}
+
+// Build a single placement object given a chosen name + xPos + groundY.
+function buildPlacement(name, xPos, groundY, swayPhase) {
+    const targetHpx = targetH(name) * baseH;
+    const bbox = elementBBoxes[name];
+    const elemNaturalW = elementImgs[name].naturalWidth;
+    const elemNaturalH = elementImgs[name].naturalHeight;
+    const bboxH = bbox.maxY - bbox.minY + 1;
+    const scale = targetHpx / bboxH;
+    const drawW = elemNaturalW * scale;
+    const drawH = elemNaturalH * scale;
+    const elemBottomInDraw = bbox.maxY * scale;
+    const drawX = xPos - (bbox.minX + (bbox.maxX - bbox.minX) / 2) * scale;
+    const drawY = groundY - elemBottomInDraw + (drawH / 200);
+    const sw = SWAY[name] || { ampDeg: 0, freqHz: 0 };
+    // Pivot at the trunk base for trees, otherwise at (xPos, groundY).
+    let pivotX = xPos;
+    if (TREE_NAMES.has(name)) {
+        const t = getTreeCanvasTrunk()[name];
+        pivotX = xPos + t.trunkOffsetCanvas;
+    }
+    return {
+        name, xPos, drawX, drawY, drawW, drawH,
+        pivotX, pivotY: groundY,
+        sortY: groundY,
+        swayAmp: sw.ampDeg, swayFreq: sw.freqHz, swayPhase,
+    };
+}
+
+let placements = [];
+let placementsMeta = '';
+
+function computePlacements() {
+    if (!baseline || !runLine) return;
+    const density = parseInt(densityEl.value, 10);
+    const treesPct = parseInt(treesEl.value, 10);
+    const seed = parseInt(seedEl.value, 10);
+    densityVal.textContent = density;
+    treesVal.textContent = treesPct + '%';
+    seedVal.textContent = seed;
+
+    const rng = mulberry32(seed * 1000 + density + treesPct);
+    const treeShare = treesPct / 100;
+    const restShare = 1 - treeShare;
+    const wFlower = restShare * 0.45;
+    const wGrass = restShare * 0.30;
+    const wMush = restShare * 0.20;
+    const wBush = treeShare * 0.45;
+    // wTree implicit = 1 - wFlower - wGrass - wMush - wBush
+
+    const treeNames = ELEMENTS.tree.filter(n => TREE_NAMES.has(n));
+    const stumpNames = ELEMENTS.tree.filter(n => STUMP_NAMES.has(n));
+    const bushNames = ['bush_round', 'bush_berry'];
+    const grassNames = ['grass_clump_small', 'grass_clump_wide'];
+    const mushNames = ELEMENTS.mushroom;
+    const flowerNames = ELEMENTS.flower;
+
+    // Per-column painted-bottom for interior scatter bounds.
+    const sample = document.createElement('canvas');
+    sample.width = baseW; sample.height = baseH;
+    const sctx = sample.getContext('2d');
+    sctx.drawImage(baseline, 0, 0);
+    const baselineImd = sctx.getImageData(0, 0, baseW, baseH).data;
+    const paintedBot = new Array(baseW).fill(-1);
+    for (let x = 0; x < baseW; x++) {
+        for (let y = baseH - 1; y >= 0; y--) {
+            if (baselineImd[(y * baseW + x) * 4 + 3] > ALPHA_THRESHOLD) { paintedBot[x] = y; break; }
+        }
+    }
+
+    const validX = [];
+    for (let x = 0; x < baseW; x++) {
+        if (runLine[x] < baseH - 6 && paintedBot[x] > runLine[x] + 4) validX.push(x);
+    }
+    if (validX.length === 0) {
+        placements = [];
+        placementsMeta = 'No valid placement zone (run-line never rises above baseline).';
+        return;
+    }
+
+    const out = [];
+    const placedStumpsX = [];
+    const placedTreeTrunks = [];
+    const stumpMinSpacing = STUMP_MIN_SPACING_FRAC * baseW;
+    const treeCanvasTrunk = getTreeCanvasTrunk();
+    let stumpsSkipped = 0, treesSkipped = 0;
+
+    function tryPickXForTree(name) {
+        const t = treeCanvasTrunk[name];
+        for (let a = 0; a < 30; a++) {
+            const cand = validX[Math.floor(rng() * validX.length)];
+            const trunkCenter = cand + t.trunkOffsetCanvas;
+            const trunkLeft = trunkCenter - t.trunkHalfWCanvas - TREE_TRUNK_MARGIN_PX;
+            const trunkRight = trunkCenter + t.trunkHalfWCanvas + TREE_TRUNK_MARGIN_PX;
+            const overlap = placedTreeTrunks.some(pt => !(trunkRight < pt.leftX || trunkLeft > pt.rightX));
+            if (!overlap) {
+                placedTreeTrunks.push({ leftX: trunkLeft, rightX: trunkRight });
+                return cand;
+            }
+        }
+        return null;
     }
 
     for (let i = 0; i < density; i++) {
@@ -396,13 +476,16 @@ function render() {
         else if (r < wFlower + wGrass) name = grassNames[Math.floor(rng() * grassNames.length)];
         else if (r < wFlower + wGrass + wMush) name = mushNames[Math.floor(rng() * mushNames.length)];
         else if (r < wFlower + wGrass + wMush + wBush) name = bushNames[Math.floor(rng() * bushNames.length)];
-        else name = treeNames[Math.floor(rng() * treeNames.length)];
+        else {
+            // tree slot — split tree/stump roughly 60/40
+            name = (rng() < 0.6 && treeNames.length > 0)
+                ? treeNames[Math.floor(rng() * treeNames.length)]
+                : stumpNames[Math.floor(rng() * stumpNames.length)];
+        }
 
-        // X selection with category-specific spacing rules.
         let xPos;
         if (STUMP_NAMES.has(name)) {
-            const MAX_ATTEMPTS = 20;
-            for (let a = 0; a < MAX_ATTEMPTS; a++) {
+            for (let a = 0; a < 20; a++) {
                 const cand = validX[Math.floor(rng() * validX.length)];
                 if (placedStumpsX.every(px => Math.abs(px - cand) >= stumpMinSpacing)) {
                     xPos = cand; break;
@@ -411,84 +494,91 @@ function render() {
             if (xPos == null) { stumpsSkipped++; continue; }
             placedStumpsX.push(xPos);
         } else if (TREE_NAMES.has(name)) {
-            const t = treeCanvasTrunk[name];
-            const MAX_ATTEMPTS = 30;
-            for (let a = 0; a < MAX_ATTEMPTS; a++) {
-                const cand = validX[Math.floor(rng() * validX.length)];
-                const trunkCenter = cand + t.trunkOffsetCanvas;
-                const trunkLeft = trunkCenter - t.trunkHalfWCanvas - TREE_TRUNK_MARGIN_PX;
-                const trunkRight = trunkCenter + t.trunkHalfWCanvas + TREE_TRUNK_MARGIN_PX;
-                const overlap = placedTreeTrunks.some(pt => !(trunkRight < pt.leftX || trunkLeft > pt.rightX));
-                if (!overlap) {
-                    xPos = cand;
-                    placedTreeTrunks.push({ leftX: trunkLeft, rightX: trunkRight });
-                    break;
-                }
-            }
+            xPos = tryPickXForTree(name);
             if (xPos == null) { treesSkipped++; continue; }
         } else {
             xPos = validX[Math.floor(rng() * validX.length)];
         }
+
         const tlY = runLine[xPos];
         const botY = paintedBot[xPos];
-
-        // Topline-anchored items (trees, stumps) sit on the run-line.
-        // Everything else scatters across the visible front face of the
-        // island — random y between the run-line and a small margin
-        // above the painted bottom so flora doesn't dangle off the edge.
         let groundY;
         if (TOPLINE_NAMES.has(name)) {
             groundY = tlY;
         } else {
             const lower = Math.max(tlY, botY - 0.04 * baseH);
             const upper = tlY;
-            // Bias slightly toward the run-line so the scatter still
-            // reads as "on the island" rather than "stacked at the bottom".
             const t = Math.pow(rng(), 0.85);
             groundY = upper + t * (lower - upper);
         }
-
-        const targetHpx = targetH(name) * baseH;
-        const bbox = elementBBoxes[name];
-        const elemNaturalW = elementImgs[name].naturalWidth;
-        const elemNaturalH = elementImgs[name].naturalHeight;
-        const bboxH = bbox.maxY - bbox.minY + 1;
-        const scale = targetHpx / bboxH;
-        const drawW = elemNaturalW * scale;
-        const drawH = elemNaturalH * scale;
-        const elemBottomInDraw = bbox.maxY * scale;
-        const drawX = xPos - (bbox.minX + (bbox.maxX - bbox.minX) / 2) * scale;
-        const drawY = groundY - elemBottomInDraw + (drawH / 200); // tiny sink for grounded contact
-        placements.push({
-            name, xPos, drawX, drawY, drawW, drawH,
-            // Sort key: actual ground y. Smaller y (further back) drawn first.
-            sortY: groundY,
-        });
+        out.push(buildPlacement(name, xPos, groundY, rng() * 2 * Math.PI));
     }
 
-    // Back-to-front by actual ground y. Tie-break: larger items behind.
-    placements.sort((a, b) => {
-        if (a.sortY !== b.sortY) return a.sortY - b.sortY;
-        return b.drawH - a.drawH;
-    });
-
-    // Paint
-    stageCtx.clearRect(0, 0, baseW, baseH);
-    stageCtx.drawImage(baseline, 0, 0);
-    for (const p of placements) {
-        stageCtx.drawImage(elementImgs[p.name], p.drawX, p.drawY, p.drawW, p.drawH);
+    // Post-condition: never have stumps without at least one tree.
+    const hasStumps = out.some(p => STUMP_NAMES.has(p.name));
+    const hasTrees = out.some(p => TREE_NAMES.has(p.name));
+    if (hasStumps && !hasTrees && treeNames.length > 0) {
+        const forcedName = treeNames[Math.floor(rng() * treeNames.length)];
+        const xPos = tryPickXForTree(forcedName);
+        if (xPos != null) {
+            const groundY = runLine[xPos];
+            out.push(buildPlacement(forcedName, xPos, groundY, rng() * 2 * Math.PI));
+        }
     }
+
+    out.sort((a, b) => a.sortY === b.sortY ? b.drawH - a.drawH : a.sortY - b.sortY);
+
+    placements = out;
     const skips = [];
     if (stumpsSkipped) skips.push(`${stumpsSkipped} stump${stumpsSkipped === 1 ? '' : 's'}`);
     if (treesSkipped) skips.push(`${treesSkipped} tree${treesSkipped === 1 ? '' : 's'}`);
     const skipNote = skips.length ? ` · skipped: ${skips.join(', ')} (spacing)` : '';
-    meta.textContent = `${placements.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${skipNote}`;
+    placementsMeta = `${out.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${skipNote}`;
 }
 
-[densityEl, treesEl, seedEl].forEach(el => el.addEventListener('input', render));
+function drawFrame(ctx, w, h, t) {
+    if (!baseline || !placements) return;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(baseline, 0, 0, w, h);
+    const sx = w / baseW, sy = h / baseH;
+    for (const p of placements) {
+        const angleRad = (p.swayAmp * Math.sin(2 * Math.PI * p.swayFreq * t + p.swayPhase)) * Math.PI / 180;
+        const px = p.pivotX * sx;
+        const py = p.pivotY * sy;
+        ctx.save();
+        ctx.translate(px, py);
+        if (angleRad !== 0) ctx.rotate(angleRad);
+        ctx.drawImage(
+            elementImgs[p.name],
+            (p.drawX - p.pivotX) * sx, (p.drawY - p.pivotY) * sy,
+            p.drawW * sx, p.drawH * sy
+        );
+        ctx.restore();
+    }
+}
+
+let animPaused = false;
+let animStart = performance.now();
+function tick(now) {
+    requestAnimationFrame(tick);
+    if (animPaused) return;
+    const t = (now - animStart) / 1000;
+    drawFrame(stageCtx, baseW, baseH, t);
+    if (placementsMeta) meta.textContent = placementsMeta + ` · t=${(t % LOOP_DURATION_S).toFixed(2)}s`;
+}
+requestAnimationFrame(tick);
+
+[densityEl, treesEl, seedEl].forEach(el => el.addEventListener('input', () => {
+    computePlacements();
+}));
 document.getElementById('shuffle').addEventListener('click', () => {
     seedEl.value = Math.floor(Math.random() * 1000);
-    render();
+    computePlacements();
+});
+const pauseBtn = document.getElementById('pause');
+pauseBtn.addEventListener('click', () => {
+    animPaused = !animPaused;
+    pauseBtn.textContent = animPaused ? 'Resume sway' : 'Pause sway';
 });
 document.getElementById('download').addEventListener('click', () => {
     stage.toBlob(blob => {
@@ -497,11 +587,61 @@ document.getElementById('download').addEventListener('click', () => {
         const a = document.createElement('a');
         a.href = url;
         a.download = 'island_v0_mockup.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }, 'image/png');
+});
+
+// Run computePlacements once images are ready (called from the loader async block too).
+const _origLoaderEnd = () => { computePlacements(); };
+
+// GIF recording — render LOOP_DURATION_S of frames at fixed fps to an
+// offscreen canvas, encode with gif.js, download. Half-resolution to
+// keep the GIF a reasonable size.
+const gifStatusEl = document.getElementById('gif-status');
+document.getElementById('record-gif').addEventListener('click', async () => {
+    if (!placements || placements.length === 0) return;
+    if (typeof GIF !== 'function') {
+        gifStatusEl.textContent = 'gif.js failed to load — check network.';
+        return;
+    }
+    const fps = 24;
+    const frames = Math.round(LOOP_DURATION_S * fps);
+    const scale = 0.5;
+    const gw = Math.round(baseW * scale);
+    const gh = Math.round(baseH * scale);
+    const off = document.createElement('canvas');
+    off.width = gw; off.height = gh;
+    const offctx = off.getContext('2d');
+
+    const gif = new GIF({
+        workers: 2, quality: 10,
+        width: gw, height: gh,
+        workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+    });
+    const wasPaused = animPaused;
+    animPaused = true;
+    gifStatusEl.textContent = `Rendering ${frames} frames at ${gw}×${gh}…`;
+
+    for (let f = 0; f < frames; f++) {
+        const t = f / fps;
+        drawFrame(offctx, gw, gh, t);
+        gif.addFrame(offctx, { copy: true, delay: Math.round(1000 / fps) });
+    }
+    gif.on('progress', p => {
+        gifStatusEl.textContent = `Encoding GIF: ${Math.round(p * 100)}%`;
+    });
+    gif.on('finished', blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'island_v0_sway.gif';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        gifStatusEl.textContent = `GIF saved (${(blob.size / 1024 / 1024).toFixed(2)} MB).`;
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        animPaused = wasPaused;
+    });
+    gif.render();
 });
 </script>
 </body>
