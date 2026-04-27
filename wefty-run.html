@@ -671,6 +671,30 @@
             bottom: env(safe-area-inset-bottom, 0px);
         }
     }
+    /* Narrow portrait phones — viewport <= 480px wide. The 4 dock
+       slots (4 × 58 + 3 × 6 = 250 px) collide with the LASSO/JUMP
+       buttons sitting at 20 px gutter (76 + 20 each side = 192 px
+       reserved). Progressive shrink so the SHIELD slot doesn't
+       disappear behind the JUMP button on phones like the Galaxy A53
+       / Pixel 7 in portrait. The button gutter also drops on narrow
+       screens via the presetPositions() JS so the dock has more
+       middle to work with. */
+    @media (max-width: 480px) and (orientation: portrait) {
+        .dock {
+            transform: translateX(-50%) scale(0.85);
+            transform-origin: bottom center;
+        }
+    }
+    @media (max-width: 400px) and (orientation: portrait) {
+        .dock {
+            transform: translateX(-50%) scale(0.75);
+        }
+    }
+    @media (max-width: 360px) and (orientation: portrait) {
+        .dock {
+            transform: translateX(-50%) scale(0.65);
+        }
+    }
     .dock-slot {
         /* Solid dark cards that read cleanly over the wavy green HUD
            band drawn on the canvas. Drop-shadow + inset lip gives
@@ -4346,20 +4370,25 @@
     const jumpBtn  = document.getElementById('btn-jump');
     function presetPositions(name, w, h) {
         // Returns absolute positions in px from top-left for both
-        // buttons. 76 px is the action-btn diameter; 20 px is the
-        // baseline horizontal gutter.
+        // buttons. 76 px is the action-btn diameter. The horizontal
+        // gutter shrinks on narrow viewports so the centered power-up
+        // dock has enough middle space to fit (4 slots × 58 + 3 × 6
+        // = 250 px baseline, scaled progressively via media queries).
+        // The two need to share the bottom row without colliding —
+        // wider gutter = less middle for the dock = SHIELD-slot clip.
         const safeBot = parseFloat(getComputedStyle(document.documentElement)
             .getPropertyValue('--ww-safe-bot') || '0') || 0;
         const sb = safeBot;
         const yBot = h - 76 - sb;       // y of button TOP, hugging safe-area bottom
+        const gutter = w < 400 ? 8 : w < 480 ? 14 : 20;
         switch (name) {
             case 'center-in':
                 return { lasso: { x: w * 0.18, y: yBot }, jump: { x: w * 0.62, y: yBot } };
             case 'lefty':
-                return { lasso: { x: w - 76 - 20, y: yBot }, jump: { x: 20, y: yBot } };
+                return { lasso: { x: w - 76 - gutter, y: yBot }, jump: { x: gutter, y: yBot } };
             case 'default':
             default:
-                return { lasso: { x: 20, y: yBot }, jump: { x: w - 76 - 20, y: yBot } };
+                return { lasso: { x: gutter, y: yBot }, jump: { x: w - 76 - gutter, y: yBot } };
         }
     }
     function loadLayout() {
