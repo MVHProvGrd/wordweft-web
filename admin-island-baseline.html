@@ -27,7 +27,7 @@
 
     .row {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 14px;
         margin-bottom: 22px;
     }
@@ -85,9 +85,28 @@
     .pill.sketch { background: rgba(184,168,255,0.18); color: #B8A8FF; }
     .pill.shape { background: rgba(124,232,168,0.16); color: #8FE4B8; }
     .pill.cartoon { background: rgba(232,184,124,0.16); color: #FFC987; }
-    .pill.pixel { background: rgba(232,124,184,0.16); color: #FF9CC9; }
+    .legend {
+        display: flex;
+        gap: 14px;
+        font-size: 11px;
+        color: #8D7FAE;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+    .legend .swatch {
+        display: inline-block;
+        width: 18px; height: 2px;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+    .legend .swatch.red { background: #FF3B5C; }
+    .legend .swatch.yellow {
+        background: repeating-linear-gradient(90deg, #FFD93B 0 5px, transparent 5px 9px);
+        height: 2px;
+    }
     @media (max-width: 980px) {
-        .row { grid-template-columns: repeat(2, 1fr); }
+        .row { grid-template-columns: 1fr; }
     }
 </style>
 </head>
@@ -96,12 +115,16 @@
     <header><a class="back" href="admin-index.html">← admin</a></header>
     <h1>Island baseline · A/B</h1>
     <p class="lede">
-        Same silhouette, two render styles. The first column is the user's hand-drawn topography.
-        The second is the silhouette tapered by <code>admin-island-sketches.html</code> — fed into
-        both generators as the shape mask. The third is Gemini 2.5 Flash Image conditioned on the
-        tapered silhouette + <code>run_island_v0_APPROVED.png</code> as a style anchor. The fourth
-        is Codex (<code>$generate2dsprite</code>) pixel-art rendering of the same shape.
+        Same silhouette, three views. <strong>Sketch</strong> is the hand-drawn topography.
+        <strong>Shape mask</strong> is the silhouette tapered by <code>admin-island-sketches.html</code>
+        and fed to Gemini as the shape reference. <strong>Gemini · cartoon</strong> is the painted
+        baseline with a topline-sample overlay so you can see where a naive alpha-based runtime would
+        place Wefty's run-line vs where the silhouette puts it.
     </p>
+    <div class="legend">
+        <span><span class="swatch red"></span>red = topline sampled from Gemini PNG alpha (grass blades push it up irregularly)</span>
+        <span><span class="swatch yellow"></span>yellow dashed = topline from the shape mask (clean, what <code>run_island_surfaces.json</code> should encode)</span>
+    </div>
 
     <div class="row" id="v0">
         <div class="card sketch">
@@ -119,38 +142,103 @@
         <div class="card cartoon">
             <span class="pill cartoon">Gemini · cartoon</span>
             <h3>run_island_v0_baseline.png</h3>
-            <div class="meta">gemini-2.5-flash-image · refs: shape + v0_APPROVED</div>
-            <div class="img-wrap"><img src="design/mascots/run_island_v0_baseline.png" alt="run_island_v0_baseline"></div>
-        </div>
-        <div class="card codex pending" id="codex-card">
-            <span class="pill pixel">Codex · pixel</span>
-            <h3>island-v0-meadow</h3>
-            <div class="meta">$generate2dsprite · waiting for first run…</div>
-            <div class="img-wrap" id="codex-slot">generating…</div>
+            <div class="meta">gemini-2.5-flash-image · refs: shape mask + v0_APPROVED · with sampled topline overlay</div>
+            <div class="img-wrap"><canvas id="gemini-overlay"></canvas></div>
         </div>
     </div>
 </div>
 
 <script>
-// Hot-swap the codex card once the file is published. The file lives under
-// wordweft-web/sprite-forge/island-v0-meadow/sheet-transparent.png after the
-// run completes and gets synced.
-async function tryLoadCodex() {
-    const url = 'sprite-forge/island-v0-meadow/sheet-transparent.png?cb=' + Date.now();
-    const probe = await fetch(url, { method: 'HEAD' }).catch(() => null);
-    if (!probe || !probe.ok) return false;
-    const card = document.getElementById('codex-card');
-    const slot = document.getElementById('codex-slot');
-    card.classList.remove('pending');
-    slot.innerHTML = '<img src="' + url + '" alt="island-v0-meadow">';
-    card.querySelector('.meta').textContent = '$generate2dsprite · pixel-art baseline';
-    return true;
+const ALPHA_THRESHOLD = 64;
+
+function sampleTopline(imgData) {
+    const { data, width, height } = imgData;
+    const top = new Array(width).fill(height);
+    for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+            if (data[(y * width + x) * 4 + 3] > ALPHA_THRESHOLD) {
+                top[x] = y;
+                break;
+            }
+        }
+    }
+    return top;
 }
+
+async function loadImage(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+    });
+}
+
 (async () => {
-    if (await tryLoadCodex()) return;
-    const id = setInterval(async () => {
-        if (await tryLoadCodex()) clearInterval(id);
-    }, 4000);
+    const [gemini, silh] = await Promise.all([
+        loadImage('design/mascots/run_island_v0_baseline.png'),
+        loadImage('design/mascots/sketch_v0_island.png'),
+    ]);
+
+    const canvas = document.getElementById('gemini-overlay');
+    const w = gemini.naturalWidth;
+    const h = gemini.naturalHeight;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.maxWidth = '100%';
+    canvas.style.height = 'auto';
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(gemini, 0, 0);
+    const geminiTop = sampleTopline(ctx.getImageData(0, 0, w, h));
+
+    // Silhouette topline → scaled to gemini canvas. The two images may have
+    // different aspects; the silhouette is canonical, so we map x linearly
+    // (0..silhW → 0..w) and y linearly (silhBaseline..0 → h..topMargin).
+    const off = document.createElement('canvas');
+    off.width = silh.naturalWidth;
+    off.height = silh.naturalHeight;
+    const octx = off.getContext('2d');
+    octx.drawImage(silh, 0, 0);
+    const silhTop = sampleTopline(octx.getImageData(0, 0, off.width, off.height));
+    let silhBaseline = 0;
+    for (let x = 0; x < silhTop.length; x++) {
+        if (silhTop[x] < off.height && silhTop[x] > silhBaseline) silhBaseline = silhTop[x];
+    }
+    silhBaseline = off.height - 1; // bottom of canvas; silhouette runs to bottom
+
+    // Stroke red: gemini alpha-sampled topline
+    ctx.strokeStyle = '#FF3B5C';
+    ctx.lineWidth = Math.max(2, Math.round(h / 200));
+    ctx.beginPath();
+    let started = false;
+    for (let x = 0; x < w; x++) {
+        if (geminiTop[x] >= h) { started = false; continue; }
+        if (!started) { ctx.moveTo(x, geminiTop[x]); started = true; }
+        else ctx.lineTo(x, geminiTop[x]);
+    }
+    ctx.stroke();
+
+    // Stroke yellow dashed: silhouette topline scaled to gemini canvas
+    // x: linear silh → gemini width
+    // y: silh topline measured down from silhBaseline → gemini topline measured down from h
+    ctx.strokeStyle = '#FFD93B';
+    ctx.lineWidth = Math.max(2, Math.round(h / 200));
+    ctx.setLineDash([Math.max(6, Math.round(w / 100)), Math.max(4, Math.round(w / 150))]);
+    ctx.beginPath();
+    started = false;
+    for (let sx = 0; sx < off.width; sx++) {
+        const sy = silhTop[sx];
+        if (sy >= off.height) { started = false; continue; }
+        const heightFromBase = silhBaseline - sy;
+        const cx = (sx / off.width) * w;
+        const cy = h - heightFromBase * (h / off.height);
+        if (!started) { ctx.moveTo(cx, cy); started = true; }
+        else ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
 })();
 </script>
 </body>
