@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Island mockup</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF; text-decoration: none; font-size: 13px;
+        padding: 6px 10px; border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede { color: #8D7FAE; margin: 0 0 22px; font-size: 14px; max-width: 760px; line-height: 1.55; }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .controls {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 18px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        align-items: end;
+    }
+    .ctrl label { font-size: 12px; color: #B8A8FF; display: block; margin-bottom: 6px; font-weight: 600; }
+    .ctrl .row { display: flex; align-items: center; gap: 10px; }
+    .ctrl input[type="range"] { flex: 1; }
+    .ctrl .val { font-family: monospace; font-size: 12px; color: #EEE6FF; min-width: 44px; text-align: right; }
+    .ctrl .hint { font-size: 11px; color: #8D7FAE; margin-top: 4px; line-height: 1.4; }
+    button.primary, button.secondary {
+        border: none; padding: 9px 14px; border-radius: 999px;
+        font-weight: 700; cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    button.primary { background: #7C6FE8; color: #FFF; }
+    button.primary:hover { background: #9385ED; }
+    button.secondary { background: rgba(124,111,232,0.18); color: #B8A8FF; }
+    button.secondary:hover { background: rgba(124,111,232,0.32); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .stage {
+        background: #0F0820;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 12px;
+        overflow: auto;
+    }
+    .stage canvas {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        height: auto;
+        background: linear-gradient(180deg, #6FB9D8 0%, #B8E0EE 70%, #E5F1F4 100%);
+        border-radius: 8px;
+    }
+    .meta { font-size: 11px; color: #8D7FAE; font-family: monospace; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="admin-index.html">← admin</a></header>
+    <h1>Island mockup · v0 + flora scatter</h1>
+    <p class="lede">
+        Random placement of the 18 element assets along the smoothed run-line of
+        <code>run_island_v0_baseline.png</code>. Trees, bushes, mushrooms, flowers,
+        and grass clumps anchored to the topline (each element's lowest opaque
+        pixel sits on the run-line). Elements drawn back-to-front by topline-y
+        so hilltop items appear behind valley items. Hit Shuffle for a fresh
+        scatter; tweak density and category weights below.
+    </p>
+
+    <div class="controls">
+        <div class="ctrl">
+            <label for="density">Element density</label>
+            <div class="row">
+                <input type="range" id="density" min="6" max="60" step="1" value="28">
+                <span class="val" id="density-val">28</span>
+            </div>
+            <div class="hint">Total scattered items.</div>
+        </div>
+        <div class="ctrl">
+            <label for="trees">Trees / Bushes share</label>
+            <div class="row">
+                <input type="range" id="trees" min="0" max="50" step="1" value="18">
+                <span class="val" id="trees-val">18%</span>
+            </div>
+            <div class="hint">% of total. Rest split between mushrooms / flowers / grass.</div>
+        </div>
+        <div class="ctrl">
+            <label for="seed">Random seed</label>
+            <div class="row">
+                <input type="range" id="seed" min="0" max="999" step="1" value="42">
+                <span class="val" id="seed-val">42</span>
+            </div>
+            <div class="hint">Same seed = same scatter (good for compares).</div>
+        </div>
+        <div class="actions">
+            <button class="primary" id="shuffle">Shuffle</button>
+            <button class="secondary" id="download">Download PNG</button>
+        </div>
+    </div>
+
+    <div class="stage">
+        <canvas id="stage"></canvas>
+        <div class="meta" id="meta"></div>
+    </div>
+</div>
+
+<script>
+const ALPHA_THRESHOLD = 64;
+const ELEMENTS = {
+    flower:   ['flower_red', 'flower_yellow', 'flower_blue', 'flower_pink', 'flower_purple'],
+    mushroom: ['mushroom_red', 'mushroom_brown', 'mushroom_purple'],
+    tree:     ['tree_evergreen_tall', 'tree_evergreen_short', 'tree_round_green', 'tree_round_dark', 'tree_stump_mossy', 'tree_stump_plain'],
+    bush:     ['bush_round', 'bush_berry', 'grass_clump_small', 'grass_clump_wide'],
+};
+// Target heights as fraction of canvas height. Approximate visual scale.
+const TARGET_H = {
+    flower: 0.07,
+    mushroom: 0.10,
+    tree_evergreen_tall: 0.45,
+    tree_evergreen_short: 0.30,
+    tree_round_green: 0.42,
+    tree_round_dark: 0.45,
+    tree_stump_mossy: 0.14,
+    tree_stump_plain: 0.13,
+    bush_round: 0.18,
+    bush_berry: 0.18,
+    grass_clump_small: 0.10,
+    grass_clump_wide: 0.10,
+};
+function targetH(name) {
+    if (TARGET_H[name] != null) return TARGET_H[name];
+    if (name.startsWith('flower_')) return TARGET_H.flower;
+    if (name.startsWith('mushroom_')) return TARGET_H.mushroom;
+    return 0.15;
+}
+
+function loadImage(src) {
+    return new Promise((res, rej) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = src;
+    });
+}
+
+// LCG PRNG so the seed slider is deterministic
+function mulberry32(seed) {
+    return function() {
+        let t = (seed = (seed + 0x6D2B79F5) | 0);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+function sampleTopline(imgData) {
+    const { data, width, height } = imgData;
+    const top = new Array(width).fill(height);
+    for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+            if (data[(y * width + x) * 4 + 3] > ALPHA_THRESHOLD) { top[x] = y; break; }
+        }
+    }
+    return top;
+}
+function movingMax(arr, halfWindow, sentinel) {
+    const out = new Array(arr.length).fill(sentinel);
+    for (let x = 0; x < arr.length; x++) {
+        const lo = Math.max(0, x - halfWindow);
+        const hi = Math.min(arr.length - 1, x + halfWindow);
+        let m = -Infinity;
+        for (let i = lo; i <= hi; i++) if (arr[i] !== sentinel && arr[i] > m) m = arr[i];
+        if (m > -Infinity) out[x] = m;
+    }
+    return out;
+}
+function boxBlur(arr, halfWindow, sentinel) {
+    if (halfWindow <= 0) return arr.slice();
+    const out = new Array(arr.length).fill(sentinel);
+    for (let x = 0; x < arr.length; x++) {
+        const lo = Math.max(0, x - halfWindow);
+        const hi = Math.min(arr.length - 1, x + halfWindow);
+        let s = 0, c = 0;
+        for (let i = lo; i <= hi; i++) if (arr[i] !== sentinel) { s += arr[i]; c++; }
+        if (c) out[x] = s / c;
+    }
+    return out;
+}
+
+// Compute element bbox: { minX, maxX, minY, maxY } of opaque pixels.
+function elementBBox(img) {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let minX = c.width, maxX = -1, minY = c.height, maxY = -1;
+    for (let y = 0; y < c.height; y++) {
+        for (let x = 0; x < c.width; x++) {
+            if (d[(y * c.width + x) * 4 + 3] > ALPHA_THRESHOLD) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+    return { minX, maxX, minY, maxY };
+}
+
+const stage = document.getElementById('stage');
+const stageCtx = stage.getContext('2d');
+const densityEl = document.getElementById('density');
+const treesEl = document.getElementById('trees');
+const seedEl = document.getElementById('seed');
+const densityVal = document.getElementById('density-val');
+const treesVal = document.getElementById('trees-val');
+const seedVal = document.getElementById('seed-val');
+const meta = document.getElementById('meta');
+
+let baseline, baseW, baseH, runLine;
+const elementImgs = {};   // name → Image
+const elementBBoxes = {}; // name → bbox
+const allNames = Object.values(ELEMENTS).flat();
+
+(async () => {
+    baseline = await loadImage('design/mascots/run_island_v0_baseline.png');
+    baseW = baseline.naturalWidth;
+    baseH = baseline.naturalHeight;
+    stage.width = baseW;
+    stage.height = baseH;
+
+    // Run-line: alpha sample → moving-max → blur (same params as baseline page defaults)
+    stageCtx.drawImage(baseline, 0, 0);
+    const raw = sampleTopline(stageCtx.getImageData(0, 0, baseW, baseH));
+    const halfWin = Math.max(8, Math.round(baseW * 0.02));
+    const halfBlur = Math.max(4, Math.round(baseW * 0.006));
+    runLine = boxBlur(movingMax(raw, halfWin, baseH), halfBlur, baseH);
+
+    await Promise.all(allNames.map(async n => {
+        const img = await loadImage(`design/elements/${n}.png`);
+        elementImgs[n] = img;
+        elementBBoxes[n] = elementBBox(img);
+    }));
+
+    render();
+})();
+
+function pickWeighted(rng, names, weights) {
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = rng() * total;
+    for (let i = 0; i < names.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return names[i];
+    }
+    return names[names.length - 1];
+}
+
+function render() {
+    if (!baseline || !runLine) return;
+    const density = parseInt(densityEl.value, 10);
+    const treesPct = parseInt(treesEl.value, 10);
+    const seed = parseInt(seedEl.value, 10);
+    densityVal.textContent = density;
+    treesVal.textContent = treesPct + '%';
+    seedVal.textContent = seed;
+
+    const rng = mulberry32(seed * 1000 + density + treesPct);
+
+    // Category weights (normalized later)
+    const treeShare = treesPct / 100;
+    const restShare = 1 - treeShare;
+    const wFlower = restShare * 0.45;
+    const wGrass = restShare * 0.30;
+    const wMush = restShare * 0.20;
+    const wTree = treeShare * 0.55;
+    const wBush = treeShare * 0.45;
+
+    // Bucket per category
+    const treeNames = ELEMENTS.tree;
+    const bushNames = ['bush_round', 'bush_berry'];
+    const grassNames = ['grass_clump_small', 'grass_clump_wide'];
+    const mushNames = ELEMENTS.mushroom;
+    const flowerNames = ELEMENTS.flower;
+
+    // Find usable x range — skip the taper tips where the topline rises to baseline
+    const validX = [];
+    for (let x = 0; x < baseW; x++) {
+        const y = runLine[x];
+        if (y < baseH - 6) validX.push(x);
+    }
+    if (validX.length === 0) {
+        stageCtx.clearRect(0, 0, baseW, baseH);
+        stageCtx.drawImage(baseline, 0, 0);
+        meta.textContent = 'No valid placement zone (run-line never rises above baseline).';
+        return;
+    }
+
+    const placements = [];
+    for (let i = 0; i < density; i++) {
+        const r = rng();
+        let name;
+        if (r < wFlower) name = flowerNames[Math.floor(rng() * flowerNames.length)];
+        else if (r < wFlower + wGrass) name = grassNames[Math.floor(rng() * grassNames.length)];
+        else if (r < wFlower + wGrass + wMush) name = mushNames[Math.floor(rng() * mushNames.length)];
+        else if (r < wFlower + wGrass + wMush + wBush) name = bushNames[Math.floor(rng() * bushNames.length)];
+        else name = treeNames[Math.floor(rng() * treeNames.length)];
+
+        const xPos = validX[Math.floor(rng() * validX.length)];
+        const targetHpx = targetH(name) * baseH;
+        const bbox = elementBBoxes[name];
+        const elemNaturalW = elementImgs[name].naturalWidth;
+        const elemNaturalH = elementImgs[name].naturalHeight;
+        const bboxH = bbox.maxY - bbox.minY + 1;
+        const scale = targetHpx / bboxH;
+        const drawW = elemNaturalW * scale;
+        const drawH = elemNaturalH * scale;
+        const elemBottomInDraw = bbox.maxY * scale;
+        const drawX = xPos - (bbox.minX + (bbox.maxX - bbox.minX) / 2) * scale;
+        const drawY = runLine[xPos] - elemBottomInDraw + (drawH / 200); // 0.5% sink for grounded contact
+        placements.push({
+            name, xPos, drawX, drawY, drawW, drawH,
+            // Sort key: topline y at xPos. Smaller y (higher) = back layer.
+            sortY: runLine[xPos],
+        });
+    }
+
+    // Back-to-front by topline y (smaller first). Tie-break by larger items behind.
+    placements.sort((a, b) => {
+        if (a.sortY !== b.sortY) return a.sortY - b.sortY;
+        return b.drawH - a.drawH;
+    });
+
+    // Paint
+    stageCtx.clearRect(0, 0, baseW, baseH);
+    stageCtx.drawImage(baseline, 0, 0);
+    for (const p of placements) {
+        stageCtx.drawImage(elementImgs[p.name], p.drawX, p.drawY, p.drawW, p.drawH);
+    }
+    meta.textContent = `${placements.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes`;
+}
+
+[densityEl, treesEl, seedEl].forEach(el => el.addEventListener('input', render));
+document.getElementById('shuffle').addEventListener('click', () => {
+    seedEl.value = Math.floor(Math.random() * 1000);
+    render();
+});
+document.getElementById('download').addEventListener('click', () => {
+    stage.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'island_v0_mockup.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'image/png');
+});
+</script>
+</body>
+</html>
