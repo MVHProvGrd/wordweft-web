@@ -4597,8 +4597,6 @@
         toggleFullscreen();
     });
 
-    // ── Loop ───────────────────────────────────────────────────────────
-    let last = 0;
     } catch (hudErr) {
         // Don't let a HUD-layout init failure black-canvas the whole
         // game. Log loud so we can diagnose from devtools, but let the
@@ -4607,6 +4605,8 @@
     }
     console.log('[wefty-run] HUD layout init done; defining frame loop');
 
+    // ── Loop ───────────────────────────────────────────────────────────
+    let last = 0;
     function frame(ts) {
         const dt = last ? Math.min((ts - last) / 1000, 1 / 30) : 0;
         last = ts;
