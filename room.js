@@ -72,6 +72,13 @@ const Room = (() => {
                     maxPlayers: 8
                 });
 
+                // Participants index MUST be written before any other
+                // child write. RTDB rule on rooms/$roomId/.write gates
+                // every subsequent room subwrite (players, words, etc.)
+                // on participants.hasChild(auth.uid). Writing players/0
+                // first would deny because participants is still empty.
+                await ref.child('participants/' + uid).set(true);
+
                 await ref.child('players/0').set({
                     uid: uid,
                     name: name,
@@ -81,11 +88,6 @@ const Room = (() => {
                     isHost: true,
                     isConnected: true
                 });
-
-                // Participants index — RTDB rules gate any subsequent
-                // write to rooms/{code}/** on membership in this map.
-                // Host is the first participant.
-                await ref.child('participants/' + uid).set(true);
 
                 // Disconnect cleanup
                 ref.child('players/0/isConnected').onDisconnect().set(false);
@@ -169,6 +171,12 @@ const Room = (() => {
             }
 
             const playerIndex = existingCount;
+
+            // Participants index FIRST — the tightened rooms/.write
+            // rule denies any subsequent room subwrite (players, words,
+            // etc.) until the joiner's uid appears in participants.
+            await ref.child('participants/' + uid).set(true);
+
             await ref.child('players/' + playerIndex).set({
                 uid: uid,
                 name: name,
@@ -178,10 +186,6 @@ const Room = (() => {
                 isHost: false,
                 isConnected: true
             });
-
-            // Participants index — membership check for tightened
-            // rooms/.write rule.
-            await ref.child('participants/' + uid).set(true);
 
             ref.child('players/' + playerIndex + '/isConnected').onDisconnect().set(false);
 
