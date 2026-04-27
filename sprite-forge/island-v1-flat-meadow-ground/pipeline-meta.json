@@ -1,0 +1,11 @@
+{
+  "target": "asset",
+  "mode": "single",
+  "prompt": "island-v1-flat-meadow-ground, single-frame 2D pixel-art island ground base for an endless-runner side-scrolling backdrop, ~256x96, transparent background, lush green grassy hill silhouette with a gently rolling slightly-bumpy top surface (3-4 small undulations across the width, no tall hills), softly sloping rounded sides as if floating on water (rounded bottom edge, no water shown), thin layer of darker green grass texture along the top edge, exposed soft brown earth visible on the underside curve, chunky readable pixel-art with crisp dark green outline and cel-shading in pastel greens, no trees, no flowers, no mushrooms \u2014 those are separate layers",
+  "role": "",
+  "input": "generated-assets\\island-v1-flat-meadow-ground\\raw-sheet.png",
+  "threshold": 100,
+  "edge_threshold": 150,
+  "duration": 200,
+  "single_size": 256
+}
