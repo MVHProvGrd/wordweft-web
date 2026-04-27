@@ -5,12 +5,12 @@
   "view": "side",
   "bundle": "single_asset",
   "source_reference": "design/mascots/sketch_v0_island.png",
-  "generated_source": "/home/usafaux2004/.codex/generated_images/019dd095-c8d6-7d91-9959-d884e948443b/ig_0894272dc83a92400169efc41cc1088190a47ee74b77688368.png",
+  "generated_source": "/home/usafaux2004/.codex/generated_images/019dd09f-f2f8-7471-bec3-010cb0f4df1e/ig_0597145ebd074d1d0169efc6b786ec81968f7c236efed7e638.png",
   "raw_sheet": "generated-assets/island-v0-meadow/raw-sheet.png",
   "transparent_sheet": "wordweft-web/sprite-forge/island-v0-meadow/sheet-transparent.png",
   "output_dimensions": [
-    256,
-    96
+    1024,
+    256
   ],
   "rows": 1,
   "cols": 1,
@@ -19,37 +19,46 @@
   ],
   "background_key": "#FF00FF",
   "processing": {
-    "crop_box": [
-      0,
-      222,
-      2048,
-      503
-    ],
     "source_dimensions": [
-      2048,
-      768
+      1024,
+      256
     ],
-    "resize_filter": "nearest-neighbor",
-    "chroma_cleanup": "magenta-family threshold preserving green/dark-green island pixels",
+    "resize_filter": "none",
+    "chroma_cleanup": "exact #FF00FF keyed to transparent; green/dark-green meadow pixels preserved",
     "component_mode": "all",
-    "align": "preserve full-width side-view silhouette"
+    "align": "preserve full-width side-view silhouette",
+    "silhouette_constraints": {
+      "canvas_fill": "taper tips touch x=0 and x=1023; grass reaches y=255",
+      "profile": "small low left bump, wider left-center hill, shallow middle valley, taller right-center hill, long downhill right slope, low right taper",
+      "topline_style": "crisp dark-green outline with attached darker grass-tuft band",
+      "forbidden_elements": [
+        "trees",
+        "flowers",
+        "mushrooms",
+        "brown earth underside",
+        "sky",
+        "water",
+        "creatures"
+      ]
+    }
   },
   "frames": [
     {
       "label": "single-1",
       "size": [
-        256,
-        96
+        1024,
+        256
       ],
       "crop_bbox": [
-        20,
-        58,
-        239,
-        96
+        0,
+        72,
+        1023,
+        255
       ],
       "edge_touch": true,
-      "opaque_pixels": 4378,
-      "transparent_pixels": 20198
+      "bottom_edge_opaque_pixels": 1024,
+      "opaque_pixels": 118676,
+      "transparent_pixels": 143468
     }
   ],
   "edge_touch_frames": [
