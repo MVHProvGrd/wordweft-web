@@ -1396,7 +1396,16 @@ const Game = (() => {
                     };
                 });
             const callable = fbFunctions.httpsCallable('gradeStory');
-            const resp = await callable({ story: heuristic.fullStory, playerWords: attributed });
+            // Pass roomCode so the server can fan-out the result + save
+            // the story to every contributor's history (including
+            // players who quit before the results screen). Server
+            // verifies caller is a participant before writing. Old
+            // server versions ignore the field — additive.
+            const resp = await callable({
+                story: heuristic.fullStory,
+                playerWords: attributed,
+                roomCode: (typeof Room !== 'undefined' && Room.code) ? Room.code : undefined,
+            });
             const data = resp && resp.data ? resp.data : null;
             if (!data) {
                 return { ok: false, error: 'Cloud Function returned empty response.' };
