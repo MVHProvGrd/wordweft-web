@@ -166,26 +166,41 @@ const TREE_TRUNK_MARGIN_PX = 4; // extra clearance between trunk x-ranges
 
 // Sway loop = 4 s. All freqs are multiples of 0.25 Hz so each element
 // completes an integer number of cycles per loop → seamless GIF export.
+//
+// Three motion components per element:
+//   ampDeg    : rotation around the pivot, in degrees   (sway)
+//   bobPx     : vertical translation amplitude, in canvas-px (bob)
+//   pulseAmp  : uniform scale amplitude as a fraction   (breathe)
+// All three driven by the same sin(2π·freqHz·t + phase) so per-element
+// motion is coherent. Phase is randomized per placement so the field
+// doesn't move in unison.
 const LOOP_DURATION_S = 4;
 const SWAY = {
+    // Tall trees — slow majestic sway
     tree_evergreen_tall:  { ampDeg: 2.6, freqHz: 0.25 },
+    tree_round_dark:      { ampDeg: 2.2, freqHz: 0.25 },
+    // Shorter trees — medium speed
     tree_evergreen_short: { ampDeg: 1.8, freqHz: 0.50 },
     tree_round_green:     { ampDeg: 2.0, freqHz: 0.25 },
-    tree_round_dark:      { ampDeg: 2.2, freqHz: 0.25 },
-    tree_stump_mossy:     { ampDeg: 0,   freqHz: 0    }, // dead wood
+    // Stumps — dead, no motion
+    tree_stump_mossy:     { ampDeg: 0,   freqHz: 0    },
     tree_stump_plain:     { ampDeg: 0,   freqHz: 0    },
-    bush_round:           { ampDeg: 1.0, freqHz: 0.50 },
-    bush_berry:           { ampDeg: 1.0, freqHz: 0.50 },
-    grass_clump_small:    { ampDeg: 1.6, freqHz: 1.00 },
+    // Bushes — gentle rustle (small rotation + tiny breathe)
+    bush_round:           { ampDeg: 0.8, freqHz: 0.50, pulseAmp: 0.020 },
+    bush_berry:           { ampDeg: 0.8, freqHz: 0.50, pulseAmp: 0.020 },
+    // Grass clumps — fast small whip
+    grass_clump_small:    { ampDeg: 2.2, freqHz: 1.00 },
     grass_clump_wide:     { ampDeg: 1.6, freqHz: 1.00 },
-    mushroom_red:         { ampDeg: 0.4, freqHz: 0.75 },
-    mushroom_brown:       { ampDeg: 0.4, freqHz: 0.75 },
-    mushroom_purple:      { ampDeg: 0.4, freqHz: 0.75 },
-    flower_red:           { ampDeg: 1.5, freqHz: 0.75 },
-    flower_yellow:        { ampDeg: 1.5, freqHz: 0.75 },
-    flower_blue:          { ampDeg: 1.5, freqHz: 0.75 },
-    flower_pink:          { ampDeg: 1.5, freqHz: 0.75 },
-    flower_purple:        { ampDeg: 1.5, freqHz: 0.75 },
+    // Mushrooms — bob & breathe, no rotation
+    mushroom_red:         { ampDeg: 0,   freqHz: 0.50, bobPx: 2.5, pulseAmp: 0.030 },
+    mushroom_brown:       { ampDeg: 0,   freqHz: 0.50, bobPx: 2.0, pulseAmp: 0.025 },
+    mushroom_purple:      { ampDeg: 0,   freqHz: 0.75, bobPx: 2.5, pulseAmp: 0.030 },
+    // Flowers — nodding (rotation around stem base)
+    flower_red:           { ampDeg: 1.8, freqHz: 0.75 },
+    flower_yellow:        { ampDeg: 1.8, freqHz: 0.75 },
+    flower_blue:          { ampDeg: 2.0, freqHz: 0.75 },
+    flower_pink:          { ampDeg: 1.8, freqHz: 0.75 },
+    flower_purple:        { ampDeg: 2.0, freqHz: 0.75 },
 };
 function targetH(name) {
     if (TARGET_H[name] != null) return TARGET_H[name];
@@ -391,7 +406,11 @@ function buildPlacement(name, xPos, groundY, swayPhase) {
         name, xPos, drawX, drawY, drawW, drawH,
         pivotX, pivotY: groundY,
         sortY: groundY,
-        swayAmp: sw.ampDeg, swayFreq: sw.freqHz, swayPhase,
+        swayAmp: sw.ampDeg || 0,
+        swayFreq: sw.freqHz || 0,
+        swayPhase,
+        bobPx: sw.bobPx || 0,
+        pulseAmp: sw.pulseAmp || 0,
     };
 }
 
@@ -542,12 +561,20 @@ function drawFrame(ctx, w, h, t) {
     ctx.drawImage(baseline, 0, 0, w, h);
     const sx = w / baseW, sy = h / baseH;
     for (const p of placements) {
-        const angleRad = (p.swayAmp * Math.sin(2 * Math.PI * p.swayFreq * t + p.swayPhase)) * Math.PI / 180;
+        let sinW = 0;
+        if (p.swayFreq > 0 && (p.swayAmp || p.bobPx || p.pulseAmp)) {
+            sinW = Math.sin(2 * Math.PI * p.swayFreq * t + p.swayPhase);
+        }
+        const angleRad = (p.swayAmp * sinW) * Math.PI / 180;
+        const yOffset = p.bobPx * sinW;     // canvas-px before scaling
+        const scaleFactor = 1 + p.pulseAmp * sinW;
         const px = p.pivotX * sx;
-        const py = p.pivotY * sy;
+        const py = (p.pivotY + yOffset) * sy;
+
         ctx.save();
         ctx.translate(px, py);
         if (angleRad !== 0) ctx.rotate(angleRad);
+        if (scaleFactor !== 1) ctx.scale(scaleFactor, scaleFactor);
         ctx.drawImage(
             elementImgs[p.name],
             (p.drawX - p.pivotX) * sx, (p.drawY - p.pivotY) * sy,
