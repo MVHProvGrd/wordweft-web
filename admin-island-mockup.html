@@ -151,6 +151,12 @@ const TOPLINE_NAMES = new Set([
 ]);
 const STUMP_NAMES = new Set(['tree_stump_mossy', 'tree_stump_plain']);
 const STUMP_MIN_SPACING_FRAC = 0.12; // min x-distance between stumps, as fraction of canvas width
+const TREE_NAMES = new Set([
+    'tree_evergreen_tall', 'tree_evergreen_short',
+    'tree_round_green', 'tree_round_dark',
+]);
+const TRUNK_SAMPLE_FRAC = 0.08; // bottom-most 8% of element bbox = trunk band
+const TREE_TRUNK_MARGIN_PX = 4; // extra clearance between trunk x-ranges
 function targetH(name) {
     if (TARGET_H[name] != null) return TARGET_H[name];
     if (name.startsWith('flower_')) return TARGET_H.flower;
@@ -234,6 +240,30 @@ function elementBBox(img) {
     return { minX, maxX, minY, maxY };
 }
 
+// For tree assets, the trunk x-range is wherever opaque pixels live in the
+// bottom band of the element bbox. Used to enforce trunk-non-overlap on
+// placement (canopies can still overlap, which looks natural).
+function detectTrunkXRange(img, bbox) {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    const bandH = Math.max(2, Math.round((bbox.maxY - bbox.minY + 1) * TRUNK_SAMPLE_FRAC));
+    const yStart = Math.max(bbox.minY, bbox.maxY - bandH + 1);
+    let minX = c.width, maxX = -1;
+    for (let y = yStart; y <= bbox.maxY; y++) {
+        for (let x = bbox.minX; x <= bbox.maxX; x++) {
+            if (d[(y * c.width + x) * 4 + 3] > ALPHA_THRESHOLD) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+            }
+        }
+    }
+    if (maxX < 0) return { minX: bbox.minX, maxX: bbox.maxX };
+    return { minX, maxX };
+}
+
 const stage = document.getElementById('stage');
 const stageCtx = stage.getContext('2d');
 const densityEl = document.getElementById('density');
@@ -245,8 +275,9 @@ const seedVal = document.getElementById('seed-val');
 const meta = document.getElementById('meta');
 
 let baseline, baseW, baseH, runLine;
-const elementImgs = {};   // name → Image
-const elementBBoxes = {}; // name → bbox
+const elementImgs = {};       // name → Image
+const elementBBoxes = {};     // name → bbox
+const elementTrunkXRange = {}; // name → { minX, maxX } in image-pixel space (trees only)
 const allNames = Object.values(ELEMENTS).flat();
 
 (async () => {
@@ -267,6 +298,9 @@ const allNames = Object.values(ELEMENTS).flat();
         const img = await loadImage(`design/elements/${n}.png`);
         elementImgs[n] = img;
         elementBBoxes[n] = elementBBox(img);
+        if (TREE_NAMES.has(n)) {
+            elementTrunkXRange[n] = detectTrunkXRange(img, elementBBoxes[n]);
+        }
     }));
 
     render();
@@ -335,8 +369,26 @@ function render() {
 
     const placements = [];
     const placedStumpsX = [];
+    const placedTreeTrunks = []; // [{leftX, rightX}] on canvas
     const stumpMinSpacing = STUMP_MIN_SPACING_FRAC * baseW;
-    let stumpsSkipped = 0;
+    let stumpsSkipped = 0, treesSkipped = 0;
+
+    // Pre-compute, per tree, the trunk x extent on the canvas so the
+    // overlap check is a cheap interval comparison.
+    const treeCanvasTrunk = {};
+    for (const tn of TREE_NAMES) {
+        const bbox = elementBBoxes[tn];
+        const trunk = elementTrunkXRange[tn];
+        const targetHpx = targetH(tn) * baseH;
+        const bboxH = bbox.maxY - bbox.minY + 1;
+        const scale = targetHpx / bboxH;
+        const bboxCenterX = (bbox.minX + bbox.maxX) / 2;
+        const trunkCenterImg = (trunk.minX + trunk.maxX) / 2;
+        const trunkOffsetCanvas = (trunkCenterImg - bboxCenterX) * scale;
+        const trunkHalfWCanvas = ((trunk.maxX - trunk.minX) / 2) * scale;
+        treeCanvasTrunk[tn] = { trunkOffsetCanvas, trunkHalfWCanvas };
+    }
+
     for (let i = 0; i < density; i++) {
         const r = rng();
         let name;
@@ -346,7 +398,7 @@ function render() {
         else if (r < wFlower + wGrass + wMush + wBush) name = bushNames[Math.floor(rng() * bushNames.length)];
         else name = treeNames[Math.floor(rng() * treeNames.length)];
 
-        // X selection — stumps must keep a min distance from each other.
+        // X selection with category-specific spacing rules.
         let xPos;
         if (STUMP_NAMES.has(name)) {
             const MAX_ATTEMPTS = 20;
@@ -356,8 +408,24 @@ function render() {
                     xPos = cand; break;
                 }
             }
-            if (xPos == null) { stumpsSkipped++; continue; } // gave up — too crowded
+            if (xPos == null) { stumpsSkipped++; continue; }
             placedStumpsX.push(xPos);
+        } else if (TREE_NAMES.has(name)) {
+            const t = treeCanvasTrunk[name];
+            const MAX_ATTEMPTS = 30;
+            for (let a = 0; a < MAX_ATTEMPTS; a++) {
+                const cand = validX[Math.floor(rng() * validX.length)];
+                const trunkCenter = cand + t.trunkOffsetCanvas;
+                const trunkLeft = trunkCenter - t.trunkHalfWCanvas - TREE_TRUNK_MARGIN_PX;
+                const trunkRight = trunkCenter + t.trunkHalfWCanvas + TREE_TRUNK_MARGIN_PX;
+                const overlap = placedTreeTrunks.some(pt => !(trunkRight < pt.leftX || trunkLeft > pt.rightX));
+                if (!overlap) {
+                    xPos = cand;
+                    placedTreeTrunks.push({ leftX: trunkLeft, rightX: trunkRight });
+                    break;
+                }
+            }
+            if (xPos == null) { treesSkipped++; continue; }
         } else {
             xPos = validX[Math.floor(rng() * validX.length)];
         }
@@ -410,8 +478,11 @@ function render() {
     for (const p of placements) {
         stageCtx.drawImage(elementImgs[p.name], p.drawX, p.drawY, p.drawW, p.drawH);
     }
-    const stumpNote = stumpsSkipped > 0 ? ` · ${stumpsSkipped} stump${stumpsSkipped === 1 ? '' : 's'} skipped (spacing)` : '';
-    meta.textContent = `${placements.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${stumpNote}`;
+    const skips = [];
+    if (stumpsSkipped) skips.push(`${stumpsSkipped} stump${stumpsSkipped === 1 ? '' : 's'}`);
+    if (treesSkipped) skips.push(`${treesSkipped} tree${treesSkipped === 1 ? '' : 's'}`);
+    const skipNote = skips.length ? ` · skipped: ${skips.join(', ')} (spacing)` : '';
+    meta.textContent = `${placements.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${skipNote}`;
 }
 
 [densityEl, treesEl, seedEl].forEach(el => el.addEventListener('input', render));
