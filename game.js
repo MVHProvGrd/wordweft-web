@@ -602,16 +602,52 @@ const Game = (() => {
         };
         setTimeout(() => document.addEventListener('click', onOutside, true), 0);
 
-        menu.querySelector('.mm-block').addEventListener('click', async () => {
+        menu.querySelector('.mm-block').addEventListener('click', () => {
             close();
-            const ok = await Auth.blockUser(player.uid);
-            showToast(ok ? ('Blocked ' + player.name) : 'Block failed', ok ? '#4AC29A' : '#EF4444');
+            openBlockConfirmDialog(player);
         });
         menu.querySelector('.mm-report').addEventListener('click', () => {
             close();
             openReportDialog(player);
         });
         menu.querySelector('.mm-cancel').addEventListener('click', close);
+    }
+
+    /**
+     * Confirm-before-block dialog. Mirrors Android's `confirmBlock`
+     * AlertDialog (PlayerSetupScreen / GameScreen) so muscle-memory
+     * mistakes from the moderation menu can't one-tap a block. The
+     * post-report "Block them too" affordance stays one-tap because
+     * it's already a deliberate opt-in after submitting a report.
+     */
+    function openBlockConfirmDialog(player) {
+        document.querySelectorAll('.moderation-modal').forEach(n => n.remove());
+        const overlay = document.createElement('div');
+        overlay.className = 'moderation-modal';
+        overlay.innerHTML =
+            '<div class="mmod-card" role="dialog" aria-modal="true">' +
+                '<h3 class="mmod-title">Block ' + escapeHtml(player.name) + '?</h3>' +
+                '<p class="mmod-sub">' +
+                    'Their words will hide as ⟨hidden⟩ for the rest of this ' +
+                    'story and they won\'t appear in your public lobbies or ' +
+                    'friend list. Unblock anytime in Settings → Blocked users.' +
+                '</p>' +
+                '<div class="mmod-actions">' +
+                    '<button type="button" class="mmod-cancel">Cancel</button>' +
+                    '<button type="button" class="mmod-submit">Block</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
+        overlay.querySelector('.mmod-cancel').addEventListener('click', close);
+        overlay.querySelector('.mmod-submit').addEventListener('click', async (ev) => {
+            ev.target.disabled = true;
+            const ok = await Auth.blockUser(player.uid);
+            close();
+            showToast(ok ? ('Blocked ' + player.name) : 'Block failed',
+                ok ? '#4AC29A' : '#EF4444');
+        });
     }
 
     /**
