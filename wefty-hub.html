@@ -52,6 +52,27 @@
         transition: background 0.15s, color 0.15s;
     }
     header a.back:hover { background: var(--ww-hair); color: var(--ww-ink-1); }
+    .hub-top-icons {
+        margin-left: auto;
+        display: inline-flex;
+        gap: 4px;
+    }
+    .hub-top-icon {
+        font-size: 22px;
+        text-decoration: none;
+        line-height: 1;
+        padding: 6px 8px;
+        opacity: 0.85;
+        cursor: pointer;
+        transition: opacity 0.2s ease, transform 0.15s ease;
+        border-radius: 10px;
+    }
+    .hub-top-icon:hover {
+        opacity: 1;
+        transform: scale(1.12);
+        background: var(--ww-hair);
+    }
+    .hub-top-icon:active { transform: scale(0.96); }
     .eyebrow-row { margin-top: 4px; margin-bottom: 2px; }
     .hub-title {
         font-family: var(--ww-display);
@@ -187,6 +208,10 @@
 <div class="wrap">
     <header>
         <a class="back" href="index.html">← Home</a>
+        <div class="hub-top-icons">
+            <a class="hub-top-icon" href="wefty-scores.html" title="Top Runs">🏆</a>
+            <a class="hub-top-icon" href="wefty-controls.html" title="Controls">🎛️</a>
+        </div>
     </header>
     <div class="eyebrow-row"><span class="ww-eyebrow">Mini-games · Wefty</span></div>
     <h1 class="hub-title">Wefty's Playground</h1>
@@ -225,20 +250,6 @@
         </div>
         <div class="tile-sub">Jungle-swing across vine anchors.</div>
         <div class="tile-badges"><span class="tile-badge locked">Coming soon</span></div>
-    </a>
-
-    <a class="tile scores" href="wefty-scores.html">
-        <div class="tile-title">
-            <span class="dot scores"></span>Top Runs <span class="emoji">🏆</span>
-        </div>
-        <div class="tile-sub">Global leaderboards — personal bests worldwide.</div>
-    </a>
-
-    <a class="tile" href="wefty-controls.html">
-        <div class="tile-title">
-            <span class="dot scores"></span>Controls <span class="emoji">🎛️</span>
-        </div>
-        <div class="tile-sub">Move the LASSO + JUMP buttons. Saved per-game.</div>
     </a>
 
     <p id="signin-status" class="signin-status hidden"></p>
