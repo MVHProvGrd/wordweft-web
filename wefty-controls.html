@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#160B2E">
+<title>Controls — Wefty's Playground</title>
+<link rel="stylesheet" href="ww2-tokens.css">
+<link rel="stylesheet" href="ww2-polish.css">
+<style>
+    * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: var(--ww-body, -apple-system, system-ui, sans-serif);
+        color: var(--ww-ink-0, #EEE6FF);
+        background: var(--ww-bg-0, #160B2E);
+        background-image: var(--ww-surface-glow, none);
+        min-height: 100vh;
+        padding: 20px 18px 48px;
+    }
+    .wrap { max-width: 480px; margin: 0 auto; }
+
+    header {
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: 8px;
+    }
+    header a.back {
+        color: var(--ww-ink-2, #B8A8FF);
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.14); }
+    h1 {
+        font-family: var(--ww-display, "Fraunces", serif);
+        font-weight: 800;
+        font-size: 28px;
+        letter-spacing: -0.02em;
+        margin: 4px 0 8px;
+    }
+    .lede {
+        margin: 0 0 22px;
+        font-size: 13.5px;
+        color: var(--ww-ink-2, #8D7FAE);
+        line-height: 1.5;
+    }
+
+    .game-section {
+        background: rgba(40,24,71,0.55);
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 18px;
+    }
+    .game-section h2 {
+        margin: 0 0 4px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #FFFFFF;
+    }
+    .game-section .game-sub {
+        margin: 0 0 14px;
+        font-size: 12px;
+        color: var(--ww-ink-2, #8D7FAE);
+    }
+
+    .preset-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    .preset-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(238,230,255,0.16);
+        background: rgba(26,14,32,0.55);
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        color: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    .preset-card:hover { background: rgba(124,111,232,0.10); }
+    .preset-card:active { transform: scale(0.98); }
+    .preset-card.active {
+        border-color: #4AC29A;
+        background: rgba(74,194,154,0.18);
+    }
+    .preset-name {
+        font-size: 13px;
+        color: #EEE6FF;
+    }
+    .preset-sub {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--ww-ink-2, #8D7FAE);
+    }
+    /* Iconographic preview — frozen mini scene with a sky + ground bar
+     * + the two button positions. Shape proportions match the in-game
+     * layout (lasso warm-orange, jump green) so the picker reads like
+     * a wayfinding map. */
+    .preset-mini {
+        position: relative;
+        height: 56px;
+        border-radius: 8px;
+        background: linear-gradient(180deg, #1A0E2E 0%, #2A1A47 60%, #3D2A5C 100%);
+        border: 1px solid rgba(238,230,255,0.10);
+        overflow: hidden;
+    }
+    .preset-mini::before {
+        /* Ground bar */
+        content: '';
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        height: 14px;
+        background: rgba(124,111,232,0.16);
+        border-top: 1px solid rgba(124,111,232,0.32);
+    }
+    .preset-mini .puck {
+        position: absolute;
+        bottom: 4px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .preset-mini .puck.lasso { background: #FFB66B; }
+    .preset-mini .puck.jump  { background: #8FD19E; }
+    .preset-mini .puck.dashed {
+        background: transparent;
+        border: 1.5px dashed #FFB66B;
+        box-shadow: none;
+    }
+    /* Per-preset puck placements */
+    .preset-mini[data-preset="default"]   .puck.lasso { left: 6px; }
+    .preset-mini[data-preset="default"]   .puck.jump  { right: 6px; }
+    .preset-mini[data-preset="center-in"] .puck.lasso { left: 30%; }
+    .preset-mini[data-preset="center-in"] .puck.jump  { right: 30%; }
+    .preset-mini[data-preset="lefty"]     .puck.lasso { right: 6px; }
+    .preset-mini[data-preset="lefty"]     .puck.jump  { left: 6px; }
+    .preset-mini[data-preset="custom"]    .puck.lasso { left: 18%; }
+    .preset-mini[data-preset="custom"]    .puck.jump  { right: 22%; bottom: 26px; }
+
+    .custom-hint {
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: rgba(255,182,107,0.10);
+        border: 1px solid rgba(255,182,107,0.28);
+        border-radius: 10px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #FFD8AC;
+    }
+    .custom-hint strong { color: #FFE6B8; }
+
+    .toast {
+        position: fixed;
+        left: 50%; bottom: 24px;
+        transform: translateX(-50%);
+        background: #4AC29A;
+        color: #0F2418;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 13px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+    }
+    .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a class="back" href="wefty-hub.html">← Playground</a>
+    </header>
+    <h1>Controls</h1>
+    <p class="lede">
+        Pick where the LASSO and JUMP buttons sit. Saved per-game so
+        Run and Climb can have different layouts.
+    </p>
+
+    <div class="game-section" id="run-section">
+        <h2>Wefty Run</h2>
+        <p class="game-sub">Auto-runner — Lasso + Jump on opposite sides by default.</p>
+        <div class="preset-grid" id="run-presets"></div>
+        <div class="custom-hint">
+            <strong>Want exact positions?</strong> Tap <em>Custom</em>, start
+            Wefty Run, then long-press LASSO or JUMP to drag them anywhere
+            on the screen. Tap Save in the floating bar when you're done.
+        </div>
+    </div>
+
+    <div class="game-section" id="climb-section">
+        <h2>Wefty Climb</h2>
+        <p class="game-sub">Vertical climber — same layout system as Run.</p>
+        <div class="preset-grid" id="climb-presets"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast">Saved</div>
+
+<script>
+(() => {
+    const PRESETS = [
+        {
+            key: 'default',
+            name: 'Default',
+            sub: 'Corners',
+        },
+        {
+            key: 'center-in',
+            name: 'Center-in',
+            sub: 'Closer to middle',
+        },
+        {
+            key: 'lefty',
+            name: 'Lefty',
+            sub: 'Sides swapped',
+        },
+        {
+            key: 'custom',
+            name: 'Custom',
+            sub: 'Drag in-game',
+        },
+    ];
+
+    const GAMES = [
+        { id: 'run',   gridId: 'run-presets',   storageKey: 'wefty_run_btn_layout_v1' },
+        { id: 'climb', gridId: 'climb-presets', storageKey: 'wefty_climb_btn_layout_v1' },
+    ];
+
+    function loadLayout(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return { preset: 'default' };
+            return JSON.parse(raw) || { preset: 'default' };
+        } catch (_) { return { preset: 'default' }; }
+    }
+
+    function saveLayout(key, layout) {
+        try { localStorage.setItem(key, JSON.stringify(layout)); } catch (_) {}
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 1400);
+    }
+
+    function renderGame(game) {
+        const grid = document.getElementById(game.gridId);
+        if (!grid) return;
+        const current = loadLayout(game.storageKey);
+        grid.innerHTML = '';
+        for (const preset of PRESETS) {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'preset-card';
+            if (preset.key === current.preset) card.classList.add('active');
+            card.dataset.preset = preset.key;
+            card.innerHTML =
+                '<div class="preset-mini" data-preset="' + preset.key + '">' +
+                    '<span class="puck lasso' + (preset.key === 'custom' ? ' dashed' : '') + '"></span>' +
+                    '<span class="puck jump' + (preset.key === 'custom' ? ' dashed' : '') + '"></span>' +
+                '</div>' +
+                '<div class="preset-name">' + preset.name + '</div>' +
+                '<div class="preset-sub">' + preset.sub + '</div>';
+            card.addEventListener('click', () => {
+                // Picking a non-custom preset clears any saved drag-
+                // positions so the next in-game render uses the preset's
+                // formula. Picking custom keeps any existing custom
+                // positions; if there aren't any yet, the in-game flow
+                // creates them on first drag.
+                if (preset.key === 'custom') {
+                    const existing = loadLayout(game.storageKey);
+                    if (existing.preset === 'custom') {
+                        // already custom — no-op but mark active
+                    } else {
+                        saveLayout(game.storageKey, { preset: 'custom' });
+                    }
+                } else {
+                    saveLayout(game.storageKey, { preset: preset.key });
+                }
+                renderGame(game);  // refresh active state
+                showToast('Saved · ' + preset.name);
+            });
+            grid.appendChild(card);
+        }
+    }
+
+    GAMES.forEach(renderGame);
+})();
+</script>
+</body>
+</html>
