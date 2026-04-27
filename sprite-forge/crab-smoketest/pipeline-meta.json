@@ -1,0 +1,175 @@
+{
+  "target": "asset",
+  "mode": "walk",
+  "prompt": "tiny pixel-art crab, 4-frame walk cycle, transparent background",
+  "role": "",
+  "input": "generated-assets\\tiny-pixel-art-crab-walk\\raw-sheet.png",
+  "threshold": 100,
+  "edge_threshold": 150,
+  "duration": 160,
+  "rows": 1,
+  "cols": 4,
+  "cell_size": 128,
+  "fit_scale": 0.78,
+  "trim_border": 4,
+  "edge_clean_depth": 3,
+  "align": "feet",
+  "shared_scale": true,
+  "component_mode": "largest",
+  "component_padding": 2,
+  "min_component_area": 1,
+  "edge_touch_margin": 2,
+  "frame_labels": [
+    "walk-1",
+    "walk-2",
+    "walk-3",
+    "walk-4"
+  ],
+  "frames": [
+    {
+      "grid": [
+        0,
+        0
+      ],
+      "source_box": [
+        0,
+        0,
+        511,
+        768
+      ],
+      "component_mode": "largest",
+      "component_count": 1,
+      "selected_component_area": 51057,
+      "selected_component_bbox": [
+        71,
+        245,
+        463,
+        491
+      ],
+      "crop_bbox": [
+        69,
+        243,
+        465,
+        493
+      ],
+      "edge_touch": false,
+      "output_size": [
+        99,
+        62
+      ],
+      "paste_position": [
+        14,
+        52
+      ]
+    },
+    {
+      "grid": [
+        0,
+        1
+      ],
+      "source_box": [
+        511,
+        0,
+        1022,
+        768
+      ],
+      "component_mode": "largest",
+      "component_count": 1,
+      "selected_component_area": 50777,
+      "selected_component_bbox": [
+        51,
+        245,
+        441,
+        485
+      ],
+      "crop_bbox": [
+        49,
+        243,
+        443,
+        487
+      ],
+      "edge_touch": false,
+      "output_size": [
+        99,
+        61
+      ],
+      "paste_position": [
+        14,
+        53
+      ]
+    },
+    {
+      "grid": [
+        0,
+        2
+      ],
+      "source_box": [
+        1022,
+        0,
+        1533,
+        768
+      ],
+      "component_mode": "largest",
+      "component_count": 1,
+      "selected_component_area": 50238,
+      "selected_component_bbox": [
+        40,
+        245,
+        433,
+        495
+      ],
+      "crop_bbox": [
+        38,
+        243,
+        435,
+        497
+      ],
+      "edge_touch": false,
+      "output_size": [
+        99,
+        63
+      ],
+      "paste_position": [
+        14,
+        51
+      ]
+    },
+    {
+      "grid": [
+        0,
+        3
+      ],
+      "source_box": [
+        1533,
+        0,
+        2044,
+        768
+      ],
+      "component_mode": "largest",
+      "component_count": 1,
+      "selected_component_area": 50737,
+      "selected_component_bbox": [
+        41,
+        245,
+        424,
+        486
+      ],
+      "crop_bbox": [
+        39,
+        243,
+        426,
+        488
+      ],
+      "edge_touch": false,
+      "output_size": [
+        97,
+        61
+      ],
+      "paste_position": [
+        15,
+        53
+      ]
+    }
+  ],
+  "edge_touch_frames": []
+}

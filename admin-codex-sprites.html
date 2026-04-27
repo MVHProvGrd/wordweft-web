@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Codex sprites</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 22px;
+        font-size: 14px;
+        max-width: 760px;
+        line-height: 1.55;
+    }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+    }
+    .card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .card .thumb {
+        background:
+            linear-gradient(45deg, #2A1E48 25%, transparent 25%) -8px 0,
+            linear-gradient(-45deg, #2A1E48 25%, transparent 25%) -8px 0,
+            linear-gradient(45deg, transparent 75%, #2A1E48 75%),
+            linear-gradient(-45deg, transparent 75%, #2A1E48 75%);
+        background-size: 16px 16px;
+        background-color: #1B1233;
+        padding: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 140px;
+    }
+    .card .thumb img {
+        max-width: 100%;
+        max-height: 200px;
+        image-rendering: pixelated;
+    }
+    .card .body {
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .card h3 { margin: 0; font-size: 16px; color: #EEE6FF; }
+    .card .desc { color: #C7B8E8; font-size: 13px; line-height: 1.5; margin: 4px 0 0; }
+    .pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 999px;
+    }
+    .pill.draft     { background: rgba(160,160,180,0.22); color: #B8B8E0; }
+    .pill.smoketest { background: rgba(124,111,232,0.22); color: #B8A8FF; }
+    .pill.approved  { background: rgba(120,200,140,0.22); color: #8FD9A3; }
+    .pill.shipped   { background: rgba(180,140,60,0.22); color: #D9B86D; }
+
+    .meta-row {
+        display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+        margin-top: 8px;
+    }
+    .meta-row .where {
+        font-family: monospace; font-size: 11px;
+        color: #8D7FAE;
+        word-break: break-all;
+    }
+
+    details {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #C7B8E8;
+    }
+    details summary {
+        cursor: pointer;
+        color: #B8A8FF;
+        list-style: none;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before { content: "▸ "; }
+    details[open] summary::before { content: "▾ "; }
+    details pre {
+        background: #0E0820;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        color: #C7B8E8;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 6px 0 0;
+    }
+    .links {
+        display: flex; flex-wrap: wrap; gap: 6px;
+        margin-top: 8px;
+    }
+    .links a {
+        font-size: 11px;
+        color: #B8A8FF;
+        text-decoration: none;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid rgba(184,168,255,0.3);
+    }
+    .links a:hover { background: rgba(184,168,255,0.15); }
+
+    .add-card {
+        background: rgba(255,255,255,0.02);
+        border: 1.5px dashed rgba(238,230,255,0.20);
+        border-radius: 14px;
+        padding: 24px;
+        font-size: 13px;
+        color: #8D7FAE;
+        line-height: 1.6;
+    }
+    .add-card h3 { color: #EEE6FF; margin: 0 0 6px; font-size: 15px; }
+    .add-card pre {
+        background: #0E0820;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        color: #C7B8E8;
+        overflow-x: auto;
+        margin: 8px 0 0;
+        white-space: pre-wrap;
+    }
+
+    .lightbox {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.92);
+        display: none; align-items: center; justify-content: center;
+        z-index: 100; padding: 16px;
+        cursor: zoom-out;
+    }
+    .lightbox.show { display: flex; }
+    .lightbox img {
+        max-width: 100%; max-height: 100%; border-radius: 8px;
+        image-rendering: pixelated;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="admin-index.html">← Admin index</a></header>
+    <h1>Codex sprite catalog</h1>
+    <p class="lede">
+        Sprites generated via <code>$generate2dsprite</code> in Codex
+        (<a href="https://github.com/0x0funky/agent-sprite-forge" style="color:#B8A8FF;">agent-sprite-forge</a>).
+        Each card shows the prompt, status, and where the sprite is wired in.
+        <b>Style note:</b> sprite-forge produces pixel-art only — it doesn't
+        match Wefty's chibi-cartoon mascots, so use it for new pixel-art
+        surfaces (props, hazards, mini-game elements), not mascot replacements.
+    </p>
+
+    <div class="grid" id="grid"></div>
+</div>
+
+<div class="lightbox" id="lightbox"><img id="lightbox-img" alt=""></div>
+
+<script>
+// Hand-edit this catalog when adding new sprites.
+// Files referenced under wordweft-web/sprite-forge/<name>/.
+const SPRITES = [
+    {
+        name: 'crab-smoketest',
+        title: 'Tiny crab walk cycle (smoke test)',
+        status: 'smoketest',
+        description: 'First sprite generated to validate the agent-sprite-forge pipeline. ' +
+            'Not used in-game; kept as a reference for the artifact format ' +
+            '(sheet-transparent.png + animation.gif + prompt-used.txt).',
+        prompt: 'tiny pixel-art crab, 4-frame walk cycle, transparent background',
+        sheet: 'sprite-forge/crab-smoketest/sheet-transparent.png',
+        gif: 'sprite-forge/crab-smoketest/animation.gif',
+        usedAt: null,
+    },
+    // Roadmap entries — uncomment + populate once Codex has produced files
+    // and you've copied them into wordweft-web/sprite-forge/<name>/:
+    //
+    // {
+    //   name: 'moth-hazard',
+    //   title: 'Storm-biome moth (Wefty Run hazard)',
+    //   status: 'draft',  // draft | smoketest | approved | shipped
+    //   description: 'Thread-eater hazard for Wefty Run storm biome. 32×32 ' +
+    //       'wing-flap loop. Spawns mid-flight, nibbles bridges as it flies.',
+    //   prompt: 'small pixel-art moth, 32x32 per frame, 4-frame wing-flap idle ...',
+    //   sheet: 'sprite-forge/moth-hazard/sheet-transparent.png',
+    //   gif:   'sprite-forge/moth-hazard/animation.gif',
+    //   usedAt: 'wefty-run.html (storm biome, world.hazards entries)',
+    // },
+];
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+function renderCard(s) {
+    const usedLine = s.usedAt
+        ? `<div class="meta-row"><span class="pill approved">Wired</span><span class="where">${escapeHtml(s.usedAt)}</span></div>`
+        : `<div class="meta-row"><span class="pill draft">Not wired</span></div>`;
+    return `
+        <div class="card">
+            <div class="thumb">
+                <img src="${escapeHtml(s.sheet)}" alt="${escapeHtml(s.title)}" data-shot="${escapeHtml(s.sheet)}">
+            </div>
+            <div class="body">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <h3>${escapeHtml(s.title)}</h3>
+                    <span class="pill ${escapeHtml(s.status)}">${escapeHtml(s.status)}</span>
+                </div>
+                <p class="desc">${escapeHtml(s.description)}</p>
+                ${usedLine}
+                <details>
+                    <summary>Prompt + files</summary>
+                    <pre>${escapeHtml(s.prompt)}</pre>
+                    <div class="links">
+                        <a href="${escapeHtml(s.sheet)}" target="_blank">sheet</a>
+                        ${s.gif ? `<a href="${escapeHtml(s.gif)}" target="_blank">animation.gif</a>` : ''}
+                        <a href="sprite-forge/${escapeHtml(s.name)}/prompt-used.txt" target="_blank">prompt-used.txt</a>
+                        <a href="sprite-forge/${escapeHtml(s.name)}/pipeline-meta.json" target="_blank">pipeline-meta.json</a>
+                    </div>
+                </details>
+            </div>
+        </div>`;
+}
+
+const addCard = `
+    <div class="add-card">
+        <h3>+ Add a sprite</h3>
+        <p>1. Generate in Codex (Windows-side):</p>
+        <pre>$generate2dsprite "&lt;your prompt&gt;"</pre>
+        <p>2. Copy bundle into the repo:</p>
+        <pre>cp -R generated-assets/&lt;name&gt;/{sheet-transparent.png,animation.gif,prompt-used.txt,pipeline-meta.json} \\
+   wordweft-web/sprite-forge/&lt;name&gt;/</pre>
+        <p>3. Append an entry to <code>SPRITES</code> in this file's
+        <code>&lt;script&gt;</code> block, then push.</p>
+        <p>The full <code>generated-assets/</code> folder is gitignored —
+        only the four files above are versioned.</p>
+    </div>`;
+
+document.getElementById('grid').innerHTML = SPRITES.map(renderCard).join('') + addCard;
+
+document.addEventListener('click', (ev) => {
+    const shot = ev.target.closest('img[data-shot]');
+    if (shot) {
+        const lb = document.getElementById('lightbox');
+        document.getElementById('lightbox-img').src = shot.dataset.shot;
+        lb.classList.add('show');
+        return;
+    }
+    if (ev.target.closest('#lightbox')) {
+        document.getElementById('lightbox').classList.remove('show');
+    }
+});
+</script>
+</body>
+</html>

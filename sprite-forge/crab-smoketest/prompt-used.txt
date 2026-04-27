@@ -1,0 +1,1 @@
+tiny pixel-art crab, 4-frame walk cycle, transparent background
