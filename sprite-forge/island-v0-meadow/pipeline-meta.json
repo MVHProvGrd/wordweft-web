@@ -1,0 +1,58 @@
+{
+  "target": "asset",
+  "asset_type": "prop",
+  "mode": "single",
+  "view": "side",
+  "bundle": "single_asset",
+  "source_reference": "design/mascots/sketch_v0_island.png",
+  "generated_source": "/home/usafaux2004/.codex/generated_images/019dd095-c8d6-7d91-9959-d884e948443b/ig_0894272dc83a92400169efc41cc1088190a47ee74b77688368.png",
+  "raw_sheet": "generated-assets/island-v0-meadow/raw-sheet.png",
+  "transparent_sheet": "wordweft-web/sprite-forge/island-v0-meadow/sheet-transparent.png",
+  "output_dimensions": [
+    256,
+    96
+  ],
+  "rows": 1,
+  "cols": 1,
+  "frame_labels": [
+    "single-1"
+  ],
+  "background_key": "#FF00FF",
+  "processing": {
+    "crop_box": [
+      0,
+      222,
+      2048,
+      503
+    ],
+    "source_dimensions": [
+      2048,
+      768
+    ],
+    "resize_filter": "nearest-neighbor",
+    "chroma_cleanup": "magenta-family threshold preserving green/dark-green island pixels",
+    "component_mode": "all",
+    "align": "preserve full-width side-view silhouette"
+  },
+  "frames": [
+    {
+      "label": "single-1",
+      "size": [
+        256,
+        96
+      ],
+      "crop_bbox": [
+        20,
+        58,
+        239,
+        96
+      ],
+      "edge_touch": true,
+      "opaque_pixels": 4378,
+      "transparent_pixels": 20198
+    }
+  ],
+  "edge_touch_frames": [
+    "single-1"
+  ]
+}

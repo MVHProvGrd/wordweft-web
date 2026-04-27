@@ -1,0 +1,9 @@
+Codex $generate2dsprite skill, side-view single-frame 2D pixel-art island ground.
+
+Reference for shape: design/mascots/sketch_v0_island.png — tapered side-view rolling-hill silhouette, wide aspect, edges tapering to low tips on left and right.
+
+Output: 256×96 (wide cinematic), no flora.
+
+Style: chunky pixel-art with crisp dark green outline and cel-shaded pastel greens, lush green grassy hill silhouette with a gently rolling slightly-bumpy top surface that mirrors the sketch's hill positions, softly tapered sides ending at low tips on left and right.
+
+Constraints: NO trees, NO flowers, NO mushrooms, NO brown earth on the underside, NO sky, NO water. Just clean grass-covered island ground in the silhouette shape from the reference.

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Island baseline A/B</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF; text-decoration: none; font-size: 13px;
+        padding: 6px 10px; border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede { color: #8D7FAE; margin: 0 0 22px; font-size: 14px; max-width: 760px; line-height: 1.55; }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+    .row .card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 14px 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .card h3 { margin: 0; font-size: 14px; font-weight: 700; }
+    .card .meta { font-size: 11px; color: #8D7FAE; font-family: monospace; line-height: 1.4; }
+    .card .img-wrap {
+        background:
+            linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%),
+            linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.04) 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        background-color: #0F0820;
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100px;
+    }
+    .card img {
+        max-width: 100%;
+        max-height: 220px;
+        height: auto;
+        display: block;
+        image-rendering: pixelated;
+    }
+    .card.cartoon img { image-rendering: auto; }
+    .card.codex.pending .img-wrap {
+        font-size: 12px;
+        color: #B8A8FF;
+        font-style: italic;
+        text-align: center;
+        min-height: 100px;
+    }
+    .card .pill {
+        align-self: flex-start;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+    .pill.sketch { background: rgba(184,168,255,0.18); color: #B8A8FF; }
+    .pill.shape { background: rgba(124,232,168,0.16); color: #8FE4B8; }
+    .pill.cartoon { background: rgba(232,184,124,0.16); color: #FFC987; }
+    .pill.pixel { background: rgba(232,124,184,0.16); color: #FF9CC9; }
+    @media (max-width: 980px) {
+        .row { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="admin-index.html">← admin</a></header>
+    <h1>Island baseline · A/B</h1>
+    <p class="lede">
+        Same silhouette, two render styles. The first column is the user's hand-drawn topography.
+        The second is the silhouette tapered by <code>admin-island-sketches.html</code> — fed into
+        both generators as the shape mask. The third is Gemini 2.5 Flash Image conditioned on the
+        tapered silhouette + <code>run_island_v0_APPROVED.png</code> as a style anchor. The fourth
+        is Codex (<code>$generate2dsprite</code>) pixel-art rendering of the same shape.
+    </p>
+
+    <div class="row" id="v0">
+        <div class="card sketch">
+            <span class="pill sketch">Sketch</span>
+            <h3>sketch_v0.png</h3>
+            <div class="meta">2048×1024 · hand-drawn topography reference</div>
+            <div class="img-wrap"><img src="design/mascots/sketch_v0.png" alt="sketch_v0"></div>
+        </div>
+        <div class="card shape">
+            <span class="pill shape">Shape mask</span>
+            <h3>sketch_v0_island.png</h3>
+            <div class="meta">5% taper · smoothstep · 0 chamfer</div>
+            <div class="img-wrap"><img src="design/mascots/sketch_v0_island.png" alt="sketch_v0_island"></div>
+        </div>
+        <div class="card cartoon">
+            <span class="pill cartoon">Gemini · cartoon</span>
+            <h3>run_island_v0_baseline.png</h3>
+            <div class="meta">gemini-2.5-flash-image · refs: shape + v0_APPROVED</div>
+            <div class="img-wrap"><img src="design/mascots/run_island_v0_baseline.png" alt="run_island_v0_baseline"></div>
+        </div>
+        <div class="card codex pending" id="codex-card">
+            <span class="pill pixel">Codex · pixel</span>
+            <h3>island-v0-meadow</h3>
+            <div class="meta">$generate2dsprite · waiting for first run…</div>
+            <div class="img-wrap" id="codex-slot">generating…</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Hot-swap the codex card once the file is published. The file lives under
+// wordweft-web/sprite-forge/island-v0-meadow/sheet-transparent.png after the
+// run completes and gets synced.
+async function tryLoadCodex() {
+    const url = 'sprite-forge/island-v0-meadow/sheet-transparent.png?cb=' + Date.now();
+    const probe = await fetch(url, { method: 'HEAD' }).catch(() => null);
+    if (!probe || !probe.ok) return false;
+    const card = document.getElementById('codex-card');
+    const slot = document.getElementById('codex-slot');
+    card.classList.remove('pending');
+    slot.innerHTML = '<img src="' + url + '" alt="island-v0-meadow">';
+    card.querySelector('.meta').textContent = '$generate2dsprite · pixel-art baseline';
+    return true;
+}
+(async () => {
+    if (await tryLoadCodex()) return;
+    const id = setInterval(async () => {
+        if (await tryLoadCodex()) clearInterval(id);
+    }, 4000);
+})();
+</script>
+</body>
+</html>
