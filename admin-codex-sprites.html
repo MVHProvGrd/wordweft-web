@@ -209,20 +209,25 @@ const SPRITES = [
         gif: 'sprite-forge/crab-smoketest/animation.gif',
         usedAt: null,
     },
-    // Roadmap entries — uncomment + populate once Codex has produced files
-    // and you've copied them into wordweft-web/sprite-forge/<name>/:
-    //
-    // {
-    //   name: 'moth-hazard',
-    //   title: 'Storm-biome moth (Wefty Run hazard)',
-    //   status: 'draft',  // draft | smoketest | approved | shipped
-    //   description: 'Thread-eater hazard for Wefty Run storm biome. 32×32 ' +
-    //       'wing-flap loop. Spawns mid-flight, nibbles bridges as it flies.',
-    //   prompt: 'small pixel-art moth, 32x32 per frame, 4-frame wing-flap idle ...',
-    //   sheet: 'sprite-forge/moth-hazard/sheet-transparent.png',
-    //   gif:   'sprite-forge/moth-hazard/animation.gif',
-    //   usedAt: 'wefty-run.html (storm biome, world.hazards entries)',
-    // },
+    {
+        name: 'moth-hazard',
+        title: 'Storm-biome moth (Wefty Run hazard)',
+        status: 'draft',
+        description: 'Thread-eater hazard for the Wefty Run storm biome — ' +
+            '4-frame wing-flap idle, ~32×32 per frame, purple-grey palette ' +
+            'with a faint silver thread trail. Pending wire-in to ' +
+            'wefty-run.html + Android WeftyRunScreen.kt as a flying obstacle.',
+        prompt: 'small pixel-art moth, 32x32 per frame, 4-frame wing-flap idle cycle, ' +
+            'body is a tuft of frayed yarn fibers in stormy purple-grey palette to ' +
+            'match a Wefty Run storm biome, two pearl-white pinprick eyes, faint ' +
+            'silver thread trailing from its abdomen suggesting it\'s an ' +
+            'unraveler/thread-eater, transparent background, chunky readable ' +
+            'pixel-art with crisp dark outlines, same bounding box and pixel ' +
+            'scale across frames',
+        sheet: 'sprite-forge/moth-hazard/sheet-transparent.png',
+        gif: 'sprite-forge/moth-hazard/animation.gif',
+        usedAt: null,
+    },
 ];
 
 function escapeHtml(s) {
