@@ -570,6 +570,58 @@ body.light-theme .podium-rank  { text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 /* Styled report dialog + post-submit confirmation card. Mirrors the
  * Android ReportDialog + suspension card chrome so the experience
  * reads the same on both platforms. */
+/* User-facing warning modal — fired on the next launch after an admin
+ * uses the "Warn" action on a target. Blocks the rest of the UI until
+ * the user acknowledges. */
+.warning-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,11,46,0.92);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  font-family: var(--ww-body, -apple-system, system-ui, sans-serif);
+}
+.warning-modal .warning-card {
+  max-width: 480px;
+  width: 100%;
+  background: #291847;
+  border: 1px solid rgba(232,179,76,0.55);
+  border-radius: 18px;
+  padding: 28px 26px;
+  text-align: center;
+  color: #EEE6FF;
+}
+.warning-modal .warning-icon { font-size: 48px; margin-bottom: 8px; }
+.warning-modal .warning-title { margin: 0 0 8px; font-size: 22px; color: #FFE6B8; font-weight: 800; }
+.warning-modal .warning-sub { margin: 0 0 18px; font-size: 13px; color: #C7B8E8; line-height: 1.55; }
+.warning-modal .warning-row {
+  background: rgba(232,179,76,0.10);
+  border: 1px solid rgba(232,179,76,0.32);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+.warning-modal .warning-row-ts { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: #8D7FAE; margin-bottom: 4px; }
+.warning-modal .warning-row-text { font-size: 13px; color: #FFE6B8; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.warning-modal .warning-ack {
+  margin-top: 8px;
+  background: #E8B34C;
+  color: #2A1B22;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 12px 24px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.warning-modal .warning-ack:hover { filter: brightness(1.08); }
+
 .moderation-modal {
   position: fixed;
   inset: 0;

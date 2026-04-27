@@ -60,6 +60,33 @@
     }
     .context-btn:hover { background: rgba(124,111,232,0.32); color: #FFF; }
     .context-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .warn-btn {
+        background: rgba(232,179,76,0.20);
+        color: #FFE6B8;
+        border: 1px solid rgba(232,179,76,0.55);
+    }
+    .warn-btn:hover { background: rgba(232,179,76,0.35); color: #FFF; }
+    .warn-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+    .ctx-warning {
+        background: rgba(232,179,76,0.10);
+        border: 1px solid rgba(232,179,76,0.32);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+    }
+    .ctx-warning-head {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+    .ctx-warning-text {
+        font-size: 13px;
+        color: #FFE6B8;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
 
     .ctx-modal {
         position: fixed;
@@ -379,6 +406,12 @@ let myUid = null;
 // Resolved display-name cache. Filled lazily from users/{uid}/profile.
 // Persists across tab switches so we don't re-fetch the same UIDs.
 const NAME_CACHE = new Map();
+// Warning-count cache, keyed by target uid. Filled when the admin
+// opens 'View activity' (which already round-trips via getUserContext)
+// or completes a Warn action (which returns the new count). Used to
+// drive the 'N warnings · FLAGGED' pill on each target row without
+// fetching userWarnings/* per target on every loadReports().
+const WARNING_COUNT_CACHE = new Map();
 async function resolveName(uid) {
     if (!uid) return '';
     if (NAME_CACHE.has(uid)) return NAME_CACHE.get(uid);
@@ -543,6 +576,14 @@ function renderReports() {
         const latest   = g.reports.reduce((m, r) => Math.max(m, r.createdAt || 0), 0);
         const distinctClass = distinctReporters.size >= 3 ? 'danger'
             : distinctReporters.size >= 2 ? 'warn' : '';
+        // Warning counter cache — populated lazily per target by the
+        // 'View activity' modal (or the 'Warn' submit) since reading
+        // userWarnings/{uid} requires an admin-side fetch. If the
+        // admin has touched this target already this session, the
+        // cached count drives the 'N warnings' pill + FLAGGED state
+        // without re-fetching.
+        const warnings = WARNING_COUNT_CACHE.get(g.uid) || 0;
+        const warningClass = warnings >= 3 ? 'danger' : warnings >= 1 ? 'warn' : '';
         const groupEl = document.createElement('div');
         groupEl.className = 'group';
         groupEl.innerHTML = `
@@ -554,11 +595,13 @@ function renderReports() {
                     <button class="context-btn" data-action="context" data-uid="${escapeHtml(g.uid)}">View activity</button>
                     ${banned
                         ? `<button class="unban-btn" data-action="unban" data-uid="${escapeHtml(g.uid)}">Unban</button>`
-                        : `<button class="ban-btn" data-action="ban" data-uid="${escapeHtml(g.uid)}">Ban user</button>`}
+                        : `<button class="warn-btn" data-action="warn" data-uid="${escapeHtml(g.uid)}" data-report-id="${escapeHtml(g.reports[0] && g.reports[0].id || '')}">Warn</button>
+                           <button class="ban-btn" data-action="ban" data-uid="${escapeHtml(g.uid)}">Ban user</button>`}
                 </span>
             </div>
             <div class="meta-row" style="margin: 4px 0 0 12px;">
                 <span class="meta-pill ${distinctClass}">${distinctReporters.size} distinct reporter${distinctReporters.size === 1 ? '' : 's'}</span>
+                ${warnings > 0 ? `<span class="meta-pill ${warningClass}">${warnings} warning${warnings === 1 ? '' : 's'}${warnings >= 3 ? ' · FLAGGED' : ''}</span>` : ''}
                 <span class="meta-pill">First: ${tsFmt(earliest)}</span>
                 <span class="meta-pill">Latest: ${tsFmt(latest)}</span>
                 ${banned ? '<span class="meta-pill danger">BANNED</span>' : ''}
@@ -722,6 +765,41 @@ document.addEventListener('click', async (ev) => {
             toast('Dismissed');
             await loadReports();
         } catch (e) { toast('Dismiss failed: ' + e.message); btn.disabled = false; btn.textContent = 'Dismiss'; }
+    } else if (action === 'warn') {
+        const uid = btn.dataset.uid;
+        const reportId = btn.dataset.reportId;
+        if (!uid) return;
+        const reason = prompt(
+            'Warning message (shown to the user on next launch):\n\n' +
+            'Be specific — they\'ll see this exactly. Mention the behavior + ' +
+            'what to change. Three warnings = FLAGGED for ban consideration.',
+            'Please keep it civil. Inappropriate content was reported in your last game.',
+        );
+        if (!reason) return;
+        if (reason.trim().length < 5) {
+            toast('Reason too short (min 5 chars)');
+            return;
+        }
+        btn.disabled = true; btn.textContent = '…';
+        try {
+            const fn = fbFunctions.httpsCallable('warnUser');
+            const result = await fn({
+                targetUid: uid,
+                reason: reason.trim(),
+                reportId: reportId || undefined,
+            });
+            const count = result?.data?.warningCount || 0;
+            const flagged = result?.data?.flaggedAt3;
+            WARNING_COUNT_CACHE.set(uid, count);
+            toast('Warned · ' + count + ' total' + (flagged ? ' · NOW FLAGGED' : ''));
+            await loadReports();
+        } catch (e) {
+            const msg = (e && e.message) ? e.message : String(e);
+            const code = (e && e.code) ? ' [' + e.code + ']' : '';
+            console.error('warnUser failed:', e);
+            toast('Warn failed' + code + ': ' + msg);
+            btn.disabled = false; btn.textContent = 'Warn';
+        }
     } else if (action === 'context') {
         // Pop the recent-activity modal so the admin has decision
         // context (profile, lifetime stats, last 10 stories, last 10
@@ -754,6 +832,15 @@ function openContextModal(uid, ctx) {
     const stories = ctx.stories || [];
     const history = ctx.history || [];
     const banned = ctx.banned;
+    const warnings = ctx.warnings || [];
+    // Cache warning count so the per-target row pill renders without
+    // a second fetch on the next loadReports() pass.
+    WARNING_COUNT_CACHE.set(uid, warnings.length);
+    const wPill = warnings.length === 0 ? '' :
+        '<span class="meta-pill ' + (warnings.length >= 3 ? 'danger' : 'warn') + '">' +
+            warnings.length + ' warning' + (warnings.length === 1 ? '' : 's') +
+            (warnings.length >= 3 ? ' · FLAGGED' : '') +
+        '</span>';
     const profileBlock =
         '<div class="ctx-profile">' +
             '<div class="ctx-name">' + (profile.displayName ? escapeHtml(profile.displayName) : '<i>no display name</i>') + '</div>' +
@@ -763,9 +850,22 @@ function openContextModal(uid, ctx) {
                 '<span class="meta-pill">Played ' + (stats.gamesPlayed || 0) + '</span>' +
                 '<span class="meta-pill">Won ' + (stats.gamesWon || 0) + '</span>' +
                 (stats.bestGrade ? '<span class="meta-pill">Best ' + escapeHtml(stats.bestGrade) + '</span>' : '') +
+                wPill +
                 (banned ? '<span class="meta-pill danger">BANNED</span>' : '') +
             '</div>' +
         '</div>';
+    const warningsBlock = warnings.length === 0 ? '' :
+        '<h4 class="ctx-section">Warning history</h4>' +
+        warnings.slice(0, 10).map((w) => {
+            const ts = tsFmt(w.createdAt);
+            return '<div class="ctx-warning">' +
+                '<div class="ctx-warning-head">' +
+                    '<span class="uid-mono">' + escapeHtml(ts) + '</span>' +
+                    '<span class="meta-pill warn">WARNING</span>' +
+                '</div>' +
+                '<div class="ctx-warning-text">' + escapeHtml(w.reason || '') + '</div>' +
+            '</div>';
+        }).join('');
     const storiesBlock = stories.length === 0
         ? '<div class="ctx-empty">No saved stories.</div>'
         : stories.slice(0, 10).map((s) => {
@@ -803,6 +903,7 @@ function openContextModal(uid, ctx) {
                 '<button class="ctx-close" type="button">×</button>' +
             '</div>' +
             profileBlock +
+            warningsBlock +
             '<h4 class="ctx-section">Last ' + Math.min(stories.length, 10) + ' stories</h4>' +
             storiesBlock +
             '<h4 class="ctx-section">Last ' + Math.min(history.length, 10) + ' game results</h4>' +

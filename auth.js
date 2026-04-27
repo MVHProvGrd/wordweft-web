@@ -27,6 +27,7 @@ const Auth = (() => {
                 updateUI();
                 rewireBlockedListener();
                 checkBannedAndBoot();
+                checkUnseenWarnings();
                 if (onAuthReady) {
                     onAuthReady(user);
                     onAuthReady = null;
@@ -597,6 +598,88 @@ const Auth = (() => {
      *  suspension notice and the session is signed out so the banned
      *  account can't continue using the app from this tab. */
     let bannedNoticeShown = false;
+    /**
+     * On every auth-state-change, fan out userWarnings/{me} against
+     * users/{me}/private/warningsSeen/ and pop a one-time modal for
+     * any warnings the user hasn't acknowledged. Acknowledgement
+     * writes warningsSeen/{warningId}: true under the existing
+     * $private rule so it survives across sessions.
+     *
+     * Banned users hit the suspension card in checkBannedAndBoot
+     * before this runs — they never see the warning modal because
+     * sign-out fires first and currentUser is cleared.
+     */
+    let warningsModalShown = false;
+    async function checkUnseenWarnings() {
+        if (!auth.currentUser || warningsModalShown) return;
+        try {
+            const uid = auth.currentUser.uid;
+            const [warningsSnap, seenSnap] = await Promise.all([
+                db.ref(`userWarnings/${uid}`).once('value'),
+                db.ref(`users/${uid}/private/warningsSeen`).once('value'),
+            ]);
+            const warnings = warningsSnap.val() || {};
+            const seen = seenSnap.val() || {};
+            const unseen = Object.entries(warnings)
+                .filter(([id]) => !seen[id])
+                .map(([id, w]) => ({ id, ...(w || {}) }))
+                .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            if (unseen.length === 0) return;
+            warningsModalShown = true;
+            showWarningModal(uid, unseen);
+        } catch (_) {
+            /* read denied = treat as no warnings */
+        }
+    }
+
+    function showWarningModal(uid, warnings) {
+        // Remove any other modals so the warning is the only thing
+        // the user can interact with.
+        document.querySelectorAll('.warning-modal').forEach(n => n.remove());
+        const overlay = document.createElement('div');
+        overlay.className = 'warning-modal';
+        overlay.innerHTML =
+            '<div class="warning-card" role="dialog" aria-modal="true">' +
+                '<div class="warning-icon">⚠️</div>' +
+                '<h2 class="warning-title">' +
+                    (warnings.length === 1 ? 'A warning from WordWeft' :
+                     warnings.length + ' warnings from WordWeft') +
+                '</h2>' +
+                '<p class="warning-sub">' +
+                    'A moderator reviewed your account and posted ' +
+                    (warnings.length === 1 ? 'this message' : 'these messages') +
+                    '. Read carefully — repeated warnings can lead to suspension.' +
+                '</p>' +
+                warnings.map((w) => {
+                    const ts = w.createdAt ?
+                        new Date(w.createdAt).toISOString().replace('T', ' ').replace(/\..+/, '') :
+                        '';
+                    const reason = String(w.reason || '').replace(/[<>&]/g, (c) =>
+                        ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+                    return '<div class="warning-row">' +
+                        (ts ? '<div class="warning-row-ts">' + ts + '</div>' : '') +
+                        '<div class="warning-row-text">' + reason + '</div>' +
+                    '</div>';
+                }).join('') +
+                '<button class="warning-ack" type="button">I understand · Continue</button>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        overlay.querySelector('.warning-ack').addEventListener('click', async () => {
+            // Mark every shown warning as acknowledged so they don't
+            // come back next launch. Best-effort — if the write fails
+            // (offline, rules change, etc.), the user stays bothered;
+            // server-side count + admin pill stay accurate either way.
+            try {
+                const updates = {};
+                warnings.forEach((w) => { updates[w.id] = true; });
+                await db.ref(`users/${uid}/private/warningsSeen`).update(updates);
+            } catch (e) {
+                console.warn('Failed to ack warnings:', e);
+            }
+            overlay.remove();
+        });
+    }
+
     async function checkBannedAndBoot() {
         if (!auth.currentUser || bannedNoticeShown) return;
         try {
