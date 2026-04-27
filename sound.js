@@ -189,6 +189,9 @@ const Sound = (() => {
   const loopTracks = {
     jazz:     { src: 'jazz_loop.mp3',     volume: 0.35 },
     chiptune: { src: 'chiptune_loop.mp3', volume: 0.32 },
+    lullaby:  { src: 'lullaby_loop.mp3',  volume: 0.32 },
+    bossa:    { src: 'bossa_loop.mp3',    volume: 0.34 },
+    blues:    { src: 'blues_loop.mp3',    volume: 0.34 },
   };
   let loopAudio = null;
 
