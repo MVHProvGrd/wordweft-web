@@ -118,12 +118,12 @@
     <h1>Island sketch taper</h1>
     <p class="lede">
         Hand-drawn topographies in <code>design/mascots/sketch_v0..v9.png</code> run
-        edge-to-edge — they read as ground strips, not islands. This page carves the
-        left/right edges down to a tip and lifts the underside into a soft curve so
-        each silhouette becomes a discrete floating island. Hill positions and the
-        topline shape are preserved. Tweak the sliders, then download the corrected
-        PNGs and drop them next to the originals as <code>sketch_v0_island.png</code>
-        … <code>sketch_v9_island.png</code>.
+        edge-to-edge — they read as ground strips, not islands. This page pulls the
+        topline <em>down</em> at the left/right edges so each silhouette terminates
+        at the bottom corners — matching how <code>run_island_v0_APPROVED.png</code>
+        ends. Hill positions and the topline shape in the middle are preserved.
+        Tweak the slider, then download the corrected PNGs and drop them next to the
+        originals as <code>sketch_v0_island.png</code> … <code>sketch_v9_island.png</code>.
     </p>
 
     <div class="controls">
@@ -133,15 +133,7 @@
                 <input type="range" id="taper" min="0" max="50" step="1" value="22">
                 <span class="val" id="taper-val">22%</span>
             </div>
-            <div class="hint">% of canvas width on each side that ramps from full → tip.</div>
-        </div>
-        <div class="ctrl">
-            <label for="underside">Underside curve depth</label>
-            <div class="row">
-                <input type="range" id="underside" min="0" max="40" step="1" value="14">
-                <span class="val" id="underside-val">14%</span>
-            </div>
-            <div class="hint">% of canvas height that the bottom arcs upward into the silhouette in the middle.</div>
+            <div class="hint">% of canvas width on each side over which the topline ramps down to meet the baseline.</div>
         </div>
         <div class="ctrl">
             <label for="ease">Edge easing</label>
@@ -149,7 +141,7 @@
                 <input type="range" id="ease" min="1" max="4" step="1" value="2">
                 <span class="val" id="ease-val">2</span>
             </div>
-            <div class="hint">1 = linear taper. Higher = softer mid, sharper tip. 2 is smoothstep.</div>
+            <div class="hint">1 = linear ramp. Higher = silhouette holds longer, drops faster at the very edge. 2 is smoothstep.</div>
         </div>
         <div class="actions">
             <button class="primary" id="dl-all">Download all (10 PNGs)</button>
@@ -166,10 +158,8 @@ const SRC_BASE = 'design/mascots/';
 
 const grid = document.getElementById('grid');
 const taperEl = document.getElementById('taper');
-const undersideEl = document.getElementById('underside');
 const easeEl = document.getElementById('ease');
 const taperVal = document.getElementById('taper-val');
-const undersideVal = document.getElementById('underside-val');
 const easeVal = document.getElementById('ease-val');
 
 const cards = [];
@@ -201,7 +191,7 @@ function extractTopline(imgData) {
     return top;
 }
 
-function renderTapered(img, taperPct, undersidePct, ease) {
+function renderTapered(img, taperPct, ease) {
     const w = img.naturalWidth;
     const h = img.naturalHeight;
 
@@ -213,7 +203,24 @@ function renderTapered(img, taperPct, undersidePct, ease) {
     const srcData = sctx.getImageData(0, 0, w, h);
     const topline = extractTopline(srcData);
 
-    // Sample silhouette green color (median-ish: pick a column near center with green)
+    // Find the baseline (bottom-most green row) — usually = h, but if the sketch
+    // has any whitespace under the silhouette we want to anchor to the actual bottom.
+    let baseline = h;
+    for (let x = 0; x < w; x++) {
+        const top_orig = topline[x];
+        if (top_orig >= h) continue;
+        // Walk down from top_orig until we leave the silhouette
+        for (let y = h - 1; y >= top_orig; y--) {
+            const i = (y * w + x) * 4;
+            const r = srcData.data[i], g = srcData.data[i+1], b = srcData.data[i+2], a = srcData.data[i+3];
+            if (a > 96 && g > 70 && g > r * 1.05 && g > b * 1.05) {
+                if (y + 1 < baseline) baseline = y + 1;
+                break;
+            }
+        }
+    }
+
+    // Sample silhouette green color near the bottom-middle
     let sampleColor = [80, 170, 90, 255];
     for (let x = Math.floor(w/2); x < w; x++) {
         if (topline[x] < h - 2) {
@@ -231,7 +238,6 @@ function renderTapered(img, taperPct, undersidePct, ease) {
     const outData = octx.createImageData(w, h);
 
     const tw = Math.max(1, Math.round(w * taperPct / 100));
-    const dipPx = Math.round(h * undersidePct / 100);
 
     for (let x = 0; x < w; x++) {
         // Edge taper factor: 0 at edges, 1 in middle
@@ -239,19 +245,14 @@ function renderTapered(img, taperPct, undersidePct, ease) {
         if (x < tw) tf = smoothstep(x / tw, ease);
         else if (x > w - tw) tf = smoothstep((w - x) / tw, ease);
 
-        // Original height at this column (0 if no silhouette there)
         const top_orig = topline[x];
-        const height_orig = h - top_orig;
-        if (height_orig <= 0) continue;
+        if (top_orig >= baseline) continue;
 
-        // Underside dip: pull bottom up in the middle (sin arc), 0 at edges
-        const arc = Math.sin(Math.PI * (x + 0.5) / w);
-        const dip = dipPx * arc * tf;
-
-        // New height = height_orig * tf, anchored to original topline
-        const new_h = height_orig * tf;
-        const new_top = top_orig;
-        const new_bottom = top_orig + new_h - dip;
+        // Anchor the silhouette's BOTTOM at the baseline; pull the topline DOWN
+        // at the edges so the silhouette terminates at a tip on the baseline.
+        // tf=1 → new_top = top_orig (preserved). tf=0 → new_top = baseline (zero thickness).
+        const new_top = baseline - (baseline - top_orig) * tf;
+        const new_bottom = baseline;
 
         if (new_bottom <= new_top) continue;
 
@@ -259,10 +260,9 @@ function renderTapered(img, taperPct, undersidePct, ease) {
         const yEnd = Math.min(h, Math.ceil(new_bottom));
 
         for (let y = yStart; y < yEnd; y++) {
-            // Soft alpha at the boundaries
+            // Soft alpha only at the new topline so the slope isn't aliased
             let alpha = 255;
             if (y < new_top + 1) alpha = Math.round(255 * (y - new_top + 1));
-            else if (y > new_bottom - 1) alpha = Math.round(255 * (new_bottom - y));
             alpha = Math.max(0, Math.min(255, alpha));
 
             const i = (y * w + x) * 4;
@@ -279,15 +279,13 @@ function renderTapered(img, taperPct, undersidePct, ease) {
 
 function rerenderAll() {
     const taperPct = parseInt(taperEl.value, 10);
-    const undersidePct = parseInt(undersideEl.value, 10);
     const ease = parseInt(easeEl.value, 10);
     taperVal.textContent = taperPct + '%';
-    undersideVal.textContent = undersidePct + '%';
     easeVal.textContent = ease;
 
     for (const card of cards) {
         if (!card.img.complete) continue;
-        const tapered = renderTapered(card.img, taperPct, undersidePct, ease);
+        const tapered = renderTapered(card.img, taperPct, ease);
         card.outCtx.canvas.width = tapered.width;
         card.outCtx.canvas.height = tapered.height;
         card.outCtx.clearRect(0, 0, tapered.width, tapered.height);
@@ -363,12 +361,11 @@ document.getElementById('dl-all').addEventListener('click', async () => {
 
 document.getElementById('reset').addEventListener('click', () => {
     taperEl.value = 22;
-    undersideEl.value = 14;
     easeEl.value = 2;
     rerenderAll();
 });
 
-[taperEl, undersideEl, easeEl].forEach(el => el.addEventListener('input', rerenderAll));
+[taperEl, easeEl].forEach(el => el.addEventListener('input', rerenderAll));
 
 SKETCHES.forEach(buildCard);
 </script>
