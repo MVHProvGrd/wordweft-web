@@ -75,6 +75,15 @@
     .toolbar button.active { background: #7C6FE8; color: #FFF; border-color: transparent; }
     .toolbar .grow { flex: 1; }
     .toolbar .me { font-size: 12px; color: #8D7FAE; font-family: monospace; }
+    .toolbar a.cross-link {
+        font-size: 12px;
+        color: #B8A8FF;
+        text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(184,168,255,0.4);
+    }
+    .toolbar a.cross-link:hover { background: rgba(184,168,255,0.15); }
 
     .summary {
         background: #1E1238;
@@ -267,6 +276,7 @@
             <button data-filter="open" class="active filter-btn">Open</button>
             <button data-filter="all" class="filter-btn">All</button>
             <span class="grow"></span>
+            <a class="cross-link" href="admin-bugreports.html">Bug reports →</a>
             <span class="me" id="me-uid"></span>
         </div>
         <div id="report-list"></div>

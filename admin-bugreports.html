@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Admin · Bug reports</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 22px;
+        font-size: 14px;
+        max-width: 760px;
+        line-height: 1.55;
+    }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .auth-card, .denied-card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 24px;
+        margin-top: 28px;
+        text-align: center;
+    }
+    .auth-card button, .resolve-btn, .unresolve-btn {
+        background: #7C6FE8;
+        border: none;
+        color: #FFF;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+    }
+    .auth-card button:hover { background: #9385ED; }
+    .denied-card { border-color: rgba(232,111,90,0.5); }
+    .denied-card h2 { color: #E86F5A; margin: 0 0 8px; }
+
+    .toolbar {
+        display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .toolbar button {
+        background: rgba(124,111,232,0.20);
+        color: #C7B8E8;
+        border: 1px solid rgba(238,230,255,0.16);
+        padding: 6px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+    }
+    .toolbar button.active { background: #7C6FE8; color: #FFF; border-color: transparent; }
+    .toolbar .grow { flex: 1; }
+    .toolbar .me { font-size: 12px; color: #8D7FAE; font-family: monospace; }
+    .toolbar .submit-link {
+        font-size: 12px;
+        color: #B8A8FF;
+        text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(184,168,255,0.4);
+    }
+    .toolbar .submit-link:hover { background: rgba(184,168,255,0.15); }
+
+    .summary {
+        background: #1E1238;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 14px;
+        padding: 16px 18px;
+        margin-bottom: 18px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+    }
+    .stat { display: flex; flex-direction: column; gap: 2px; }
+    .stat .n { font-size: 22px; font-weight: 800; color: #EEE6FF; }
+    .stat .l { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #8D7FAE; }
+
+    .bug {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 16px 18px;
+        margin-bottom: 12px;
+    }
+    .bug.resolved { opacity: 0.55; }
+    .bug-head {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+    .bug-head .name { font-weight: 700; color: #EEE6FF; }
+    .bug-head .uid { font-family: monospace; font-size: 11px; color: #8D7FAE; }
+    .bug-head .when { font-family: monospace; font-size: 11px; color: #B8A8FF; }
+    .bug-head .grow { flex: 1; }
+    .resolve-btn { background: rgba(120,200,140,0.85); color: #102015; }
+    .resolve-btn:hover { background: #A4E5B5; }
+    .unresolve-btn { background: rgba(124,111,232,0.30); color: #C7B8E8; }
+    .unresolve-btn:hover { background: rgba(124,111,232,0.50); color: #FFF; }
+    .resolve-btn[disabled], .unresolve-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .resolved-tag {
+        background: rgba(120,200,140,0.20);
+        color: #8FD9A3;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .anon-tag {
+        background: rgba(140,140,200,0.20);
+        color: #B8B8E0;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .bug-body {
+        display: grid;
+        grid-template-columns: 100px 1fr;
+        gap: 6px 14px;
+        font-size: 13px;
+    }
+    .bug-body .lbl { color: #8D7FAE; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .bug-body .val { color: #C7B8E8; word-break: break-all; }
+    .bug-body .text {
+        color: #EEE6FF;
+        white-space: pre-wrap;
+        line-height: 1.55;
+        background: #0E0820;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    .shots { display: flex; gap: 8px; flex-wrap: wrap; }
+    .shots img {
+        width: 120px; height: 120px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid rgba(238,230,255,0.16);
+        cursor: zoom-in;
+    }
+
+    .empty {
+        text-align: center;
+        color: #8D7FAE;
+        padding: 48px 16px;
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 14px;
+    }
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        color: #EEE6FF;
+        padding: 10px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s;
+    }
+    .toast.show { opacity: 1; }
+
+    .lightbox {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.92);
+        display: none; align-items: center; justify-content: center;
+        z-index: 100; padding: 16px;
+        cursor: zoom-out;
+    }
+    .lightbox.show { display: flex; }
+    .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="admin-index.html">← Admin index</a></header>
+    <h1>Admin · Bug reports</h1>
+    <p class="lede">
+        Tester-submitted bug reports from <code>/test-feedback.html</code>,
+        backed by <code>bugReports/</code> in RTDB. Mark <b>Resolved</b>
+        once handled — that flips the entry into the Resolved bucket
+        without deleting it (counts and screenshots stay for audit).
+    </p>
+
+    <div id="auth-gate"></div>
+
+    <div id="main" style="display:none;">
+        <div class="summary">
+            <div class="stat"><span class="n" id="stat-open">—</span><span class="l">Open</span></div>
+            <div class="stat"><span class="n" id="stat-resolved">—</span><span class="l">Resolved</span></div>
+            <div class="stat"><span class="n" id="stat-total">—</span><span class="l">Total</span></div>
+        </div>
+        <div class="toolbar">
+            <button data-filter="open" class="active">Open</button>
+            <button data-filter="resolved">Resolved</button>
+            <button data-filter="all">All</button>
+            <span class="grow"></span>
+            <a class="submit-link" href="test-feedback.html">+ Submit a report</a>
+            <span class="me" id="me-uid"></span>
+        </div>
+        <div id="bug-list"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="lightbox" id="lightbox"><img id="lightbox-img" alt=""></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+const gate = document.getElementById('auth-gate');
+const main = document.getElementById('main');
+const bugList = document.getElementById('bug-list');
+const meUid = document.getElementById('me-uid');
+let currentFilter = 'open';
+let allBugs = [];
+let myUid = null;
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+function fmtDate(ms) {
+    if (!ms) return '—';
+    return new Date(ms).toISOString().replace('T', ' ').replace(/\..+/, '');
+}
+
+function renderSignedOut() {
+    gate.innerHTML = `
+        <div class="auth-card">
+            <h2>Sign in</h2>
+            <p>Use the same Google account that's listed in
+            <code>admins/{uid}: true</code>.</p>
+            <button id="btn-sign-in">Sign in with Google</button>
+        </div>`;
+    document.getElementById('btn-sign-in').addEventListener('click', async () => {
+        try {
+            await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        } catch (e) { toast('Sign-in failed: ' + e.message); }
+    });
+}
+
+function renderDenied(reason) {
+    gate.innerHTML = `
+        <div class="denied-card">
+            <h2>Access denied</h2>
+            <p>${escapeHtml(reason)}</p>
+            <p style="font-size:12px;color:#8D7FAE;margin-top:12px;">
+                You're signed in as <code>${escapeHtml(myUid || '—')}</code>.<br>
+                An existing admin can grant you by setting
+                <code>admins/${escapeHtml(myUid || '<your-uid>')}: true</code>.
+            </p>
+            <button id="btn-sign-out" style="margin-top:14px;">Sign out</button>
+        </div>`;
+    document.getElementById('btn-sign-out').addEventListener('click', () => auth.signOut());
+}
+
+async function loadBugs() {
+    try {
+        const snap = await db.ref('bugReports').once('value');
+        const all = snap.val() || {};
+        allBugs = Object.entries(all)
+            .map(([id, b]) => ({ id, ...b }))
+            .filter((b) => b && typeof b === 'object');
+        render();
+    } catch (e) {
+        renderDenied('Could not read /bugReports — ' + (e.message || 'permission denied') +
+            '. RTDB rule requires admins/{uid}: true.');
+        gate.style.display = '';
+        main.style.display = 'none';
+    }
+}
+
+function render() {
+    let openCount = 0, resolvedCount = 0;
+    allBugs.forEach((b) => { b.resolved ? resolvedCount++ : openCount++; });
+    document.getElementById('stat-open').textContent = openCount;
+    document.getElementById('stat-resolved').textContent = resolvedCount;
+    document.getElementById('stat-total').textContent = allBugs.length;
+
+    const filtered = allBugs
+        .filter((b) => currentFilter === 'all'
+            || (currentFilter === 'open' && !b.resolved)
+            || (currentFilter === 'resolved' && b.resolved))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (filtered.length === 0) {
+        bugList.innerHTML = `<div class="empty">No <b>${currentFilter}</b> bug reports.</div>`;
+        return;
+    }
+    bugList.innerHTML = filtered.map(renderBug).join('');
+}
+
+function renderBug(b) {
+    const isResolved = !!b.resolved;
+    const screenshots = b.screenshots ? Object.values(b.screenshots) : [];
+    const name = b.displayName || (b.isAnonymous ? 'Anonymous' : '—');
+    return `
+        <div class="bug ${isResolved ? 'resolved' : ''}">
+            <div class="bug-head">
+                <span class="name">${escapeHtml(name)}</span>
+                <span class="uid">${escapeHtml(b.uid || '')}</span>
+                ${b.isAnonymous ? '<span class="anon-tag">Anon</span>' : ''}
+                <span class="when">${escapeHtml(fmtDate(b.timestamp))}</span>
+                ${isResolved ? `<span class="resolved-tag">Resolved · ${escapeHtml(fmtDate(b.resolvedAt))}</span>` : ''}
+                <span class="grow"></span>
+                ${isResolved
+                    ? `<button class="unresolve-btn" data-action="unresolve" data-id="${escapeHtml(b.id)}">Reopen</button>`
+                    : `<button class="resolve-btn" data-action="resolve" data-id="${escapeHtml(b.id)}">Mark resolved</button>`}
+            </div>
+            <div class="bug-body">
+                ${b.url ? `<span class="lbl">URL</span><span class="val"><code>${escapeHtml(b.url)}</code></span>` : ''}
+                ${b.userAgent ? `<span class="lbl">UA</span><span class="val" title="${escapeHtml(b.userAgent)}">${escapeHtml(b.userAgent.length > 110 ? b.userAgent.slice(0, 110) + '…' : b.userAgent)}</span>` : ''}
+                <span class="lbl">Report</span>
+                <div class="text">${escapeHtml(b.text || '')}</div>
+                ${screenshots.length > 0
+                    ? `<span class="lbl">Shots</span>
+                       <div class="shots">${screenshots.map((s, i) => `<img src="${escapeHtml(s)}" alt="screenshot ${i+1}" data-shot="${escapeHtml(s)}">`).join('')}</div>`
+                    : ''}
+            </div>
+        </div>`;
+}
+
+document.addEventListener('click', async (ev) => {
+    const shot = ev.target.closest('img[data-shot]');
+    if (shot) {
+        const lb = document.getElementById('lightbox');
+        document.getElementById('lightbox-img').src = shot.dataset.shot;
+        lb.classList.add('show');
+        return;
+    }
+    if (ev.target.closest('#lightbox')) {
+        document.getElementById('lightbox').classList.remove('show');
+        return;
+    }
+    const btn = ev.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        if (action === 'resolve') {
+            const updates = {};
+            updates[`bugReports/${id}/resolved`] = true;
+            updates[`bugReports/${id}/resolvedBy`] = myUid;
+            updates[`bugReports/${id}/resolvedAt`] = firebase.database.ServerValue.TIMESTAMP;
+            await db.ref().update(updates);
+            toast('Marked resolved');
+        } else if (action === 'unresolve') {
+            const updates = {};
+            updates[`bugReports/${id}/resolved`] = null;
+            updates[`bugReports/${id}/resolvedBy`] = null;
+            updates[`bugReports/${id}/resolvedAt`] = null;
+            await db.ref().update(updates);
+            toast('Reopened');
+        }
+        await loadBugs();
+    } catch (e) {
+        toast('Action failed: ' + e.message);
+        btn.disabled = false; btn.textContent = original;
+    }
+});
+
+document.querySelectorAll('.toolbar button[data-filter]').forEach((b) => {
+    b.addEventListener('click', () => {
+        document.querySelectorAll('.toolbar button[data-filter]').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+        currentFilter = b.dataset.filter;
+        render();
+    });
+});
+
+auth.onAuthStateChanged(async (user) => {
+    if (!user || user.isAnonymous) {
+        myUid = null;
+        gate.style.display = '';
+        main.style.display = 'none';
+        renderSignedOut();
+        return;
+    }
+    myUid = user.uid;
+    meUid.textContent = 'me: ' + user.uid;
+    try {
+        const snap = await db.ref(`admins/${user.uid}`).once('value');
+        if (snap.val() !== true) {
+            renderDenied('Your account is not an admin.');
+            return;
+        }
+    } catch (e) {
+        renderDenied('Failed to verify admin status: ' + (e.message || 'unknown'));
+        return;
+    }
+    gate.style.display = 'none';
+    main.style.display = '';
+    await loadBugs();
+});
+</script>
+</body>
+</html>
