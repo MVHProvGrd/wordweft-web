@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Admin</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 22px;
+        font-size: 14px;
+        max-width: 720px;
+        line-height: 1.55;
+    }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .auth-card, .denied-card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 24px;
+        margin-top: 28px;
+        text-align: center;
+    }
+    .auth-card button {
+        background: #7C6FE8; border: none; color: #FFF;
+        padding: 8px 16px; border-radius: 999px;
+        font-weight: 700; cursor: pointer; font-size: 13px;
+        font-family: inherit;
+    }
+    .auth-card button:hover { background: #9385ED; }
+    .denied-card { border-color: rgba(232,111,90,0.5); }
+    .denied-card h2 { color: #E86F5A; margin: 0 0 8px; }
+
+    .me { font-size: 12px; color: #8D7FAE; font-family: monospace; margin-bottom: 18px; }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 14px;
+    }
+    .tile {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 18px 20px;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        transition: border-color 0.15s, transform 0.1s;
+    }
+    .tile:hover {
+        border-color: rgba(184,168,255,0.55);
+        transform: translateY(-1px);
+    }
+    .tile h3 { margin: 0; font-size: 17px; font-weight: 700; color: #EEE6FF; }
+    .tile p { margin: 0; color: #8D7FAE; font-size: 13px; line-height: 1.5; }
+    .tile .arrow { color: #B8A8FF; font-size: 13px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="/">← wordweft.net</a></header>
+    <h1>Admin</h1>
+    <p class="lede">
+        Tools gated by <code>admins/{uid}: true</code> in RTDB. Same UID
+        unlocks every page below.
+    </p>
+
+    <div id="auth-gate"></div>
+    <div id="main" style="display:none;">
+        <div class="me" id="me-uid"></div>
+        <div class="grid">
+            <a class="tile" href="admin.html">
+                <h3>Reports console</h3>
+                <p>User reports grouped by reportedUser. Ban / Dismiss / Unban via the moderation Cloud Functions.</p>
+                <span class="arrow">Open →</span>
+            </a>
+            <a class="tile" href="admin-suggestions.html">
+                <h3>Genre &amp; mood suggestions</h3>
+                <p>LLM-suggested taxonomy entries with counts and story samples. Promote or Dismiss.</p>
+                <span class="arrow">Open →</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+const gate = document.getElementById('auth-gate');
+const main = document.getElementById('main');
+const meUid = document.getElementById('me-uid');
+let myUid = null;
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+function renderSignedOut() {
+    gate.innerHTML = `
+        <div class="auth-card">
+            <h2>Sign in</h2>
+            <p>Use the same Google account that's listed in
+            <code>admins/{uid}: true</code>.</p>
+            <button id="btn-sign-in">Sign in with Google</button>
+        </div>`;
+    document.getElementById('btn-sign-in').addEventListener('click', async () => {
+        try {
+            await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        } catch (e) { alert('Sign-in failed: ' + e.message); }
+    });
+}
+
+function renderDenied(reason) {
+    gate.innerHTML = `
+        <div class="denied-card">
+            <h2>Access denied</h2>
+            <p>${escapeHtml(reason)}</p>
+            <p style="font-size:12px;color:#8D7FAE;margin-top:12px;">
+                You're signed in as <code>${escapeHtml(myUid || '—')}</code>.<br>
+                An existing admin can grant you by setting
+                <code>admins/${escapeHtml(myUid || '<your-uid>')}: true</code>.
+            </p>
+            <button id="btn-sign-out" style="margin-top:14px;">Sign out</button>
+        </div>`;
+    document.getElementById('btn-sign-out').addEventListener('click', () => auth.signOut());
+}
+
+auth.onAuthStateChanged(async (user) => {
+    if (!user || user.isAnonymous) {
+        myUid = null;
+        gate.style.display = '';
+        main.style.display = 'none';
+        renderSignedOut();
+        return;
+    }
+    myUid = user.uid;
+    meUid.textContent = 'me: ' + user.uid;
+    try {
+        const snap = await db.ref(`admins/${user.uid}`).once('value');
+        if (snap.val() !== true) {
+            renderDenied('Your account is not an admin.');
+            return;
+        }
+    } catch (e) {
+        renderDenied('Failed to verify admin status: ' + (e.message || 'unknown'));
+        return;
+    }
+    gate.style.display = 'none';
+    main.style.display = '';
+});
+</script>
+</body>
+</html>

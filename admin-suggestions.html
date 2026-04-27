@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Admin · Suggestions</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 22px;
+        font-size: 14px;
+        max-width: 760px;
+        line-height: 1.55;
+    }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .auth-card, .denied-card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 24px;
+        margin-top: 28px;
+        text-align: center;
+    }
+    .auth-card button, .promote-btn, .dismiss-btn, .undo-btn {
+        background: #7C6FE8;
+        border: none;
+        color: #FFF;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+    }
+    .auth-card button:hover { background: #9385ED; }
+    .denied-card { border-color: rgba(232,111,90,0.5); }
+    .denied-card h2 { color: #E86F5A; margin: 0 0 8px; }
+
+    .toolbar {
+        display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .toolbar button {
+        background: rgba(124,111,232,0.20);
+        color: #C7B8E8;
+        border: 1px solid rgba(238,230,255,0.16);
+        padding: 6px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+    }
+    .toolbar button.active { background: #7C6FE8; color: #FFF; border-color: transparent; }
+    .toolbar .grow { flex: 1; }
+    .toolbar .me { font-size: 12px; color: #8D7FAE; font-family: monospace; }
+
+    .summary {
+        background: #1E1238;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 14px;
+        padding: 16px 18px;
+        margin-bottom: 18px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+    }
+    .stat { display: flex; flex-direction: column; gap: 2px; }
+    .stat .n { font-size: 22px; font-weight: 800; color: #EEE6FF; }
+    .stat .l { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #8D7FAE; }
+
+    .group {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        margin-bottom: 12px;
+        overflow: hidden;
+    }
+    .group-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        cursor: pointer;
+        background: rgba(40,24,71,0.5);
+    }
+    .group-head:hover { background: rgba(60,36,100,0.5); }
+    .group-head .grow { flex: 1; }
+    .group-head .actions { display: flex; gap: 6px; }
+    .kind-pill {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 3px 9px;
+        border-radius: 999px;
+    }
+    .kind-pill.genres { background: rgba(124,111,232,0.22); color: #B8A8FF; }
+    .kind-pill.moods  { background: rgba(180,140,60,0.20); color: #D9B86D; }
+
+    .label { font-weight: 700; font-size: 16px; color: #EEE6FF; }
+    .key-tag { font-family: monospace; font-size: 11px; color: #8D7FAE; }
+    .count {
+        background: rgba(120,200,140,0.18);
+        color: #8FD9A3;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .seen { font-size: 11px; color: #8D7FAE; font-family: monospace; }
+
+    .promote-btn { background: #8FD9A3; color: #102015; }
+    .promote-btn:hover { background: #A4E5B5; }
+    .dismiss-btn { background: rgba(232,111,90,0.85); }
+    .dismiss-btn:hover { background: #F08672; }
+    .undo-btn { background: rgba(124,111,232,0.30); color: #C7B8E8; }
+    .undo-btn:hover { background: rgba(124,111,232,0.50); color: #FFF; }
+    .promote-btn[disabled], .dismiss-btn[disabled], .undo-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+    .group.promoted .group-head { background: rgba(40, 86, 60, 0.35); }
+    .group.dismissed { opacity: 0.55; }
+    .state-tag {
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+    .state-tag.promoted { background: rgba(120,200,140,0.20); color: #8FD9A3; }
+    .state-tag.dismissed { background: rgba(160,160,180,0.20); color: #B8B8E0; }
+
+    .group-body { display: none; padding: 12px 16px; border-top: 1px solid rgba(238,230,255,0.10); }
+    .group.open .group-body { display: block; }
+    .sample {
+        font-size: 12px;
+        color: #C7B8E8;
+        padding: 8px 0;
+        border-top: 1px dashed rgba(238,230,255,0.08);
+    }
+    .sample:first-child { border-top: none; }
+    .sample .meta { color: #8D7FAE; font-size: 11px; font-family: monospace; margin-bottom: 4px; }
+    .sample .preview { color: #EEE6FF; font-style: italic; line-height: 1.45; }
+
+    .empty {
+        text-align: center;
+        color: #8D7FAE;
+        padding: 48px 16px;
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 14px;
+    }
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%);
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        color: #EEE6FF;
+        padding: 10px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s;
+        max-width: 90vw;
+    }
+    .toast.show { opacity: 1; }
+
+    /* Promote modal */
+    .modal-bg {
+        position: fixed; inset: 0;
+        background: rgba(8,4,20,0.78);
+        display: none; align-items: center; justify-content: center;
+        z-index: 100;
+        padding: 16px;
+    }
+    .modal-bg.show { display: flex; }
+    .modal {
+        background: #1E1238;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 720px;
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+    .modal h2 { margin: 0 0 6px; font-size: 22px; }
+    .modal h3 { color: #B8A8FF; margin: 18px 0 6px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .modal pre {
+        background: #0E0820;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: #C7B8E8;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .modal .close-btn {
+        margin-top: 18px;
+        background: #7C6FE8; color: #FFF; border: none;
+        padding: 8px 16px; border-radius: 999px; font-weight: 700;
+        font-family: inherit; font-size: 13px; cursor: pointer;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="admin-index.html">← Admin index</a></header>
+    <h1>Admin · Suggestions</h1>
+    <p class="lede">
+        Curate LLM-suggested genres and moods. Counts come from
+        <code>gradingSuggestions/{genres|moods}/{key}</code>.
+        <b>Promote</b> flips <code>promoted: true</code> and prints the
+        source-file diffs you still need to apply by hand. <b>Dismiss</b>
+        flips <code>dismissed: true</code> so the entry stays out of the
+        Pending view without losing its count history.
+    </p>
+
+    <div id="auth-gate"></div>
+
+    <div id="main" style="display:none;">
+        <div class="summary">
+            <div class="stat"><span class="n" id="stat-pending">—</span><span class="l">Pending</span></div>
+            <div class="stat"><span class="n" id="stat-promoted">—</span><span class="l">Promoted</span></div>
+            <div class="stat"><span class="n" id="stat-dismissed">—</span><span class="l">Dismissed</span></div>
+            <div class="stat"><span class="n" id="stat-total-count">—</span><span class="l">Total observations</span></div>
+        </div>
+        <div class="toolbar">
+            <button data-filter="pending" class="active">Pending</button>
+            <button data-filter="promoted">Promoted</button>
+            <button data-filter="dismissed">Dismissed</button>
+            <button data-filter="all">All</button>
+            <span class="grow"></span>
+            <span class="me" id="me-uid"></span>
+        </div>
+        <div id="entries"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-bg" id="promote-modal">
+    <div class="modal">
+        <h2>Promoted: <span id="modal-label"></span></h2>
+        <p style="color:#8D7FAE;margin:0 0 8px;font-size:13px;">
+            <code id="modal-path"></code> is now <code>promoted: true</code>.
+            Apply these source edits, then deploy / rebuild:
+        </p>
+        <h3>Files to update</h3>
+        <pre id="modal-diff"></pre>
+        <h3>Then</h3>
+        <pre>firebase deploy --only functions:gradeStory
+# push wordweft-web changes (auto-syncs from claude/new-android-app-fPgSt)
+# rebuild + commit android-app/WordWeft-debug.apk</pre>
+        <button class="close-btn" id="modal-close">Got it</button>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+const gate = document.getElementById('auth-gate');
+const main = document.getElementById('main');
+const entriesEl = document.getElementById('entries');
+const meUid = document.getElementById('me-uid');
+let currentFilter = 'pending';
+let allEntries = [];
+let myUid = null;
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+function fmtDate(ms) {
+    if (!ms) return '—';
+    return new Date(ms).toISOString().slice(0, 10);
+}
+
+function renderSignedOut() {
+    gate.innerHTML = `
+        <div class="auth-card">
+            <h2>Sign in</h2>
+            <p>Use the same Google account that's listed in
+            <code>admins/{uid}: true</code>.</p>
+            <button id="btn-sign-in">Sign in with Google</button>
+        </div>`;
+    document.getElementById('btn-sign-in').addEventListener('click', async () => {
+        try {
+            await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        } catch (e) { toast('Sign-in failed: ' + e.message); }
+    });
+}
+
+function renderDenied(reason) {
+    gate.innerHTML = `
+        <div class="denied-card">
+            <h2>Access denied</h2>
+            <p>${escapeHtml(reason)}</p>
+            <p style="font-size:12px;color:#8D7FAE;margin-top:12px;">
+                You're signed in as <code>${escapeHtml(myUid || '—')}</code>.<br>
+                An existing admin can grant you by setting
+                <code>admins/${escapeHtml(myUid || '<your-uid>')}: true</code>.
+            </p>
+            <button id="btn-sign-out" style="margin-top:14px;">Sign out</button>
+        </div>`;
+    document.getElementById('btn-sign-out').addEventListener('click', () => auth.signOut());
+}
+
+async function loadSuggestions() {
+    try {
+        const snap = await db.ref('gradingSuggestions').once('value');
+        const root = snap.val() || {};
+        const out = [];
+        ['genres', 'moods'].forEach((kind) => {
+            const bucket = root[kind] || {};
+            Object.entries(bucket).forEach(([key, v]) => {
+                if (!v || typeof v !== 'object') return;
+                out.push({
+                    kind,
+                    key,
+                    label: v.label || key,
+                    count: v.count || 0,
+                    firstSeen: v.firstSeen || 0,
+                    lastSeen: v.lastSeen || 0,
+                    promoted: v.promoted === true,
+                    dismissed: v.dismissed === true,
+                    samples: v.samples || {},
+                });
+            });
+        });
+        allEntries = out;
+        render();
+    } catch (e) {
+        renderDenied('Could not read /gradingSuggestions — ' + (e.message || 'permission denied') +
+            '. RTDB rule requires admins/{uid}: true.');
+        gate.style.display = '';
+        main.style.display = 'none';
+    }
+}
+
+function statusOf(e) {
+    if (e.dismissed) return 'dismissed';
+    if (e.promoted) return 'promoted';
+    return 'pending';
+}
+
+function render() {
+    const counts = { pending: 0, promoted: 0, dismissed: 0, totalObs: 0 };
+    allEntries.forEach((e) => {
+        counts[statusOf(e)]++;
+        counts.totalObs += e.count;
+    });
+    document.getElementById('stat-pending').textContent = counts.pending;
+    document.getElementById('stat-promoted').textContent = counts.promoted;
+    document.getElementById('stat-dismissed').textContent = counts.dismissed;
+    document.getElementById('stat-total-count').textContent = counts.totalObs;
+
+    const filtered = allEntries
+        .filter((e) => currentFilter === 'all' || statusOf(e) === currentFilter)
+        .sort((a, b) => b.count - a.count || b.lastSeen - a.lastSeen);
+
+    if (filtered.length === 0) {
+        entriesEl.innerHTML = `<div class="empty">No <b>${currentFilter}</b> suggestions.</div>`;
+        return;
+    }
+    entriesEl.innerHTML = '';
+    filtered.forEach((e) => {
+        const status = statusOf(e);
+        const samples = Object.values(e.samples)
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        const groupEl = document.createElement('div');
+        groupEl.className = `group ${status === 'promoted' ? 'promoted' : ''} ${status === 'dismissed' ? 'dismissed' : ''}`;
+        groupEl.innerHTML = `
+            <div class="group-head" data-key="${escapeHtml(e.key)}" data-kind="${escapeHtml(e.kind)}">
+                <span class="kind-pill ${e.kind}">${e.kind === 'genres' ? 'Genre' : 'Mood'}</span>
+                <span class="label">${escapeHtml(e.label)}</span>
+                <span class="key-tag">${escapeHtml(e.key)}</span>
+                ${status !== 'pending' ? `<span class="state-tag ${status}">${status}</span>` : ''}
+                <span class="grow"></span>
+                <span class="seen">first ${fmtDate(e.firstSeen)} · last ${fmtDate(e.lastSeen)}</span>
+                <span class="count">${e.count}×</span>
+                <span class="actions">${renderActions(e)}</span>
+            </div>
+            <div class="group-body">
+                ${samples.length === 0
+                    ? '<p style="color:#8D7FAE;font-size:12px;margin:0;">No samples recorded.</p>'
+                    : samples.map(renderSample).join('')}
+            </div>`;
+        entriesEl.appendChild(groupEl);
+    });
+}
+
+function renderActions(e) {
+    const path = `gradingSuggestions/${e.kind}/${e.key}`;
+    const status = statusOf(e);
+    const dataAttrs = `data-path="${escapeHtml(path)}" data-kind="${escapeHtml(e.kind)}" data-key="${escapeHtml(e.key)}" data-label="${escapeHtml(e.label)}"`;
+    if (status === 'pending') {
+        return `<button class="promote-btn" data-action="promote" ${dataAttrs}>Promote</button>
+                <button class="dismiss-btn" data-action="dismiss" ${dataAttrs}>Dismiss</button>`;
+    }
+    return `<button class="undo-btn" data-action="undo-${status}" ${dataAttrs}>Undo ${status}</button>`;
+}
+
+function renderSample(s) {
+    const d = s.timestamp ? new Date(s.timestamp).toISOString().replace('T', ' ').replace(/\..+/, '') : '—';
+    const grade = s.storyGrade ? ` · grade ${escapeHtml(s.storyGrade)}` : '';
+    return `
+        <div class="sample">
+            <div class="meta">${escapeHtml(d)}${grade}</div>
+            <div class="preview">${escapeHtml(s.storyPreview || '')}</div>
+        </div>`;
+}
+
+function diffGuide(kind, label) {
+    const listName = kind === 'genres' ? 'VALID_GENRES' : 'VALID_MOODS';
+    const lines = [
+        `1) functions/src/index.ts — add "${label}" to ${listName}.`,
+    ];
+    if (kind === 'genres') {
+        lines.push(`2) wordweft-web/analyzer.js — mirror in StoryDetector.detectGenre keyword map.`);
+        lines.push(`3) android-app/app/src/main/java/net/wordweft/game/data/model/Models.kt — mirror in StoryCategories.`);
+        lines.push(`4) android-app/.../analysis/StoryAnalyzer.kt — add an emoji row for "${label}" in the genre-emoji map.`);
+    } else {
+        lines.push(`2) wordweft-web/analyzer.js — mirror in StoryDetector.detectMood keyword map.`);
+        lines.push(`3) android-app/.../analysis/StoryAnalyzer.kt — add mood keyword set for "${label}".`);
+    }
+    return lines.join('\n');
+}
+
+function showPromoteModal(kind, key, label) {
+    document.getElementById('modal-label').textContent = label;
+    document.getElementById('modal-path').textContent = `gradingSuggestions/${kind}/${key}`;
+    document.getElementById('modal-diff').textContent = diffGuide(kind, label);
+    document.getElementById('promote-modal').classList.add('show');
+}
+
+document.getElementById('modal-close').addEventListener('click', () => {
+    document.getElementById('promote-modal').classList.remove('show');
+});
+document.getElementById('promote-modal').addEventListener('click', (ev) => {
+    if (ev.target.id === 'promote-modal') {
+        document.getElementById('promote-modal').classList.remove('show');
+    }
+});
+
+document.addEventListener('click', async (ev) => {
+    const head = ev.target.closest('.group-head');
+    if (head && !ev.target.closest('button')) {
+        head.parentElement.classList.toggle('open');
+        return;
+    }
+    const btn = ev.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const kind = btn.dataset.kind;
+    const key = btn.dataset.key;
+    const label = btn.dataset.label;
+    const path = btn.dataset.path;
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        if (action === 'promote') {
+            await db.ref(`${path}/promoted`).set(true);
+            await db.ref(`${path}/dismissed`).remove();
+            toast('Promoted ' + label);
+            showPromoteModal(kind, key, label);
+        } else if (action === 'dismiss') {
+            await db.ref(`${path}/dismissed`).set(true);
+            await db.ref(`${path}/promoted`).remove();
+            toast('Dismissed ' + label);
+        } else if (action === 'undo-promoted') {
+            await db.ref(`${path}/promoted`).remove();
+            toast('Undid promote');
+        } else if (action === 'undo-dismissed') {
+            await db.ref(`${path}/dismissed`).remove();
+            toast('Undid dismiss');
+        }
+        await loadSuggestions();
+    } catch (e) {
+        toast('Action failed: ' + e.message);
+        btn.disabled = false; btn.textContent = original;
+    }
+});
+
+document.querySelectorAll('.toolbar button[data-filter]').forEach((b) => {
+    b.addEventListener('click', () => {
+        document.querySelectorAll('.toolbar button[data-filter]').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+        currentFilter = b.dataset.filter;
+        render();
+    });
+});
+
+auth.onAuthStateChanged(async (user) => {
+    if (!user || user.isAnonymous) {
+        myUid = null;
+        gate.style.display = '';
+        main.style.display = 'none';
+        renderSignedOut();
+        return;
+    }
+    myUid = user.uid;
+    meUid.textContent = 'me: ' + user.uid;
+    try {
+        const snap = await db.ref(`admins/${user.uid}`).once('value');
+        if (snap.val() !== true) {
+            renderDenied('Your account is not an admin.');
+            return;
+        }
+    } catch (e) {
+        renderDenied('Failed to verify admin status: ' + (e.message || 'unknown'));
+        return;
+    }
+    gate.style.display = 'none';
+    main.style.display = '';
+    await loadSuggestions();
+});
+</script>
+</body>
+</html>
