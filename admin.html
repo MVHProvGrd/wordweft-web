@@ -615,10 +615,19 @@ document.addEventListener('click', async (ev) => {
             btn.disabled = true; btn.textContent = '…';
             try {
                 const fn = fbFunctions.httpsCallable('banUser');
-                await fn({ targetUid: uid, reason });
-                toast('Banned ' + uid);
+                const result = await fn({ targetUid: uid, reason });
+                const cleared = result?.data?.autoResolvedReports || 0;
+                toast('Banned ' + uid + (cleared ? ' · cleared ' + cleared + ' open report' + (cleared === 1 ? '' : 's') : ''));
                 await loadReports();
-            } catch (e) { toast('Ban failed: ' + e.message); btn.disabled = false; btn.textContent = 'Ban user'; }
+            } catch (e) {
+                // Surface the real Functions error instead of just
+                // "internal" so we can diagnose without tailing logs.
+                const msg = (e && e.message) ? e.message : String(e);
+                const code = (e && e.code) ? ' [' + e.code + ']' : '';
+                console.error('banUser failed:', e);
+                toast('Ban failed' + code + ': ' + msg);
+                btn.disabled = false; btn.textContent = 'Ban user';
+            }
         } else {
             btn.disabled = true; btn.textContent = '…';
             try {

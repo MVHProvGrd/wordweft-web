@@ -40,22 +40,35 @@
     }
     .wrap { max-width: 480px; margin: 0 auto; }
     header {
-        display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
     }
     header a.back {
-        color: var(--ww-ink-2);
+        justify-self: start;
+        color: var(--ww-ink-1);
         text-decoration: none;
         font-size: 13px;
+        font-weight: 600;
         display: inline-flex; align-items: center; gap: 4px;
-        padding: 6px 10px;
-        border-radius: 10px;
-        transition: background 0.15s, color 0.15s;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.12);
+        border: 1px solid rgba(238,230,255,0.18);
+        transition: background 0.15s, transform 0.15s, border-color 0.15s;
     }
-    header a.back:hover { background: var(--ww-hair); color: var(--ww-ink-1); }
+    header a.back:hover {
+        background: rgba(124,111,232,0.22);
+        border-color: rgba(124,111,232,0.6);
+        transform: translateX(-2px);
+    }
+    header a.back:active { transform: scale(0.96); }
     .hub-top-icons {
-        margin-left: auto;
+        justify-self: center;
         display: inline-flex;
-        gap: 4px;
+        gap: 6px;
     }
     .hub-top-icon {
         font-size: 22px;
