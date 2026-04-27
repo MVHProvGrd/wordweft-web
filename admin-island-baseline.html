@@ -116,6 +116,34 @@
     .controls-strip input[type="range"] { flex: 1; }
     .controls-strip .val { font-family: monospace; font-size: 12px; color: #EEE6FF; min-width: 44px; text-align: right; }
     .controls-strip .hint { font-size: 11px; color: #8D7FAE; margin-top: 4px; line-height: 1.4; }
+
+    .full-section {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 14px 16px 18px;
+    }
+    .full-section h2 { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
+    .full-section .sub { color: #8D7FAE; font-size: 12px; margin-bottom: 10px; line-height: 1.5; }
+    .full-wrap {
+        background:
+            linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%),
+            linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.04) 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        background-color: #0F0820;
+        border-radius: 8px;
+        padding: 8px;
+        overflow: auto;
+    }
+    .full-wrap canvas {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        height: auto;
+    }
     @media (max-width: 980px) {
         .row { grid-template-columns: 1fr; }
     }
@@ -171,9 +199,15 @@
         <div class="card cartoon">
             <span class="pill cartoon">Gemini · cartoon</span>
             <h3>run_island_v0_baseline.png</h3>
-            <div class="meta">gemini-2.5-flash-image · refs: shape mask + v0_APPROVED · with sampled topline overlay</div>
-            <div class="img-wrap"><canvas id="gemini-overlay"></canvas></div>
+            <div class="meta">gemini-2.5-flash-image · refs: shape mask + v0_APPROVED · click to open full size</div>
+            <div class="img-wrap"><canvas id="gemini-overlay" style="cursor:zoom-in;"></canvas></div>
         </div>
+    </div>
+
+    <div class="full-section">
+        <h2>Full size · run_island_v0_baseline.png with derived run-line</h2>
+        <p class="sub">Native pixel dimensions, displayed at up to canvas width. The smoothing sliders above drive this canvas too — same render, just bigger. Click for an even-larger view in a new tab.</p>
+        <div class="full-wrap"><canvas id="gemini-full" style="cursor:zoom-in;"></canvas></div>
     </div>
 </div>
 
@@ -242,6 +276,25 @@ const blurVal = document.getElementById('blur-val');
 let geminiImg, geminiW, geminiH, geminiRawTop;
 const canvas = document.getElementById('gemini-overlay');
 const ctx = canvas.getContext('2d');
+const fullCanvas = document.getElementById('gemini-full');
+const fullCtx = fullCanvas.getContext('2d');
+
+function paint(targetCtx, targetW, targetH, smoothed) {
+    targetCtx.clearRect(0, 0, targetW, targetH);
+    targetCtx.drawImage(geminiImg, 0, 0);
+    targetCtx.strokeStyle = '#FF3B5C';
+    targetCtx.lineWidth = Math.max(2, Math.round(targetH / 200));
+    targetCtx.lineJoin = 'round';
+    targetCtx.beginPath();
+    let started = false;
+    for (let x = 0; x < targetW; x++) {
+        const y = smoothed[x];
+        if (y >= targetH) { started = false; continue; }
+        if (!started) { targetCtx.moveTo(x, y); started = true; }
+        else targetCtx.lineTo(x, y);
+    }
+    targetCtx.stroke();
+}
 
 function render() {
     if (!geminiRawTop) return;
@@ -250,24 +303,20 @@ function render() {
     windowVal.textContent = halfWin + 'px';
     blurVal.textContent = halfBlur + 'px';
 
-    ctx.clearRect(0, 0, geminiW, geminiH);
-    ctx.drawImage(geminiImg, 0, 0);
-
     const maxed = movingMax(geminiRawTop, geminiW, halfWin, geminiH);
     const smoothed = boxBlur(maxed, halfBlur, geminiH);
 
-    ctx.strokeStyle = '#FF3B5C';
-    ctx.lineWidth = Math.max(2, Math.round(geminiH / 200));
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    let started = false;
-    for (let x = 0; x < geminiW; x++) {
-        const y = smoothed[x];
-        if (y >= geminiH) { started = false; continue; }
-        if (!started) { ctx.moveTo(x, y); started = true; }
-        else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
+    paint(ctx, geminiW, geminiH, smoothed);
+    paint(fullCtx, geminiW, geminiH, smoothed);
+}
+
+function openFullSize(srcCanvas) {
+    srcCanvas.toBlob(blob => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, '_blank');
+        if (win) setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }, 'image/png');
 }
 
 (async () => {
@@ -278,12 +327,19 @@ function render() {
     canvas.height = geminiH;
     canvas.style.maxWidth = '100%';
     canvas.style.height = 'auto';
+    fullCanvas.width = geminiW;
+    fullCanvas.height = geminiH;
+    fullCanvas.style.width = geminiW + 'px';
+    fullCanvas.style.maxWidth = '100%';
+    fullCanvas.style.height = 'auto';
     ctx.drawImage(geminiImg, 0, 0);
     geminiRawTop = sampleTopline(ctx.getImageData(0, 0, geminiW, geminiH), ALPHA_THRESHOLD);
     render();
 })();
 
 [windowEl, blurEl].forEach(el => el.addEventListener('input', render));
+canvas.addEventListener('click', () => openFullSize(canvas));
+fullCanvas.addEventListener('click', () => openFullSize(fullCanvas));
 </script>
 </body>
 </html>
