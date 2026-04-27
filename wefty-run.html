@@ -4605,6 +4605,7 @@
         // render loop start.
         console.error('[wefty-run] HUD layout init failed:', hudErr);
     }
+    console.log('[wefty-run] HUD layout init done; defining frame loop');
 
     function frame(ts) {
         const dt = last ? Math.min((ts - last) / 1000, 1 / 30) : 0;
@@ -4673,6 +4674,8 @@
         else if (world.invGlider > 0) activateGlider();
         else if (world.invShield > 0) activateShield();
     }
+    console.log('[wefty-run] starting render loop; canvas=' +
+        (bg && bg.width) + 'x' + (bg && bg.height));
     requestAnimationFrame(frame);
 })();
 </script>
