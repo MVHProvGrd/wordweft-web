@@ -42,7 +42,7 @@
         margin-top: 28px;
         text-align: center;
     }
-    .auth-card button, .ban-btn, .dismiss-btn, .unban-btn {
+    .auth-card button, .ban-btn, .dismiss-btn, .unban-btn, .context-btn {
         background: #7C6FE8;
         border: none;
         color: #FFF;
@@ -53,6 +53,81 @@
         font-size: 13px;
         font-family: inherit;
     }
+    .context-btn {
+        background: rgba(124,111,232,0.20);
+        color: #B8A8FF;
+        border: 1px solid rgba(124,111,232,0.50);
+    }
+    .context-btn:hover { background: rgba(124,111,232,0.32); color: #FFF; }
+    .context-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+    .ctx-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(15,11,46,0.78);
+        z-index: 1000;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 24px 16px;
+        overflow-y: auto;
+    }
+    .ctx-card {
+        max-width: 720px;
+        width: 100%;
+        background: #1E1238;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 16px;
+        padding: 20px 22px 24px;
+        margin: 0 auto;
+    }
+    .ctx-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .ctx-head h3 { margin: 0; font-size: 18px; flex: 1; }
+    .ctx-close {
+        background: transparent;
+        border: 1px solid rgba(238,230,255,0.18);
+        color: #B8A8FF;
+        padding: 4px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        font-family: inherit;
+    }
+    .ctx-close:hover { background: rgba(238,230,255,0.10); color: #FFF; }
+
+    .ctx-profile { background: #291847; border: 1px solid rgba(238,230,255,0.10); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+    .ctx-name { font-size: 18px; font-weight: 800; color: #FFE6B8; margin-bottom: 4px; }
+    .ctx-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+    .ctx-section { margin: 18px 0 8px; font-size: 13px; color: #8D7FAE; letter-spacing: 0.10em; text-transform: uppercase; }
+    .ctx-empty { color: #8D7FAE; font-size: 12px; padding: 8px 0; font-style: italic; }
+    .ctx-story {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+    }
+    .ctx-story-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .ctx-coplayers { font-size: 11px; color: #8D7FAE; margin-bottom: 4px; }
+    .ctx-story-text { font-size: 13px; color: #EEE6FF; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+    .ctx-history-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        background: rgba(124,111,232,0.08);
+        border: 1px solid rgba(238,230,255,0.10);
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        font-size: 12px;
+    }
+    .reason-pill.a { background: rgba(74,194,154,0.20); color: #4AC29A; }
+    .reason-pill.b { background: rgba(124,111,232,0.20); color: #B8A8FF; }
+    .reason-pill.c { background: rgba(232,179,76,0.20); color: #E8B34C; }
+    .reason-pill.d, .reason-pill.f { background: rgba(232,111,90,0.20); color: #E86F5A; }
     .auth-card button:hover { background: #9385ED; }
 
     .denied-card { border-color: rgba(232,111,90,0.5); }
@@ -476,6 +551,7 @@ function renderReports() {
                 <span class="uid">${nameWithUid(g.uid)}</span>
                 <span class="grow"></span>
                 <span class="actions">
+                    <button class="context-btn" data-action="context" data-uid="${escapeHtml(g.uid)}">View activity</button>
                     ${banned
                         ? `<button class="unban-btn" data-action="unban" data-uid="${escapeHtml(g.uid)}">Unban</button>`
                         : `<button class="ban-btn" data-action="ban" data-uid="${escapeHtml(g.uid)}">Ban user</button>`}
@@ -646,8 +722,97 @@ document.addEventListener('click', async (ev) => {
             toast('Dismissed');
             await loadReports();
         } catch (e) { toast('Dismiss failed: ' + e.message); btn.disabled = false; btn.textContent = 'Dismiss'; }
+    } else if (action === 'context') {
+        // Pop the recent-activity modal so the admin has decision
+        // context (profile, lifetime stats, last 10 stories, last 10
+        // game-history entries) before banning. Calls getUserContext
+        // which uses admin SDK to bypass the owner-only $private rule.
+        const uid = btn.dataset.uid;
+        if (!uid) return;
+        btn.disabled = true; btn.textContent = '…';
+        try {
+            const fn = fbFunctions.httpsCallable('getUserContext');
+            const result = await fn({ targetUid: uid });
+            openContextModal(uid, result?.data || {});
+        } catch (e) {
+            const msg = (e && e.message) ? e.message : String(e);
+            const code = (e && e.code) ? ' [' + e.code + ']' : '';
+            console.error('getUserContext failed:', e);
+            toast('Could not load activity' + code + ': ' + msg);
+        } finally {
+            btn.disabled = false; btn.textContent = 'View activity';
+        }
     }
 });
+
+function openContextModal(uid, ctx) {
+    document.querySelectorAll('.ctx-modal').forEach(n => n.remove());
+    const overlay = document.createElement('div');
+    overlay.className = 'ctx-modal';
+    const profile = ctx.profile || {};
+    const stats = ctx.stats || {};
+    const stories = ctx.stories || [];
+    const history = ctx.history || [];
+    const banned = ctx.banned;
+    const profileBlock =
+        '<div class="ctx-profile">' +
+            '<div class="ctx-name">' + (profile.displayName ? escapeHtml(profile.displayName) : '<i>no display name</i>') + '</div>' +
+            '<div class="uid-mono">' + escapeHtml(uid) + '</div>' +
+            '<div class="ctx-stats">' +
+                '<span class="meta-pill">XP ' + (stats.totalXp || 0) + '</span>' +
+                '<span class="meta-pill">Played ' + (stats.gamesPlayed || 0) + '</span>' +
+                '<span class="meta-pill">Won ' + (stats.gamesWon || 0) + '</span>' +
+                (stats.bestGrade ? '<span class="meta-pill">Best ' + escapeHtml(stats.bestGrade) + '</span>' : '') +
+                (banned ? '<span class="meta-pill danger">BANNED</span>' : '') +
+            '</div>' +
+        '</div>';
+    const storiesBlock = stories.length === 0
+        ? '<div class="ctx-empty">No saved stories.</div>'
+        : stories.slice(0, 10).map((s) => {
+            const ts = tsFmt(s.timestamp);
+            const grade = s.grade ? '<span class="reason-pill ' + (String(s.grade)[0] || '').toLowerCase() + '">' + escapeHtml(s.grade) + '</span>' : '';
+            const playerNames = Array.isArray(s.playerNames) ? s.playerNames.join(', ') : '';
+            const storyText = (s.story || '').slice(0, 600);
+            return '<div class="ctx-story">' +
+                '<div class="ctx-story-head">' +
+                    '<span class="uid-mono">' + escapeHtml(ts) + '</span>' +
+                    grade +
+                    (s.genre ? '<span class="meta-pill">' + escapeHtml(s.genre) + '</span>' : '') +
+                    (s.mood ? '<span class="meta-pill">' + escapeHtml(s.mood) + '</span>' : '') +
+                '</div>' +
+                (playerNames ? '<div class="ctx-coplayers">With: ' + escapeHtml(playerNames) + '</div>' : '') +
+                '<div class="ctx-story-text">' + escapeHtml(storyText) + (s.story && s.story.length > 600 ? '…' : '') + '</div>' +
+            '</div>';
+        }).join('');
+    const historyBlock = history.length === 0
+        ? '<div class="ctx-empty">No game history yet.</div>'
+        : history.slice(0, 10).map((h) => {
+            const ts = tsFmt(h.timestamp);
+            const grade = h.grade ? '<span class="reason-pill ' + (String(h.grade)[0] || '').toLowerCase() + '">' + escapeHtml(h.grade) + '</span>' : '';
+            const xp = h.xp || h.xpGained ? '<span class="meta-pill">+' + (h.xp || h.xpGained) + ' XP</span>' : '';
+            return '<div class="ctx-history-row">' +
+                '<span class="uid-mono">' + escapeHtml(ts) + '</span>' +
+                grade + xp +
+                (h.opponents ? '<span class="ctx-coplayers">vs ' + escapeHtml(String(h.opponents)) + '</span>' : '') +
+            '</div>';
+        }).join('');
+    overlay.innerHTML =
+        '<div class="ctx-card" role="dialog" aria-modal="true">' +
+            '<div class="ctx-head">' +
+                '<h3>Activity context</h3>' +
+                '<button class="ctx-close" type="button">×</button>' +
+            '</div>' +
+            profileBlock +
+            '<h4 class="ctx-section">Last ' + Math.min(stories.length, 10) + ' stories</h4>' +
+            storiesBlock +
+            '<h4 class="ctx-section">Last ' + Math.min(history.length, 10) + ' game results</h4>' +
+            historyBlock +
+        '</div>';
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (ev) => { if (ev.target === overlay) close(); });
+    overlay.querySelector('.ctx-close').addEventListener('click', close);
+}
 
 document.querySelectorAll('.toolbar button[data-filter]').forEach((b) => {
     b.addEventListener('click', () => {
