@@ -130,18 +130,26 @@
         <div class="ctrl">
             <label for="taper">Edge taper width</label>
             <div class="row">
-                <input type="range" id="taper" min="0" max="50" step="1" value="22">
-                <span class="val" id="taper-val">22%</span>
+                <input type="range" id="taper" min="0" max="50" step="1" value="2">
+                <span class="val" id="taper-val">2%</span>
             </div>
             <div class="hint">% of canvas width on each side over which the topline ramps down to meet the baseline.</div>
         </div>
         <div class="ctrl">
             <label for="ease">Edge easing</label>
             <div class="row">
-                <input type="range" id="ease" min="1" max="4" step="1" value="2">
-                <span class="val" id="ease-val">2</span>
+                <input type="range" id="ease" min="1" max="4" step="1" value="1">
+                <span class="val" id="ease-val">1</span>
             </div>
             <div class="hint">1 = linear ramp. Higher = silhouette holds longer, drops faster at the very edge. 2 is smoothstep.</div>
+        </div>
+        <div class="ctrl">
+            <label for="chamfer">Corner chamfer</label>
+            <div class="row">
+                <input type="range" id="chamfer" min="0" max="40" step="1" value="10">
+                <span class="val" id="chamfer-val">10px</span>
+            </div>
+            <div class="hint">Quarter-circle radius that rounds off the bottom-corner tips so the silhouette doesn't end in a needle point.</div>
         </div>
         <div class="actions">
             <button class="primary" id="dl-all">Download all (10 PNGs)</button>
@@ -159,8 +167,10 @@ const SRC_BASE = 'design/mascots/';
 const grid = document.getElementById('grid');
 const taperEl = document.getElementById('taper');
 const easeEl = document.getElementById('ease');
+const chamferEl = document.getElementById('chamfer');
 const taperVal = document.getElementById('taper-val');
 const easeVal = document.getElementById('ease-val');
+const chamferVal = document.getElementById('chamfer-val');
 
 const cards = [];
 
@@ -191,7 +201,7 @@ function extractTopline(imgData) {
     return top;
 }
 
-function renderTapered(img, taperPct, ease) {
+function renderTapered(img, taperPct, ease, chamferPx) {
     const w = img.naturalWidth;
     const h = img.naturalHeight;
 
@@ -251,8 +261,23 @@ function renderTapered(img, taperPct, ease) {
         // Anchor the silhouette's BOTTOM at the baseline; pull the topline DOWN
         // at the edges so the silhouette terminates at a tip on the baseline.
         // tf=1 → new_top = top_orig (preserved). tf=0 → new_top = baseline (zero thickness).
-        const new_top = baseline - (baseline - top_orig) * tf;
-        const new_bottom = baseline;
+        let new_top = baseline - (baseline - top_orig) * tf;
+        let new_bottom = baseline;
+
+        // Chamfer: round off the bottom-corner tips with a quarter-circle.
+        if (chamferPx > 0) {
+            let dist = -1;
+            if (x < chamferPx) dist = x;
+            else if (x >= w - chamferPx) dist = (w - 1) - x;
+            if (dist >= 0 && dist < chamferPx) {
+                // Quarter-circle centered at (chamferPx, baseline-chamferPx) (radius chamferPx).
+                // At dist=0 (very edge): bottom rises by chamferPx. At dist=chamferPx: no rise.
+                const arm = chamferPx - dist;
+                const arc = Math.sqrt(chamferPx * chamferPx - arm * arm);
+                new_bottom = (baseline - chamferPx) + arc;
+                if (new_top > new_bottom) new_top = new_bottom;
+            }
+        }
 
         if (new_bottom <= new_top) continue;
 
@@ -280,12 +305,14 @@ function renderTapered(img, taperPct, ease) {
 function rerenderAll() {
     const taperPct = parseInt(taperEl.value, 10);
     const ease = parseInt(easeEl.value, 10);
+    const chamferPx = parseInt(chamferEl.value, 10);
     taperVal.textContent = taperPct + '%';
     easeVal.textContent = ease;
+    chamferVal.textContent = chamferPx + 'px';
 
     for (const card of cards) {
         if (!card.img.complete) continue;
-        const tapered = renderTapered(card.img, taperPct, ease);
+        const tapered = renderTapered(card.img, taperPct, ease, chamferPx);
         card.outCtx.canvas.width = tapered.width;
         card.outCtx.canvas.height = tapered.height;
         card.outCtx.clearRect(0, 0, tapered.width, tapered.height);
@@ -360,12 +387,13 @@ document.getElementById('dl-all').addEventListener('click', async () => {
 });
 
 document.getElementById('reset').addEventListener('click', () => {
-    taperEl.value = 22;
-    easeEl.value = 2;
+    taperEl.value = 2;
+    easeEl.value = 1;
+    chamferEl.value = 10;
     rerenderAll();
 });
 
-[taperEl, easeEl].forEach(el => el.addEventListener('input', rerenderAll));
+[taperEl, easeEl, chamferEl].forEach(el => el.addEventListener('input', rerenderAll));
 
 SKETCHES.forEach(buildCard);
 </script>
