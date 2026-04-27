@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Island sketch taper</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede {
+        color: #8D7FAE;
+        margin: 0 0 22px;
+        font-size: 14px;
+        max-width: 760px;
+        line-height: 1.55;
+    }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    .controls {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 16px 18px;
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        align-items: end;
+    }
+    .ctrl label { font-size: 12px; color: #B8A8FF; display: block; margin-bottom: 6px; font-weight: 600; }
+    .ctrl .row { display: flex; align-items: center; gap: 10px; }
+    .ctrl input[type="range"] { flex: 1; }
+    .ctrl .val { font-family: monospace; font-size: 12px; color: #EEE6FF; min-width: 44px; text-align: right; }
+    .ctrl .hint { font-size: 11px; color: #8D7FAE; margin-top: 4px; line-height: 1.4; }
+    .actions { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+    button.primary, button.secondary {
+        border: none;
+        padding: 9px 14px;
+        border-radius: 999px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+    }
+    button.primary { background: #7C6FE8; color: #FFF; }
+    button.primary:hover { background: #9385ED; }
+    button.secondary { background: rgba(124,111,232,0.18); color: #B8A8FF; }
+    button.secondary:hover { background: rgba(124,111,232,0.32); }
+
+    .grid {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+    .card {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
+    .card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .card-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
+    .card-head .meta { font-size: 11px; color: #8D7FAE; font-family: monospace; }
+    .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .pair .col { display: flex; flex-direction: column; gap: 6px; }
+    .pair .lbl { font-size: 11px; color: #8D7FAE; text-transform: uppercase; letter-spacing: 0.06em; }
+    .pair canvas, .pair img {
+        width: 100%;
+        height: auto;
+        background:
+            linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%),
+            linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.04) 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        background-color: #0F0820;
+        border-radius: 8px;
+        display: block;
+    }
+    @media (max-width: 720px) {
+        .pair { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="admin-index.html">← admin</a></header>
+    <h1>Island sketch taper</h1>
+    <p class="lede">
+        Hand-drawn topographies in <code>design/mascots/sketch_v0..v9.png</code> run
+        edge-to-edge — they read as ground strips, not islands. This page carves the
+        left/right edges down to a tip and lifts the underside into a soft curve so
+        each silhouette becomes a discrete floating island. Hill positions and the
+        topline shape are preserved. Tweak the sliders, then download the corrected
+        PNGs and drop them next to the originals as <code>sketch_v0_island.png</code>
+        … <code>sketch_v9_island.png</code>.
+    </p>
+
+    <div class="controls">
+        <div class="ctrl">
+            <label for="taper">Edge taper width</label>
+            <div class="row">
+                <input type="range" id="taper" min="0" max="50" step="1" value="22">
+                <span class="val" id="taper-val">22%</span>
+            </div>
+            <div class="hint">% of canvas width on each side that ramps from full → tip.</div>
+        </div>
+        <div class="ctrl">
+            <label for="underside">Underside curve depth</label>
+            <div class="row">
+                <input type="range" id="underside" min="0" max="40" step="1" value="14">
+                <span class="val" id="underside-val">14%</span>
+            </div>
+            <div class="hint">% of canvas height that the bottom arcs upward into the silhouette in the middle.</div>
+        </div>
+        <div class="ctrl">
+            <label for="ease">Edge easing</label>
+            <div class="row">
+                <input type="range" id="ease" min="1" max="4" step="1" value="2">
+                <span class="val" id="ease-val">2</span>
+            </div>
+            <div class="hint">1 = linear taper. Higher = softer mid, sharper tip. 2 is smoothstep.</div>
+        </div>
+        <div class="actions">
+            <button class="primary" id="dl-all">Download all (10 PNGs)</button>
+            <button class="secondary" id="reset">Reset</button>
+        </div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const SKETCHES = [0,1,2,3,4,5,6,7,8,9];
+const SRC_BASE = 'design/mascots/';
+
+const grid = document.getElementById('grid');
+const taperEl = document.getElementById('taper');
+const undersideEl = document.getElementById('underside');
+const easeEl = document.getElementById('ease');
+const taperVal = document.getElementById('taper-val');
+const undersideVal = document.getElementById('underside-val');
+const easeVal = document.getElementById('ease-val');
+
+const cards = [];
+
+function smoothstep(t, k) {
+    t = Math.max(0, Math.min(1, t));
+    if (k <= 1) return t;
+    if (k === 2) return t * t * (3 - 2 * t);
+    if (k === 3) return t * t * t * (t * (t * 6 - 15) + 10);
+    return Math.pow(t, k);
+}
+
+// Sample the original column-by-column to get topline_y(x).
+// "Green" pixels = anything with G channel meaningfully above R and B and alpha > 64.
+function extractTopline(imgData) {
+    const { data, width, height } = imgData;
+    const top = new Int32Array(width).fill(height);
+    for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+            const i = (y * width + x) * 4;
+            const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+            // Detect green silhouette pixel: green-dominant, opaque-ish
+            if (a > 96 && g > 70 && g > r * 1.05 && g > b * 1.05) {
+                top[x] = y;
+                break;
+            }
+        }
+    }
+    return top;
+}
+
+function renderTapered(img, taperPct, undersidePct, ease) {
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+
+    // Source pixels
+    const src = document.createElement('canvas');
+    src.width = w; src.height = h;
+    const sctx = src.getContext('2d');
+    sctx.drawImage(img, 0, 0);
+    const srcData = sctx.getImageData(0, 0, w, h);
+    const topline = extractTopline(srcData);
+
+    // Sample silhouette green color (median-ish: pick a column near center with green)
+    let sampleColor = [80, 170, 90, 255];
+    for (let x = Math.floor(w/2); x < w; x++) {
+        if (topline[x] < h - 2) {
+            const y = Math.min(h - 2, topline[x] + 4);
+            const i = (y * w + x) * 4;
+            sampleColor = [srcData.data[i], srcData.data[i+1], srcData.data[i+2], 255];
+            break;
+        }
+    }
+
+    // Out canvas
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const octx = out.getContext('2d');
+    const outData = octx.createImageData(w, h);
+
+    const tw = Math.max(1, Math.round(w * taperPct / 100));
+    const dipPx = Math.round(h * undersidePct / 100);
+
+    for (let x = 0; x < w; x++) {
+        // Edge taper factor: 0 at edges, 1 in middle
+        let tf = 1;
+        if (x < tw) tf = smoothstep(x / tw, ease);
+        else if (x > w - tw) tf = smoothstep((w - x) / tw, ease);
+
+        // Original height at this column (0 if no silhouette there)
+        const top_orig = topline[x];
+        const height_orig = h - top_orig;
+        if (height_orig <= 0) continue;
+
+        // Underside dip: pull bottom up in the middle (sin arc), 0 at edges
+        const arc = Math.sin(Math.PI * (x + 0.5) / w);
+        const dip = dipPx * arc * tf;
+
+        // New height = height_orig * tf, anchored to original topline
+        const new_h = height_orig * tf;
+        const new_top = top_orig;
+        const new_bottom = top_orig + new_h - dip;
+
+        if (new_bottom <= new_top) continue;
+
+        const yStart = Math.max(0, Math.floor(new_top));
+        const yEnd = Math.min(h, Math.ceil(new_bottom));
+
+        for (let y = yStart; y < yEnd; y++) {
+            // Soft alpha at the boundaries
+            let alpha = 255;
+            if (y < new_top + 1) alpha = Math.round(255 * (y - new_top + 1));
+            else if (y > new_bottom - 1) alpha = Math.round(255 * (new_bottom - y));
+            alpha = Math.max(0, Math.min(255, alpha));
+
+            const i = (y * w + x) * 4;
+            outData.data[i] = sampleColor[0];
+            outData.data[i+1] = sampleColor[1];
+            outData.data[i+2] = sampleColor[2];
+            outData.data[i+3] = alpha;
+        }
+    }
+
+    octx.putImageData(outData, 0, 0);
+    return out;
+}
+
+function rerenderAll() {
+    const taperPct = parseInt(taperEl.value, 10);
+    const undersidePct = parseInt(undersideEl.value, 10);
+    const ease = parseInt(easeEl.value, 10);
+    taperVal.textContent = taperPct + '%';
+    undersideVal.textContent = undersidePct + '%';
+    easeVal.textContent = ease;
+
+    for (const card of cards) {
+        if (!card.img.complete) continue;
+        const tapered = renderTapered(card.img, taperPct, undersidePct, ease);
+        card.outCtx.canvas.width = tapered.width;
+        card.outCtx.canvas.height = tapered.height;
+        card.outCtx.clearRect(0, 0, tapered.width, tapered.height);
+        card.outCtx.drawImage(tapered, 0, 0);
+        card.lastBlobUrl = null; // invalidate cached blob
+    }
+}
+
+function buildCard(idx) {
+    const wrap = document.createElement('div');
+    wrap.className = 'card';
+    wrap.innerHTML = `
+        <div class="card-head">
+            <h3>sketch_v${idx}</h3>
+            <div class="meta">
+                <span class="dim">—</span>
+                &nbsp;·&nbsp;
+                <button class="secondary" data-dl="${idx}" style="font-size:11px;padding:5px 10px;">Download _island.png</button>
+            </div>
+        </div>
+        <div class="pair">
+            <div class="col">
+                <span class="lbl">Original</span>
+                <img alt="sketch_v${idx}.png" src="${SRC_BASE}sketch_v${idx}.png" crossorigin="anonymous">
+            </div>
+            <div class="col">
+                <span class="lbl">Tapered → island</span>
+                <canvas></canvas>
+            </div>
+        </div>
+    `;
+    grid.appendChild(wrap);
+    const img = wrap.querySelector('img');
+    const canvas = wrap.querySelector('canvas');
+    const dimEl = wrap.querySelector('.dim');
+    const card = {
+        idx,
+        img,
+        outCtx: canvas.getContext('2d'),
+    };
+    cards.push(card);
+    img.addEventListener('load', () => {
+        dimEl.textContent = `${img.naturalWidth}×${img.naturalHeight}`;
+        rerenderAll();
+    });
+    wrap.querySelector('[data-dl]').addEventListener('click', () => {
+        downloadCard(card);
+    });
+}
+
+function canvasToBlob(canvas) {
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function downloadCard(card) {
+    const blob = await canvasToBlob(card.outCtx.canvas);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sketch_v${card.idx}_island.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('dl-all').addEventListener('click', async () => {
+    for (const card of cards) {
+        await downloadCard(card);
+        await new Promise(r => setTimeout(r, 180)); // let browser flush each download
+    }
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+    taperEl.value = 22;
+    undersideEl.value = 14;
+    easeEl.value = 2;
+    rerenderAll();
+});
+
+[taperEl, undersideEl, easeEl].forEach(el => el.addEventListener('input', rerenderAll));
+
+SKETCHES.forEach(buildCard);
+</script>
+</body>
+</html>
