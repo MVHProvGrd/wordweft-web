@@ -187,30 +187,65 @@
                 <h4>Color</h4>
                 <div class="color-grid" id="profile-color-grid"></div>
 
-                <div class="music-settings-row">
-                    <div class="music-settings-col">
-                        <h4>Lobby Music</h4>
-                        <div class="mode-options mode-options-vertical" id="music-style-grid">
-                            <button class="btn btn-mode" data-music="none">None</button>
-                            <button class="btn btn-mode" data-music="jazz">Jazz</button>
-                            <button class="btn btn-mode" data-music="lullaby">Lullaby</button>
-                            <button class="btn btn-mode" data-music="bossa">Bossa</button>
-                            <button class="btn btn-mode" data-music="blues">Blues</button>
-                            <button class="btn btn-mode" data-music="chiptune">Chiptune</button>
+                <div class="music-section">
+                    <h4>Lobby Music</h4>
+                    <p class="music-section-sub">Home screen, menus, creating/joining a game</p>
+                    <div class="music-grid" id="music-style-grid">
+                        <div class="music-card" data-music="none">
+                            <span class="music-card-name">None</span>
+                            <button class="music-card-play" data-play="none" aria-label="Preview None">&#9654;</button>
                         </div>
-                        <button id="btn-music-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
+                        <div class="music-card" data-music="jazz">
+                            <span class="music-card-name">Jazz</span>
+                            <button class="music-card-play" data-play="jazz" aria-label="Preview Jazz">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-music="lullaby">
+                            <span class="music-card-name">Lullaby</span>
+                            <button class="music-card-play" data-play="lullaby" aria-label="Preview Lullaby">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-music="bossa">
+                            <span class="music-card-name">Bossa Nova</span>
+                            <button class="music-card-play" data-play="bossa" aria-label="Preview Bossa Nova">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-music="blues">
+                            <span class="music-card-name">Blues</span>
+                            <button class="music-card-play" data-play="blues" aria-label="Preview Blues">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-music="chiptune">
+                            <span class="music-card-name">Chiptune</span>
+                            <button class="music-card-play" data-play="chiptune" aria-label="Preview Chiptune">&#9654;</button>
+                        </div>
                     </div>
-                    <div class="music-settings-col">
-                        <h4>Waiting Music</h4>
-                        <div class="mode-options mode-options-vertical" id="waiting-music-grid">
-                            <button class="btn btn-mode" data-waitmusic="none">None</button>
-                            <button class="btn btn-mode" data-waitmusic="jazz">Jazz</button>
-                            <button class="btn btn-mode" data-waitmusic="lullaby">Lullaby</button>
-                            <button class="btn btn-mode" data-waitmusic="bossa">Bossa</button>
-                            <button class="btn btn-mode" data-waitmusic="blues">Blues</button>
-                            <button class="btn btn-mode" data-waitmusic="chiptune">Chiptune</button>
+                </div>
+
+                <div class="music-section">
+                    <h4>Waiting Music</h4>
+                    <p class="music-section-sub">In-game, while waiting for other players' turns</p>
+                    <div class="music-grid" id="waiting-music-grid">
+                        <div class="music-card" data-waitmusic="none">
+                            <span class="music-card-name">None</span>
+                            <button class="music-card-play" data-play="none" aria-label="Preview None">&#9654;</button>
                         </div>
-                        <button id="btn-waiting-preview" class="btn btn-ghost btn-small" style="margin-top:6px">&#9654; Preview</button>
+                        <div class="music-card" data-waitmusic="jazz">
+                            <span class="music-card-name">Jazz</span>
+                            <button class="music-card-play" data-play="jazz" aria-label="Preview Jazz">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-waitmusic="lullaby">
+                            <span class="music-card-name">Lullaby</span>
+                            <button class="music-card-play" data-play="lullaby" aria-label="Preview Lullaby">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-waitmusic="bossa">
+                            <span class="music-card-name">Bossa Nova</span>
+                            <button class="music-card-play" data-play="bossa" aria-label="Preview Bossa Nova">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-waitmusic="blues">
+                            <span class="music-card-name">Blues</span>
+                            <button class="music-card-play" data-play="blues" aria-label="Preview Blues">&#9654;</button>
+                        </div>
+                        <div class="music-card" data-waitmusic="chiptune">
+                            <span class="music-card-name">Chiptune</span>
+                            <button class="music-card-play" data-play="chiptune" aria-label="Preview Chiptune">&#9654;</button>
+                        </div>
                     </div>
                 </div>
 

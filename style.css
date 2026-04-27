@@ -154,34 +154,82 @@ button,
 }
 
 /* Side-by-side music settings (Lobby | Waiting) */
-.music-settings-row {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
+/* Music selection — Android-parity. Per-section card grid (2 cols),
+ * each card a row with the music name + a play/pause button on the
+ * right. Card body click selects; play button click previews. Selected
+ * state fills the card with the accent color. */
+.music-section {
+    margin-top: 16px;
 }
-.music-settings-col {
-    flex: 1;
+.music-section h4 {
+    margin: 0 0 4px;
+}
+.music-section-sub {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: var(--text-muted, #8D7FAE);
+    line-height: 1.4;
+}
+.music-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.music-card {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(124, 111, 232, 0.5);
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s;
+    min-height: 44px;
+}
+.music-card:hover {
+    background: rgba(124, 111, 232, 0.08);
+}
+.music-card.selected {
+    background: rgba(124, 111, 232, 0.22);
+    border-color: rgba(124, 111, 232, 0.9);
+}
+.music-card-name {
+    color: #EEE6FF;
+    font-weight: 600;
+    font-size: 13px;
+    flex: 1 1 auto;
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
-.music-settings-col h4 {
-    margin-top: 0;
+.music-card-play {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    border: none;
+    background: rgba(124, 111, 232, 0.18);
+    color: #B8A8FF;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 11px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-family: inherit;
 }
-.mode-options-vertical {
-    flex-direction: column;
-    align-items: stretch;
-    flex-wrap: nowrap;
+.music-card-play:hover { background: rgba(124, 111, 232, 0.32); }
+.music-card-play.playing {
+    background: #7C6FE8;
+    color: #FFFFFF;
 }
-.mode-options-vertical .btn-mode {
-    width: 100%;
-    text-align: center;
-}
-@media (max-width: 480px) {
-    .music-settings-row {
-        flex-direction: column;
-        gap: 0;
-    }
+@media (max-width: 380px) {
+    .music-grid { grid-template-columns: 1fr; }
 }
 
 /* Color picker grid */

@@ -380,35 +380,10 @@ const App = (() => {
             showScreen('tutorial');
         });
 
-        // Waiting music preview
-        let waitPreviewPlaying = false;
-        document.getElementById('btn-waiting-preview').addEventListener('click', () => {
-            const btn = document.getElementById('btn-waiting-preview');
-            if (waitPreviewPlaying) {
-                Sound.stopMusic();
-                btn.innerHTML = '&#9654; Preview';
-                waitPreviewPlaying = false;
-            } else {
-                Sound.startMusic(selectedWaitingMusic || 'jazz', true);
-                btn.innerHTML = '&#9632; Stop';
-                waitPreviewPlaying = true;
-            }
-        });
-
-        // Lobby music preview
-        let previewPlaying = false;
-        document.getElementById('btn-music-preview').addEventListener('click', () => {
-            const btn = document.getElementById('btn-music-preview');
-            if (previewPlaying) {
-                Sound.stopMusic();
-                btn.innerHTML = '&#9654; Preview';
-                previewPlaying = false;
-            } else {
-                Sound.startMusic(selectedMusicStyle || 'jazz', true);
-                btn.innerHTML = '&#9632; Stop';
-                previewPlaying = true;
-            }
-        });
+        // Music preview is now per-card inside each music grid (see
+        // wireMusicGrid). The old bottom Preview buttons were removed
+        // when the grid layout switched to Android-parity card rows
+        // with inline play buttons.
 
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
@@ -1136,39 +1111,65 @@ const App = (() => {
             });
         }
 
-        // Waiting music selector
-        const waitGrid = document.getElementById('waiting-music-grid');
-        if (waitGrid) {
-            waitGrid.querySelectorAll('.btn-mode').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.waitmusic === selectedWaitingMusic);
-                btn.onclick = () => {
-                    waitGrid.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    selectedWaitingMusic = btn.dataset.waitmusic;
-                    localStorage.setItem('wordweft_waiting_music', selectedWaitingMusic);
-                    if (Auth.uid) {
-                        db.ref('users/' + Auth.uid + '/profile/waitingMusic').set(selectedWaitingMusic);
-                    }
-                };
-            });
-        }
+        // Music grids — Android-parity card layout. Body-click selects;
+        // per-card play button previews. Only one preview plays at a
+        // time across both grids; the playing state lives in
+        // window.__activePreviewCard so a re-render of the settings
+        // panel doesn't strand a play indicator.
+        wireMusicGrid('music-style-grid', 'data-music', 'wordweft_music',
+            'profile/musicStyle', () => selectedMusicStyle,
+            (v) => { selectedMusicStyle = v; });
+        wireMusicGrid('waiting-music-grid', 'data-waitmusic', 'wordweft_waiting_music',
+            'profile/waitingMusic', () => selectedWaitingMusic,
+            (v) => { selectedWaitingMusic = v; });
+    }
 
-        // Lobby music selector
-        const musicGrid = document.getElementById('music-style-grid');
-        if (musicGrid) {
-            musicGrid.querySelectorAll('.btn-mode').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.music === selectedMusicStyle);
-                btn.onclick = () => {
-                    musicGrid.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    selectedMusicStyle = btn.dataset.music;
-                    localStorage.setItem('wordweft_music', selectedMusicStyle);
-                    if (Auth.uid) {
-                        db.ref('users/' + Auth.uid + '/profile/musicStyle').set(selectedMusicStyle);
-                    }
-                };
-            });
-        }
+    function wireMusicGrid(gridId, dataAttr, lsKey, profileSubpath, getSelected, setSelected) {
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+        const attrName = dataAttr.replace(/^data-/, '');
+        grid.querySelectorAll('.music-card').forEach((card) => {
+            const value = card.dataset[attrName];
+            card.classList.toggle('selected', value === getSelected());
+            // Body click (anywhere except the play button) → select.
+            card.onclick = (ev) => {
+                if (ev.target.closest('.music-card-play')) return;
+                grid.querySelectorAll('.music-card').forEach(c =>
+                    c.classList.remove('selected'));
+                card.classList.add('selected');
+                setSelected(value);
+                localStorage.setItem(lsKey, value);
+                if (Auth.uid) {
+                    db.ref('users/' + Auth.uid + '/' + profileSubpath).set(value);
+                }
+            };
+            // Play button → preview that specific style. "none" is a
+            // no-op (nothing to preview). Toggles playing state on
+            // re-click; switching to a different track stops the prior.
+            const play = card.querySelector('.music-card-play');
+            if (!play) return;
+            play.onclick = (ev) => {
+                ev.stopPropagation();
+                if (typeof Sound === 'undefined') return;
+                if (value === 'none') return;
+                const prev = window.__activePreviewCard;
+                if (prev && prev !== play) {
+                    prev.classList.remove('playing');
+                    prev.innerHTML = '▶';
+                }
+                if (play.classList.contains('playing')) {
+                    Sound.stopMusic();
+                    play.classList.remove('playing');
+                    play.innerHTML = '▶';
+                    window.__activePreviewCard = null;
+                } else {
+                    Sound.startMusic(value, true);
+                    play.classList.add('playing');
+                    play.innerHTML = '■';
+                    window.__activePreviewCard = play;
+                }
+            };
+        });
     }
 
     // loadLeaderboard, checkAchievements, loadAchievements, saveStory, loadHistory,
