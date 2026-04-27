@@ -156,13 +156,30 @@ const TOPLINE_NAMES = new Set([
     'tree_round_green', 'tree_round_dark',
 ]);
 const STUMP_NAMES = new Set(['tree_stump_mossy', 'tree_stump_plain']);
-const STUMP_MIN_SPACING_FRAC = 0.12; // min x-distance between stumps, as fraction of canvas width
 const TREE_NAMES = new Set([
     'tree_evergreen_tall', 'tree_evergreen_short',
     'tree_round_green', 'tree_round_dark',
 ]);
+// Anything with a trunk that other trunks must not overlap.
+const TRUNK_NAMES = new Set([...TREE_NAMES, ...STUMP_NAMES]);
 const TRUNK_SAMPLE_FRAC = 0.08; // bottom-most 8% of element bbox = trunk band
 const TREE_TRUNK_MARGIN_PX = 4; // extra clearance between trunk x-ranges
+// Per-placement scale variance: trees ±15%, stumps 50%–100%.
+const TREE_SCALE_MIN = 0.85;
+const TREE_SCALE_MAX = 1.15;
+const STUMP_SCALE_MIN = 0.50;
+const STUMP_SCALE_MAX = 1.00;
+// Z-layer per element: lower draws first (further back).
+//   0 = trees, 1 = stumps, 2 = everything else.
+// This forces stumps to render behind interior flora regardless of y,
+// so a stump in the foreground never occludes a flower / mushroom /
+// bush / grass clump.
+const LAYER = {
+    tree_evergreen_tall: 0, tree_evergreen_short: 0,
+    tree_round_green:    0, tree_round_dark:      0,
+    tree_stump_mossy:    1, tree_stump_plain:     1,
+};
+function layerOf(name) { return LAYER[name] != null ? LAYER[name] : 2; }
 
 // Sway loop = 4 s. All freqs are multiples of 0.25 Hz so each element
 // completes an integer number of cycles per loop → seamless GIF export.
@@ -343,7 +360,7 @@ const allNames = Object.values(ELEMENTS).flat();
         const img = await loadImage(`design/elements/${n}.png`);
         elementImgs[n] = img;
         elementBBoxes[n] = elementBBox(img);
-        if (TREE_NAMES.has(n)) {
+        if (TRUNK_NAMES.has(n)) {
             elementTrunkXRange[n] = detectTrunkXRange(img, elementBBoxes[n]);
         }
     }));
@@ -361,30 +378,27 @@ function pickWeighted(rng, names, weights) {
     return names[names.length - 1];
 }
 
-// Cache of per-tree on-canvas trunk geometry (depends on baseH so recomputed once).
-let treeCanvasTrunkCache = null;
-function getTreeCanvasTrunk() {
-    if (treeCanvasTrunkCache) return treeCanvasTrunkCache;
-    const out = {};
-    for (const tn of TREE_NAMES) {
-        const bbox = elementBBoxes[tn];
-        const trunk = elementTrunkXRange[tn];
-        const targetHpx = targetH(tn) * baseH;
-        const bboxH = bbox.maxY - bbox.minY + 1;
-        const scale = targetHpx / bboxH;
-        const bboxCenterX = (bbox.minX + bbox.maxX) / 2;
-        const trunkCenterImg = (trunk.minX + trunk.maxX) / 2;
-        const trunkOffsetCanvas = (trunkCenterImg - bboxCenterX) * scale;
-        const trunkHalfWCanvas = ((trunk.maxX - trunk.minX) / 2) * scale;
-        out[tn] = { trunkOffsetCanvas, trunkHalfWCanvas };
-    }
-    treeCanvasTrunkCache = out;
-    return out;
+// Compute the on-canvas trunk x-extent and offset for a given trunk-bearing
+// element at a given scale multiplier. Used both for overlap testing during
+// placement and for setting the pivot in buildPlacement.
+function trunkGeom(name, scaleMult) {
+    const bbox = elementBBoxes[name];
+    const trunk = elementTrunkXRange[name];
+    const targetHpx = targetH(name) * baseH * scaleMult;
+    const bboxH = bbox.maxY - bbox.minY + 1;
+    const scale = targetHpx / bboxH;
+    const bboxCenterX = (bbox.minX + bbox.maxX) / 2;
+    const trunkCenterImg = (trunk.minX + trunk.maxX) / 2;
+    return {
+        scale,
+        trunkOffsetCanvas: (trunkCenterImg - bboxCenterX) * scale,
+        trunkHalfWCanvas:  ((trunk.maxX - trunk.minX) / 2) * scale,
+    };
 }
 
 // Build a single placement object given a chosen name + xPos + groundY.
-function buildPlacement(name, xPos, groundY, swayPhase) {
-    const targetHpx = targetH(name) * baseH;
+function buildPlacement(name, xPos, groundY, swayPhase, scaleMult = 1) {
+    const targetHpx = targetH(name) * baseH * scaleMult;
     const bbox = elementBBoxes[name];
     const elemNaturalW = elementImgs[name].naturalWidth;
     const elemNaturalH = elementImgs[name].naturalHeight;
@@ -396,11 +410,13 @@ function buildPlacement(name, xPos, groundY, swayPhase) {
     const drawX = xPos - (bbox.minX + (bbox.maxX - bbox.minX) / 2) * scale;
     const drawY = groundY - elemBottomInDraw + (drawH / 200);
     const sw = SWAY[name] || { ampDeg: 0, freqHz: 0 };
-    // Pivot at the trunk base for trees, otherwise at (xPos, groundY).
+    // Pivot at the trunk base for trunked elements, otherwise (xPos, groundY).
     let pivotX = xPos;
-    if (TREE_NAMES.has(name)) {
-        const t = getTreeCanvasTrunk()[name];
-        pivotX = xPos + t.trunkOffsetCanvas;
+    if (TRUNK_NAMES.has(name) && elementTrunkXRange[name]) {
+        const trunk = elementTrunkXRange[name];
+        const bboxCenterX = (bbox.minX + bbox.maxX) / 2;
+        const trunkCenterImg = (trunk.minX + trunk.maxX) / 2;
+        pivotX = xPos + (trunkCenterImg - bboxCenterX) * scale;
     }
     return {
         name, xPos, drawX, drawY, drawW, drawH,
@@ -466,22 +482,21 @@ function computePlacements() {
     }
 
     const out = [];
-    const placedStumpsX = [];
-    const placedTreeTrunks = [];
-    const stumpMinSpacing = STUMP_MIN_SPACING_FRAC * baseW;
-    const treeCanvasTrunk = getTreeCanvasTrunk();
-    let stumpsSkipped = 0, treesSkipped = 0;
+    const placedTrunks = []; // [{leftX, rightX, name}] — shared by trees + stumps
+    let trunksSkipped = 0;
 
-    function tryPickXForTree(name) {
-        const t = treeCanvasTrunk[name];
+    // Pick an x for any trunk-bearing element at a given scale multiplier.
+    // Stumps and trees share this list so neither can land on top of the other.
+    function tryPickXForTrunk(name, scaleMult) {
+        const g = trunkGeom(name, scaleMult);
         for (let a = 0; a < 30; a++) {
             const cand = validX[Math.floor(rng() * validX.length)];
-            const trunkCenter = cand + t.trunkOffsetCanvas;
-            const trunkLeft = trunkCenter - t.trunkHalfWCanvas - TREE_TRUNK_MARGIN_PX;
-            const trunkRight = trunkCenter + t.trunkHalfWCanvas + TREE_TRUNK_MARGIN_PX;
-            const overlap = placedTreeTrunks.some(pt => !(trunkRight < pt.leftX || trunkLeft > pt.rightX));
+            const trunkCenter = cand + g.trunkOffsetCanvas;
+            const trunkLeft = trunkCenter - g.trunkHalfWCanvas - TREE_TRUNK_MARGIN_PX;
+            const trunkRight = trunkCenter + g.trunkHalfWCanvas + TREE_TRUNK_MARGIN_PX;
+            const overlap = placedTrunks.some(pt => !(trunkRight < pt.leftX || trunkLeft > pt.rightX));
             if (!overlap) {
-                placedTreeTrunks.push({ leftX: trunkLeft, rightX: trunkRight });
+                placedTrunks.push({ leftX: trunkLeft, rightX: trunkRight, name });
                 return cand;
             }
         }
@@ -502,19 +517,13 @@ function computePlacements() {
                 : stumpNames[Math.floor(rng() * stumpNames.length)];
         }
 
-        let xPos;
-        if (STUMP_NAMES.has(name)) {
-            for (let a = 0; a < 20; a++) {
-                const cand = validX[Math.floor(rng() * validX.length)];
-                if (placedStumpsX.every(px => Math.abs(px - cand) >= stumpMinSpacing)) {
-                    xPos = cand; break;
-                }
-            }
-            if (xPos == null) { stumpsSkipped++; continue; }
-            placedStumpsX.push(xPos);
-        } else if (TREE_NAMES.has(name)) {
-            xPos = tryPickXForTree(name);
-            if (xPos == null) { treesSkipped++; continue; }
+        let xPos, scaleMult = 1;
+        if (TRUNK_NAMES.has(name)) {
+            scaleMult = TREE_NAMES.has(name)
+                ? TREE_SCALE_MIN + rng() * (TREE_SCALE_MAX - TREE_SCALE_MIN)
+                : STUMP_SCALE_MIN + rng() * (STUMP_SCALE_MAX - STUMP_SCALE_MIN);
+            xPos = tryPickXForTrunk(name, scaleMult);
+            if (xPos == null) { trunksSkipped++; continue; }
         } else {
             xPos = validX[Math.floor(rng() * validX.length)];
         }
@@ -530,7 +539,7 @@ function computePlacements() {
             const t = Math.pow(rng(), 0.85);
             groundY = upper + t * (lower - upper);
         }
-        out.push(buildPlacement(name, xPos, groundY, rng() * 2 * Math.PI));
+        out.push(buildPlacement(name, xPos, groundY, rng() * 2 * Math.PI, scaleMult));
     }
 
     // Post-condition: never have stumps without at least one tree.
@@ -538,20 +547,24 @@ function computePlacements() {
     const hasTrees = out.some(p => TREE_NAMES.has(p.name));
     if (hasStumps && !hasTrees && treeNames.length > 0) {
         const forcedName = treeNames[Math.floor(rng() * treeNames.length)];
-        const xPos = tryPickXForTree(forcedName);
+        const scaleMult = TREE_SCALE_MIN + rng() * (TREE_SCALE_MAX - TREE_SCALE_MIN);
+        const xPos = tryPickXForTrunk(forcedName, scaleMult);
         if (xPos != null) {
-            const groundY = runLine[xPos];
-            out.push(buildPlacement(forcedName, xPos, groundY, rng() * 2 * Math.PI));
+            out.push(buildPlacement(forcedName, xPos, runLine[xPos], rng() * 2 * Math.PI, scaleMult));
         }
     }
 
-    out.sort((a, b) => a.sortY === b.sortY ? b.drawH - a.drawH : a.sortY - b.sortY);
+    // Sort: layer ascending, then sortY ascending (back to front), tiebreak
+    // larger items behind smaller. Layer wins so stumps stay behind flora.
+    out.sort((a, b) => {
+        const la = layerOf(a.name), lb = layerOf(b.name);
+        if (la !== lb) return la - lb;
+        if (a.sortY !== b.sortY) return a.sortY - b.sortY;
+        return b.drawH - a.drawH;
+    });
 
     placements = out;
-    const skips = [];
-    if (stumpsSkipped) skips.push(`${stumpsSkipped} stump${stumpsSkipped === 1 ? '' : 's'}`);
-    if (treesSkipped) skips.push(`${treesSkipped} tree${treesSkipped === 1 ? '' : 's'}`);
-    const skipNote = skips.length ? ` · skipped: ${skips.join(', ')} (spacing)` : '';
+    const skipNote = trunksSkipped ? ` · skipped: ${trunksSkipped} tree/stump (overlap)` : '';
     placementsMeta = `${out.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${skipNote}`;
 }
 
