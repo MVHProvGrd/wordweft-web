@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordWeft · Island elements</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        color: #EEE6FF;
+        background: linear-gradient(180deg, #160B2E 0%, #1E1238 100%);
+        min-height: 100vh;
+        padding: 24px 24px 64px;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    header a.back {
+        color: #B8A8FF; text-decoration: none; font-size: 13px;
+        padding: 6px 10px; border-radius: 10px;
+    }
+    header a.back:hover { background: rgba(124,111,232,0.18); }
+    h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
+    .lede { color: #8D7FAE; margin: 0 0 22px; font-size: 14px; max-width: 760px; line-height: 1.55; }
+    code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+    section { margin-bottom: 32px; }
+    section h2 {
+        font-size: 16px; font-weight: 700;
+        margin: 0 0 12px;
+        display: flex; align-items: baseline; gap: 12px;
+    }
+    section h2 .count {
+        font-size: 11px; font-weight: 600;
+        color: #B8A8FF; background: rgba(124,111,232,0.18);
+        padding: 2px 8px; border-radius: 999px;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .tile {
+        background: #291847;
+        border: 1px solid rgba(238,230,255,0.16);
+        border-radius: 12px;
+        padding: 10px 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .tile .name { font-size: 12px; font-family: monospace; color: #B8A8FF; word-break: break-all; }
+    .tile .img-wrap {
+        background:
+            linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(-45deg, rgba(255,255,255,0.04) 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%),
+            linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.04) 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+        background-color: #0F0820;
+        border-radius: 8px;
+        padding: 8px;
+        min-height: 130px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    .tile img {
+        max-width: 100%;
+        max-height: 220px;
+        height: auto;
+        display: block;
+    }
+    .tile.pending .img-wrap::after {
+        content: 'generating…';
+        position: absolute;
+        font-size: 11px;
+        color: #8D7FAE;
+        font-style: italic;
+    }
+    .tile.failed .img-wrap::after {
+        content: 'failed — re-run gen_elements.mjs';
+        position: absolute;
+        font-size: 11px;
+        color: #E86F5A;
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <header><a class="back" href="admin-index.html">← admin</a></header>
+    <h1>Island elements</h1>
+    <p class="lede">
+        Standalone flora generated via Gemini 2.5 Flash Image with
+        <code>run_island_v0_APPROVED.png</code> as the style anchor. Each element is
+        isolated on transparent background so the runtime composer can mix-and-match
+        them onto any island shape. Source script:
+        <code>design/mascots/gen_elements.mjs</code> · alpha-keyed by
+        <code>whitebg_to_alpha.mjs</code>.
+    </p>
+
+    <section>
+        <h2>Flowers <span class="count" id="cnt-flower">0/5</span></h2>
+        <div class="grid" id="grid-flower"></div>
+    </section>
+    <section>
+        <h2>Mushrooms <span class="count" id="cnt-mushroom">0/3</span></h2>
+        <div class="grid" id="grid-mushroom"></div>
+    </section>
+    <section>
+        <h2>Trees <span class="count" id="cnt-tree">0/6</span></h2>
+        <div class="grid" id="grid-tree"></div>
+    </section>
+    <section>
+        <h2>Bushes &amp; grass clumps <span class="count" id="cnt-bush">0/4</span></h2>
+        <div class="grid" id="grid-bush"></div>
+    </section>
+</div>
+
+<script>
+const ELEMENTS = {
+    flower: ['flower_red', 'flower_yellow', 'flower_blue', 'flower_pink', 'flower_purple'],
+    mushroom: ['mushroom_red', 'mushroom_brown', 'mushroom_purple'],
+    tree: ['tree_evergreen_tall', 'tree_evergreen_short', 'tree_round_green', 'tree_round_dark', 'tree_stump_mossy', 'tree_stump_plain'],
+    bush: ['bush_round', 'bush_berry', 'grass_clump_small', 'grass_clump_wide'],
+};
+
+const tiles = {};
+for (const [cat, names] of Object.entries(ELEMENTS)) {
+    const grid = document.getElementById('grid-' + cat);
+    for (const name of names) {
+        const tile = document.createElement('div');
+        tile.className = 'tile pending';
+        tile.innerHTML = `
+            <div class="img-wrap"><img alt="${name}" data-src="design/elements/${name}.png" style="display:none;"></div>
+            <div class="name">${name}.png</div>
+        `;
+        grid.appendChild(tile);
+        tiles[name] = tile;
+    }
+}
+
+function updateCount(cat) {
+    const total = ELEMENTS[cat].length;
+    const ready = ELEMENTS[cat].filter(n => tiles[n].classList.contains('ready')).length;
+    document.getElementById('cnt-' + cat).textContent = `${ready}/${total}`;
+}
+
+async function probe(name) {
+    const tile = tiles[name];
+    const img = tile.querySelector('img');
+    const url = img.dataset.src + '?cb=' + Date.now();
+    try {
+        const res = await fetch(url, { method: 'HEAD' });
+        if (!res.ok) return false;
+        img.src = url;
+        img.style.display = '';
+        tile.classList.remove('pending', 'failed');
+        tile.classList.add('ready');
+        return true;
+    } catch { return false; }
+}
+
+async function probeAll() {
+    for (const [cat, names] of Object.entries(ELEMENTS)) {
+        for (const name of names) await probe(name);
+        updateCount(cat);
+    }
+}
+
+probeAll();
+const id = setInterval(async () => {
+    await probeAll();
+    const total = Object.values(ELEMENTS).flat().length;
+    const ready = Object.values(ELEMENTS).flat().filter(n => tiles[n].classList.contains('ready')).length;
+    if (ready >= total) clearInterval(id);
+}, 6000);
+</script>
+</body>
+</html>
