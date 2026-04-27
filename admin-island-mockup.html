@@ -135,8 +135,8 @@ const TARGET_H = {
     tree_evergreen_short: 0.30,
     tree_round_green: 0.42,
     tree_round_dark: 0.45,
-    tree_stump_mossy: 0.14,
-    tree_stump_plain: 0.13,
+    tree_stump_mossy: 0.105,    // 0.14 × 0.75
+    tree_stump_plain: 0.0975,   // 0.13 × 0.75
     bush_round: 0.09,           // halved per feedback
     bush_berry: 0.09,           // halved per feedback
     grass_clump_small: 0.10,
@@ -149,6 +149,8 @@ const TOPLINE_NAMES = new Set([
     'tree_evergreen_tall', 'tree_evergreen_short',
     'tree_round_green', 'tree_round_dark',
 ]);
+const STUMP_NAMES = new Set(['tree_stump_mossy', 'tree_stump_plain']);
+const STUMP_MIN_SPACING_FRAC = 0.12; // min x-distance between stumps, as fraction of canvas width
 function targetH(name) {
     if (TARGET_H[name] != null) return TARGET_H[name];
     if (name.startsWith('flower_')) return TARGET_H.flower;
@@ -332,6 +334,9 @@ function render() {
     }
 
     const placements = [];
+    const placedStumpsX = [];
+    const stumpMinSpacing = STUMP_MIN_SPACING_FRAC * baseW;
+    let stumpsSkipped = 0;
     for (let i = 0; i < density; i++) {
         const r = rng();
         let name;
@@ -341,7 +346,21 @@ function render() {
         else if (r < wFlower + wGrass + wMush + wBush) name = bushNames[Math.floor(rng() * bushNames.length)];
         else name = treeNames[Math.floor(rng() * treeNames.length)];
 
-        const xPos = validX[Math.floor(rng() * validX.length)];
+        // X selection — stumps must keep a min distance from each other.
+        let xPos;
+        if (STUMP_NAMES.has(name)) {
+            const MAX_ATTEMPTS = 20;
+            for (let a = 0; a < MAX_ATTEMPTS; a++) {
+                const cand = validX[Math.floor(rng() * validX.length)];
+                if (placedStumpsX.every(px => Math.abs(px - cand) >= stumpMinSpacing)) {
+                    xPos = cand; break;
+                }
+            }
+            if (xPos == null) { stumpsSkipped++; continue; } // gave up — too crowded
+            placedStumpsX.push(xPos);
+        } else {
+            xPos = validX[Math.floor(rng() * validX.length)];
+        }
         const tlY = runLine[xPos];
         const botY = paintedBot[xPos];
 
@@ -391,7 +410,8 @@ function render() {
     for (const p of placements) {
         stageCtx.drawImage(elementImgs[p.name], p.drawX, p.drawY, p.drawW, p.drawH);
     }
-    meta.textContent = `${placements.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes`;
+    const stumpNote = stumpsSkipped > 0 ? ` · ${stumpsSkipped} stump${stumpsSkipped === 1 ? '' : 's'} skipped (spacing)` : '';
+    meta.textContent = `${placements.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${stumpNote}`;
 }
 
 [densityEl, treesEl, seedEl].forEach(el => el.addEventListener('input', render));
