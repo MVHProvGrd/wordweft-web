@@ -130,24 +130,24 @@
         <div class="ctrl">
             <label for="taper">Edge taper width</label>
             <div class="row">
-                <input type="range" id="taper" min="0" max="50" step="1" value="2">
-                <span class="val" id="taper-val">2%</span>
+                <input type="range" id="taper" min="0" max="50" step="1" value="5">
+                <span class="val" id="taper-val">5%</span>
             </div>
             <div class="hint">% of canvas width on each side over which the topline ramps down to meet the baseline.</div>
         </div>
         <div class="ctrl">
             <label for="ease">Edge easing</label>
             <div class="row">
-                <input type="range" id="ease" min="1" max="4" step="1" value="1">
-                <span class="val" id="ease-val">1</span>
+                <input type="range" id="ease" min="1" max="4" step="1" value="2">
+                <span class="val" id="ease-val">2</span>
             </div>
             <div class="hint">1 = linear ramp. Higher = silhouette holds longer, drops faster at the very edge. 2 is smoothstep.</div>
         </div>
         <div class="ctrl">
             <label for="chamfer">Corner chamfer</label>
             <div class="row">
-                <input type="range" id="chamfer" min="0" max="40" step="1" value="10">
-                <span class="val" id="chamfer-val">10px</span>
+                <input type="range" id="chamfer" min="0" max="40" step="1" value="0">
+                <span class="val" id="chamfer-val">0px</span>
             </div>
             <div class="hint">Rounds the tip of the taper itself — bends the outer <em>cr</em> pixels of the slope into the baseline with a horizontal tangent. Clamped to taper width.</div>
         </div>
@@ -389,9 +389,9 @@ document.getElementById('dl-all').addEventListener('click', async () => {
 });
 
 document.getElementById('reset').addEventListener('click', () => {
-    taperEl.value = 2;
-    easeEl.value = 1;
-    chamferEl.value = 10;
+    taperEl.value = 5;
+    easeEl.value = 2;
+    chamferEl.value = 0;
     rerenderAll();
 });
 
