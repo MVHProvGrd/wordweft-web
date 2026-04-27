@@ -149,7 +149,7 @@
                 <input type="range" id="chamfer" min="0" max="40" step="1" value="10">
                 <span class="val" id="chamfer-val">10px</span>
             </div>
-            <div class="hint">Quarter-circle radius that rounds off the bottom-corner tips so the silhouette doesn't end in a needle point.</div>
+            <div class="hint">Rounds the tip of the taper itself — bends the outer <em>cr</em> pixels of the slope into the baseline with a horizontal tangent. Clamped to taper width.</div>
         </div>
         <div class="actions">
             <button class="primary" id="dl-all">Download all (10 PNGs)</button>
@@ -249,11 +249,28 @@ function renderTapered(img, taperPct, ease, chamferPx) {
 
     const tw = Math.max(1, Math.round(w * taperPct / 100));
 
+    // Chamfer rounds the tip of the taper where the sloped topline meets the
+    // baseline. Implemented as a cubic blend on the outer `cr` pixels of the
+    // taper zone: tf goes from 0 with a horizontal tangent at the edge, then
+    // joins the linear ramp tangentially at x=cr. cr is clamped to tw.
+    const cr = Math.min(chamferPx, tw);
+    function tipBlend(d) {
+        // d = distance from edge, 0..cr
+        return -(d * d * d) / (tw * cr * cr) + (2 * d * d) / (tw * cr);
+    }
+
     for (let x = 0; x < w; x++) {
         // Edge taper factor: 0 at edges, 1 in middle
         let tf = 1;
-        if (x < tw) tf = smoothstep(x / tw, ease);
-        else if (x > w - tw) tf = smoothstep((w - x) / tw, ease);
+        if (x < tw) {
+            const d = x;
+            if (cr > 0 && d < cr) tf = tipBlend(d);
+            else tf = smoothstep(d / tw, ease);
+        } else if (x > w - tw) {
+            const d = (w - 1) - x;
+            if (cr > 0 && d < cr) tf = tipBlend(d);
+            else tf = smoothstep(d / tw, ease);
+        }
 
         const top_orig = topline[x];
         if (top_orig >= baseline) continue;
@@ -261,23 +278,8 @@ function renderTapered(img, taperPct, ease, chamferPx) {
         // Anchor the silhouette's BOTTOM at the baseline; pull the topline DOWN
         // at the edges so the silhouette terminates at a tip on the baseline.
         // tf=1 → new_top = top_orig (preserved). tf=0 → new_top = baseline (zero thickness).
-        let new_top = baseline - (baseline - top_orig) * tf;
-        let new_bottom = baseline;
-
-        // Chamfer: round off the bottom-corner tips with a quarter-circle.
-        if (chamferPx > 0) {
-            let dist = -1;
-            if (x < chamferPx) dist = x;
-            else if (x >= w - chamferPx) dist = (w - 1) - x;
-            if (dist >= 0 && dist < chamferPx) {
-                // Quarter-circle centered at (chamferPx, baseline-chamferPx) (radius chamferPx).
-                // At dist=0 (very edge): bottom rises by chamferPx. At dist=chamferPx: no rise.
-                const arm = chamferPx - dist;
-                const arc = Math.sqrt(chamferPx * chamferPx - arm * arm);
-                new_bottom = (baseline - chamferPx) + arc;
-                if (new_top > new_bottom) new_top = new_bottom;
-            }
-        }
+        const new_top = baseline - (baseline - top_orig) * tf;
+        const new_bottom = baseline;
 
         if (new_bottom <= new_top) continue;
 
