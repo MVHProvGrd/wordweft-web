@@ -143,11 +143,11 @@ const TARGET_H = {
     grass_clump_wide: 0.10,
 };
 // Names that anchor to the topline (background layer behind everything).
-// Everything else scatters across the visible front face of the island.
+// Everything else — including stumps — scatters across the visible front
+// face of the island.
 const TOPLINE_NAMES = new Set([
     'tree_evergreen_tall', 'tree_evergreen_short',
     'tree_round_green', 'tree_round_dark',
-    'tree_stump_mossy', 'tree_stump_plain',
 ]);
 function targetH(name) {
     if (TARGET_H[name] != null) return TARGET_H[name];
