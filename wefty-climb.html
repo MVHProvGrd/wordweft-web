@@ -1307,6 +1307,13 @@
             setPaused(false);
         });
 
+        // The HUD-layout block below is the last thing in this IIFE
+        // before requestAnimationFrame(loop) at the bottom. If anything
+        // here throws (broken localStorage payload, missing element,
+        // etc.), execution halts and the render loop never schedules
+        // → user sees a black canvas under the chrome. Wrap in
+        // try/catch so the loop is guaranteed to start.
+        try {
         // ── HUD layout: presets + drag-to-place (mirror of Run) ─────
         const HUD_LAYOUT_KEY = 'wefty_climb_btn_layout_v1';
         const lassoBtn = document.getElementById('btn-lasso');
@@ -1632,6 +1639,12 @@
             }
         }
         wireTilt();
+        } catch (hudErr) {
+            // Don't let a HUD-layout init failure black-canvas the
+            // game. Log loud so we can diagnose from devtools, but let
+            // the render loop start.
+            console.error('[wefty-climb] HUD layout init failed:', hudErr);
+        }
     });
     window.addEventListener('keydown', (e) => {
         const k = e.key;

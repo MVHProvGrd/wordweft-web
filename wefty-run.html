@@ -4328,6 +4328,15 @@
         world.events.push('game-over');
     });
 
+    // The HUD-layout block below was the last thing in this IIFE before
+    // the requestAnimationFrame(frame) call at the bottom — and the
+    // whole IIFE is the script tag. If anything in HUD-layout init
+    // throws (broken localStorage payload, missing element, weird
+    // env() value, etc.), execution halts and the render loop never
+    // schedules → user sees a black canvas under the chrome. Wrap the
+    // whole block in try/catch so the loop is guaranteed to start.
+    try {
+
     // ── HUD layout: presets + drag-to-place ─────────────────────────
     // Persist normalized x/y (0–1 of viewport) so the saved layout
     // survives orientation + safe-area changes. Defaults match the
@@ -4590,6 +4599,13 @@
 
     // ── Loop ───────────────────────────────────────────────────────────
     let last = 0;
+    } catch (hudErr) {
+        // Don't let a HUD-layout init failure black-canvas the whole
+        // game. Log loud so we can diagnose from devtools, but let the
+        // render loop start.
+        console.error('[wefty-run] HUD layout init failed:', hudErr);
+    }
+
     function frame(ts) {
         const dt = last ? Math.min((ts - last) / 1000, 1 / 30) : 0;
         last = ts;
