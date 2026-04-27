@@ -2290,12 +2290,50 @@
         }
     }
 
+    // ── Auto-jump assist ───────────────────────────────────────────
+    // Toggle in Wefty Playground → Controls page. Saved as
+    // wefty_climb_auto_jump_v1 in localStorage. When on, fires jump()
+    // automatically only AFTER Wefty has been grounded for ~400 ms —
+    // assist mode (mistake-recovery), not pure auto. Player still
+    // controls steering + lasso; manual jump still works (resets the
+    // grounded timer when they jump themselves).
+    const AUTO_JUMP_GROUND_MS = 400;
+    let autoJumpGroundedSince = 0;
+    function isAutoJumpEnabled() {
+        try { return localStorage.getItem('wefty_climb_auto_jump_v1') === 'on'; }
+        catch (_) { return false; }
+    }
+    function assistAutoJump() {
+        if (world.tutorialMode || world.gameOver || world.isPaused) {
+            autoJumpGroundedSince = 0;
+            return;
+        }
+        if (!isAutoJumpEnabled()) {
+            autoJumpGroundedSince = 0;
+            return;
+        }
+        if (!world.weftyGrounded) {
+            autoJumpGroundedSince = 0;
+            return;
+        }
+        const now = performance.now();
+        if (autoJumpGroundedSince === 0) {
+            autoJumpGroundedSince = now;
+            return;
+        }
+        if (now - autoJumpGroundedSince >= AUTO_JUMP_GROUND_MS) {
+            jump();
+            autoJumpGroundedSince = 0;
+        }
+    }
+
     // ── Main loop ──────────────────────────────────────────────────
     let lastT = performance.now();
     function loop(now) {
         const dt = Math.min(0.05, (now - lastT) / 1000);
         lastT = now;
         if (world.tutorialMode) tutorialAutoplay();
+        else assistAutoJump();
         step(dt);
         render();
         requestAnimationFrame(loop);

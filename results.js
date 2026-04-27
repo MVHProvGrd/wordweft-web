@@ -46,6 +46,21 @@ const Results = (() => {
         if (typeof Sound !== 'undefined') { Sound.stopMusic(); Sound.playGameEnd(); }
         App.showScreen('results');
 
+        // ⚠️ Report-from-results affordance — often the FIRST time a
+        // player sees the full assembled story is the recap; by then
+        // the in-game moderation menu is gone. Hooks into the same
+        // Game.openModerationPicker we built for the in-match button.
+        // Re-wires every results show so the click handler stays bound
+        // even if the screen was rebuilt.
+        const modBtn = document.getElementById('btn-results-moderate');
+        if (modBtn) {
+            modBtn.onclick = () => {
+                if (typeof Game !== 'undefined' && Game.openModerationPicker) {
+                    Game.openModerationPicker();
+                }
+            };
+        }
+
         // LLM-only grading mode: if the Cloud Function failed, data
         // comes back with gradingError + no scores. Show an honest
         // error state instead of faking a grade.

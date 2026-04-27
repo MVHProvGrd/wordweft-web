@@ -162,6 +162,60 @@
     }
     .custom-hint strong { color: #FFE6B8; }
 
+    .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        margin-top: 12px;
+        background: rgba(124, 111, 232, 0.08);
+        border: 1px solid rgba(238, 230, 255, 0.10);
+        border-radius: 12px;
+    }
+    .toggle-row-label { flex: 1; min-width: 0; }
+    .toggle-row-name {
+        color: #EEE6FF;
+        font-weight: 700;
+        font-size: 14px;
+    }
+    .toggle-row-sub {
+        margin-top: 2px;
+        color: var(--ww-ink-2, #8D7FAE);
+        font-size: 11.5px;
+        line-height: 1.4;
+    }
+    .toggle-switch {
+        position: relative;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+        background: rgba(238, 230, 255, 0.18);
+        border-radius: 999px;
+        position: relative;
+        transition: background 0.15s;
+    }
+    .toggle-knob {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        background: #EEE6FF;
+        border-radius: 50%;
+        transition: left 0.15s, background 0.15s;
+    }
+    .toggle-switch input:checked + .toggle-track {
+        background: #4AC29A;
+    }
+    .toggle-switch input:checked + .toggle-track .toggle-knob {
+        left: 22px;
+    }
+
     .toast {
         position: fixed;
         left: 50%; bottom: 24px;
@@ -206,6 +260,17 @@
         <h2>Wefty Climb</h2>
         <p class="game-sub">Vertical climber — same layout system as Run.</p>
         <div class="preset-grid" id="climb-presets"></div>
+
+        <div class="toggle-row" id="climb-auto-jump-row">
+            <div class="toggle-row-label">
+                <div class="toggle-row-name">Auto-jump assist</div>
+                <div class="toggle-row-sub">Wefty auto-jumps after sitting on a ledge for ~½ sec. You still steer + lasso. Manual JUMP still works.</div>
+            </div>
+            <label class="toggle-switch" aria-label="Toggle auto-jump assist">
+                <input type="checkbox" id="climb-auto-jump-input">
+                <span class="toggle-track"><span class="toggle-knob"></span></span>
+            </label>
+        </div>
     </div>
 </div>
 
@@ -302,6 +367,23 @@
     }
 
     GAMES.forEach(renderGame);
+
+    // Climb auto-jump assist toggle. Saved as wefty_climb_auto_jump_v1
+    // ('on' | 'off'). wefty-climb.html reads this on every frame so
+    // a flip here takes effect on the next launch / refresh.
+    const AUTO_JUMP_KEY = 'wefty_climb_auto_jump_v1';
+    const autoJumpInput = document.getElementById('climb-auto-jump-input');
+    if (autoJumpInput) {
+        try {
+            autoJumpInput.checked = localStorage.getItem(AUTO_JUMP_KEY) === 'on';
+        } catch (_) { autoJumpInput.checked = false; }
+        autoJumpInput.addEventListener('change', () => {
+            const on = !!autoJumpInput.checked;
+            try { localStorage.setItem(AUTO_JUMP_KEY, on ? 'on' : 'off'); }
+            catch (_) {}
+            showToast(on ? 'Auto-jump on' : 'Auto-jump off');
+        });
+    }
 })();
 </script>
 </body>

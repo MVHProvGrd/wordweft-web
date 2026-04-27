@@ -1292,6 +1292,7 @@ button,
     padding-bottom: calc(24px + var(--safe-bottom));
     max-width: 520px;
     margin: 0 auto;
+    position: relative;  /* anchor for absolute-positioned .btn-results-moderate */
 }
 .results-container h2 {
     font-size: 28px;
@@ -1519,6 +1520,30 @@ button,
     justify-content: center;
 }
 .btn-game-moderate:hover { background: rgba(124,111,232,0.18); }
+
+/* Results-screen ⚠️ button — pinned top-right of the results card so
+ * the player can report someone whose offensive content they only
+ * registered when they saw the full assembled story in the recap. */
+.btn-results-moderate {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: 1px solid rgba(238,230,255,0.18);
+    color: #B8A8FF;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+.btn-results-moderate:hover { background: rgba(124,111,232,0.18); }
 .btn-finish:hover { background: rgba(245,158,11,0.15); }
 .btn-finish.voted {
     color: var(--text-muted) !important;

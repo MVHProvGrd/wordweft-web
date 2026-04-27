@@ -1688,6 +1688,11 @@ const Game = (() => {
         containsProfanity,
         rejectUsername,
         showToast,
+        // Exposed so the results screen can pop the same player-picker
+        // (Block / Unblock / Report) the in-game ⚠️ button uses. Often
+        // the FIRST time a player sees the full assembled story is the
+        // results recap; by then the in-match menu is gone.
+        openModerationPicker,
         get ACHIEVEMENTS() { return Results.ACHIEVEMENTS; },
         get players() { return players; },
         get words() { return words; },
