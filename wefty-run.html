@@ -1981,7 +1981,7 @@
             // *in landscape*) + the per-variant scale so both systems
             // can derive the same spriteTopY consistently.
             const scale = ISLAND_SCALE_OVERRIDES[variant] || 1.0;
-            spriteHeight = 0.26 * scale;
+            spriteHeight = 0.52 * scale;   // 2x — restored proportions so Wefty isn't bigger than the trees
             spriteRenderW = spriteHeight * (s.w / s.h);
             spriteTopY = null;  // computed per-frame in platformSurfaceY + render
             xEnd = xStart + spriteRenderW;
