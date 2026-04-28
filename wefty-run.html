@@ -1218,6 +1218,7 @@
          of whatever line they end up on, instead of left-aligning). -->
     <div class="tb-controls">
         <button id="btn-mute"  class="tb-tile" title="Mute">🔊</button>
+        <button id="btn-motion" class="tb-tile" title="Toggle island sway (perf)">🌿</button>
         <button id="btn-fs"    class="tb-tile" title="Fullscreen">⛶</button>
         <button id="btn-pause" class="tb-tile tb-pause" title="Pause" aria-label="Pause"><span class="pb-bars"><span></span><span></span></span><span class="pb-play">▶</span></button>
         <button id="btn-help"  class="tb-tile" title="Help">?</button>
@@ -3014,6 +3015,102 @@
         bindStormTint(RUN_ISLAND_BACK,  v, stormV);
         bindStormTint(RUN_ISLAND_FRONT, v, stormV);
     }
+    // ─── Island flora layer ─────────────────────────────────────────────
+    // Static island PNGs (back/front) ship as ground only; trees + flora
+    // are layered at runtime so they can sway. Each placement has a
+    // sin(2π·freqHz·t + phase) profile already baked into the JSON.
+    const ELEMENT_NAMES = [
+        'flower_red', 'flower_yellow', 'flower_blue', 'flower_pink', 'flower_purple',
+        'mushroom_red', 'mushroom_brown', 'mushroom_purple',
+        'tree_evergreen_tall', 'tree_evergreen_short', 'tree_round_green', 'tree_round_dark',
+        'tree_stump_mossy', 'tree_stump_plain',
+        'bush_round', 'bush_berry', 'grass_clump_small', 'grass_clump_wide',
+        'critter_deer', 'critter_raccoon', 'critter_squirrel', 'critter_opossum',
+        'critter_fox', 'critter_rabbit', 'critter_bird', 'critter_owl',
+    ];
+    const RUN_ELEMENT_IMGS = {};
+    for (const n of ELEMENT_NAMES) {
+        RUN_ELEMENT_IMGS[n] = loadImg(`design/elements/${n}.png`);
+    }
+    // Pre-built tinted versions for the storm biome — same lazy-build
+    // pattern as the island assets above.
+    const RUN_ELEMENT_STORM_IMGS = {};
+    for (const n of ELEMENT_NAMES) {
+        const img = RUN_ELEMENT_IMGS[n];
+        const swap = () => { const t = buildStormTint(img); if (t) RUN_ELEMENT_STORM_IMGS[n] = t; };
+        if (img.complete && img.naturalWidth > 0) swap();
+        else img.addEventListener('load', swap, { once: true });
+    }
+
+    let RUN_ISLAND_PLACEMENTS = null;
+    fetch('run_island_placements.json')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { RUN_ISLAND_PLACEMENTS = data; })
+        .catch(() => { /* offline → no flora animation, just the ground */ });
+
+    // Motion toggle — perf escape hatch. When OFF, flora draws once at
+    // neutral pose (sin(phase)=phase-anchored) and the per-frame
+    // transform branch is skipped.
+    let motionEnabled = (localStorage.getItem('wefty_motion_off') !== '1');
+    function applyMotion(on) {
+        const btn = document.getElementById('btn-motion');
+        if (btn) btn.textContent = on ? '🌿' : '🍂';
+        if (btn) btn.title = on ? 'Sway: ON (tap to disable)' : 'Sway: OFF (tap to enable)';
+    }
+    applyMotion(motionEnabled);
+    {
+        const btn = document.getElementById('btn-motion');
+        if (btn) btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            motionEnabled = !motionEnabled;
+            localStorage.setItem('wefty_motion_off', motionEnabled ? '0' : '1');
+            applyMotion(motionEnabled);
+        });
+    }
+
+    // Render every placement in the given list onto ctx, scaling/positioning
+    // from cropped-canvas coords (px in placements JSON) to platform
+    // screen-space (sx,sy,sw,sh = the platform's drawX/drawY/drawW/drawH).
+    function drawIslandFlora(ctx, list, cw, ch, sx, sy, sw, sh, isStorm) {
+        if (!list || !list.length) return;
+        const t = performance.now() / 1000;
+        const xScale = sw / cw, yScale = sh / ch;
+        const imgs = isStorm ? RUN_ELEMENT_STORM_IMGS : RUN_ELEMENT_IMGS;
+        const fallbackImgs = RUN_ELEMENT_IMGS;
+        for (let i = 0; i < list.length; i++) {
+            const p = list[i];
+            const img = imgs[p.n] || fallbackImgs[p.n];
+            if (!img || !img.complete || img.naturalWidth === 0) continue;
+            const px = sx + p.x * xScale;
+            const py = sy + p.y * yScale;
+            const pw = p.w * xScale;
+            const ph = p.h * yScale;
+            const pivX = sx + p.px * xScale;
+            const pivY = sy + p.py * yScale;
+            let angleRad = 0, yOff = 0, scale = 1;
+            if (motionEnabled && (p.f > 0)) {
+                const sinW = Math.sin(2 * Math.PI * p.f * t + p.ph);
+                if (p.a) angleRad = (p.a * sinW) * Math.PI / 180;
+                if (p.b) yOff = p.b * sinW * yScale;
+                if (p.p) scale = 1 + p.p * sinW;
+            } else if (!motionEnabled) {
+                // Hold a representative pose so the field doesn't read "frozen
+                // in mid-sway" — use sin(phase) (i.e. t=0) which is each
+                // element's idle baseline pose.
+                const sinW = Math.sin(p.ph);
+                if (p.a) angleRad = (p.a * sinW) * Math.PI / 180;
+                if (p.b) yOff = p.b * sinW * yScale;
+                if (p.p) scale = 1 + p.p * sinW;
+            }
+            ctx.save();
+            ctx.translate(pivX, pivY + yOff);
+            if (angleRad) ctx.rotate(angleRad);
+            if (scale !== 1) ctx.scale(scale, scale);
+            ctx.drawImage(img, px - pivX, py - pivY, pw, ph);
+            ctx.restore();
+        }
+    }
+
     // Per-variant walkable surface (256 normalized Y samples).
     // Populated asynchronously; until loaded, surfaceYAt falls back
     // to the legacy sin-crown math via p.crown. Declaration is
@@ -3703,6 +3800,17 @@
                 const drawX = centerX - drawW / 2;
                 const drawY = HUD_BAND_TOP * h - drawH;
                 bgCtx.drawImage(islandImg, drawX, drawY, drawW, drawH);
+                // Trees / BACK flora — drawn here so Wefty walks in front of
+                // them. Sway driven from world.runtimeSec; storm biome looks
+                // up the lazy-tinted critter/foliage variants.
+                if (RUN_ISLAND_PLACEMENTS) {
+                    const surfData = RUN_ISLAND_SURFACES[p.variant];
+                    const placeData = RUN_ISLAND_PLACEMENTS[p.variant];
+                    if (surfData && placeData && placeData.back) {
+                        drawIslandFlora(bgCtx, placeData.back, surfData.w, surfData.h,
+                            drawX, drawY, drawW, drawH, p.variant.startsWith('storm_'));
+                    }
+                }
             } else {
                 // Loading fallback — simple grass-green path with sin crown
                 bgCtx.beginPath();
@@ -4125,6 +4233,17 @@
             const drawX = centerX - drawW / 2;
             const drawY = HUD_BAND_TOP * h - drawH;
             fgCtx.drawImage(frontImg, drawX, drawY, drawW, drawH);
+            // Front-layer flora (mushrooms / flowers / bushes / grass /
+            // critters / stumps) — drawn after the front-ground pass so
+            // they composite over Wefty and the ground in one step.
+            if (RUN_ISLAND_PLACEMENTS) {
+                const surfData = RUN_ISLAND_SURFACES[p.variant];
+                const placeData = RUN_ISLAND_PLACEMENTS[p.variant];
+                if (surfData && placeData && placeData.front) {
+                    drawIslandFlora(fgCtx, placeData.front, surfData.w, surfData.h,
+                        drawX, drawY, drawW, drawH, p.variant.startsWith('storm_'));
+                }
+            }
         }
         // First-gap wooden bridge · synthesized yarn-rope rails drawn
         // AFTER Wefty so she reads as walking UNDER the rope. Two
