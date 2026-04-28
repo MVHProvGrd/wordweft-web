@@ -290,6 +290,35 @@ const SPRITES = [
         gif: 'sprite-forge/wefty-fall/animation.gif',
         usedAt: null,
     },
+    {
+        name: 'wefty-spin-hit',
+        title: 'Wefty spin attack (6-panel hit cycle)',
+        status: 'draft',
+        description: 'Anticipation → launch → fast-spin smear A → impact peak → ' +
+            'deceleration smear B → recovery. Per-panel timing is intentionally ' +
+            'non-uniform (70 / 60 / 50 / 40 / 60 / 80 ms — 360ms total cycle) ' +
+            'for game-feel: snappy at impact, longer at the wind-up + settle. ' +
+            'Intended for a lasso-snap-success or a future melee mini-game cue.',
+        prompt: 'Global style lock: Use attached Wefty reference exactly (same ' +
+            'character, proportions, face style, yarn colors/pattern, outline). ' +
+            'Transparent bg. Same camera, centered, no extras, no text. ' +
+            'P1 anticipation: crouch -10% squash, focused face, tail pulled back. ' +
+            'P2 launch: stretch +6%, face turning 20-30°, lower-side curved streaks, ' +
+            'tail trailing. ' +
+            'P3 fast spin smear A: partial motion blur in arc, simplified face, ' +
+            'curved yarn-band streaks, strong circular speed lines. ' +
+            'P4 impact peak: aggressive blur ring, spark/star at one edge, ' +
+            'contact-side body squash, intense expression. ' +
+            'P5 deceleration smear B: blur reduces, face readable at opposite ' +
+            'angle, thinner speed lines, tail follow-through whip. ' +
+            'P6 recovery: clean idle-like shape, tiny bounce-settle, confident ' +
+            'small smile, tail settles. ' +
+            'Maintain exact line weight, face details, yarn pattern, palette as ' +
+            'reference. Do not redesign character.',
+        sheet: 'sprite-forge/wefty-spin-hit/sheet-transparent.png',
+        gif: 'sprite-forge/wefty-spin-hit/animation.gif',
+        usedAt: null,
+    },
 ];
 
 function escapeHtml(s) {
