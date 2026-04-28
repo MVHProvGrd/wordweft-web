@@ -1,0 +1,31 @@
+{
+  "name": "wefty-spin-hit",
+  "description": "Wefty spin-attack hit cycle — 6-panel anticipation→launch→spin smears→impact→decel→recovery, with per-panel timing tuned for game feel (snappy at impact, longer at anticipation/recovery).",
+  "frame_count": 6,
+  "frame_durations_ms": [70, 60, 50, 40, 60, 80],
+  "loop": false,
+  "source": {
+    "tool": "ChatGPT Image (web)",
+    "input": "Wefty reference image",
+    "format": "2x3 grid sheet (3 cols, 2 rows), generated as a single image",
+    "generated_at": "2026-04-28"
+  },
+  "pipeline": {
+    "slice": "python3 slice.py source-sheet.png",
+    "outputs": [
+      "frame_1.png",
+      "frame_2.png",
+      "frame_3.png",
+      "frame_4.png",
+      "frame_5.png",
+      "frame_6.png",
+      "sheet-transparent.png",
+      "animation.gif"
+    ]
+  },
+  "wired": {
+    "android": null,
+    "web": null,
+    "notes": "Not yet wired into either platform. Intended use: Wefty hit/attack reaction in Wefty Run (e.g., scissor-snap successful lasso, or future melee mini-game). Frame timing is non-uniform — animation.gif has the 70/60/50/40/60/80ms cadence baked in; in-game cycle should match the same per-frame durations."
+  }
+}

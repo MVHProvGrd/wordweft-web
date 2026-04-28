@@ -1,0 +1,73 @@
+Global style lock (prefix to every panel):
+
+Use attached Wefty reference exactly (same character, proportions, face style, yarn colors/pattern language, outline weight). Transparent background. Same camera angle. Centered sprite. No extra limbs, no redesign, no text.
+
+────────────────────────────────────────
+Panel-by-panel — 6-frame spin attack
+────────────────────────────────────────
+
+PANEL 1 — Anticipation (wind-up)
+Wefty crouches slightly (body squashed vertically 8–10%).
+Eyes focused, mouth determined / small grin.
+Yarn tail pulled slightly backward like tension.
+Subtle lean opposite spin direction (prep pose).
+
+PANEL 2 — Launch
+Body unsquashes into slight stretch (height +6%).
+Face begins rotating off-center (about 20–30° turn cue).
+Add short curved motion streaks around lower sides.
+Tail begins trailing behind spin direction.
+
+PANEL 3 — Fast Spin (smear A)
+Ball appears partially motion-blurred in a circular arc.
+Face details simplified / partially obscured by speed.
+Yarn bands form curved streak impression (not random redraw).
+Add stronger circular speed lines wrapping around body.
+
+PANEL 4 — Impact Peak
+Most aggressive frame: exaggerated spin blur ring.
+Tiny star / spark hit accent at one edge (enemy contact cue).
+Body slightly squashed on contact side (impact compression).
+Expression intense (eyes narrowed or determined).
+
+PANEL 5 — Deceleration (smear B)
+Blur reduces; face becomes readable again at opposite angle.
+Speed lines thinner / shorter than panel 4.
+Tail whips past body, showing follow-through.
+Body returns toward normal proportions.
+
+PANEL 6 — Recovery / Ready
+Wefty returns to clean idle-like shape, tiny bounce settle.
+Confident face (small smile), ready for next input.
+Tail settles downward with slight curve.
+No speed lines (or only faint residual arc).
+
+────────────────────────────────────────
+Per-panel timing (ms) for game feel
+────────────────────────────────────────
+
+P1 70   anticipation
+P2 60   launch
+P3 50   spin smear A
+P4 40   impact peak (snappy)
+P5 60   spin smear B
+P6 80   recovery settle
+
+Total cycle: 360 ms (≈ 17fps average, but punchy at impact).
+
+Slicer reads these values from pipeline-meta.json's
+frame_durations_ms array — keep that array in sync if you want a
+different feel.
+
+────────────────────────────────────────
+Source
+────────────────────────────────────────
+
+Generated outside Codex via ChatGPT Image with the prompt above.
+ChatGPT returned a single 2x3 grid sheet (3 panels per row, 2
+rows). The slice script (slice.py in this folder) cuts the grid
+into per-panel PNGs + assembles a horizontal sheet-transparent.png
++ animation.gif using the per-frame durations.
+
+Re-bake: drop a new source-sheet.png in this folder and re-run
+slice.py.
