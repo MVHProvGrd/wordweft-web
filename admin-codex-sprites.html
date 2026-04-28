@@ -99,6 +99,18 @@
     .pill.smoketest { background: rgba(124,111,232,0.22); color: #B8A8FF; }
     .pill.approved  { background: rgba(120,200,140,0.22); color: #8FD9A3; }
     .pill.shipped   { background: rgba(180,140,60,0.22); color: #D9B86D; }
+    .pill.painterly { background: rgba(255,180,210,0.22); color: #FFC2DC; }
+    .pill.pixel     { background: rgba(140,200,240,0.22); color: #9CD3F0; }
+    .lane-h {
+        font-size: 13px;
+        font-weight: 600;
+        color: #B8A8FF;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin: 28px 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(184,168,255,0.18);
+    }
 
     .meta-row {
         display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
@@ -192,15 +204,23 @@
     <header><a class="back" href="admin-index.html">← Admin index</a></header>
     <h1>Codex sprite catalog</h1>
     <p class="lede">
-        Sprites generated via <code>$generate2dsprite</code> in Codex
-        (<a href="https://github.com/0x0funky/agent-sprite-forge" style="color:#B8A8FF;">agent-sprite-forge</a>).
-        Each card shows the prompt, status, and where the sprite is wired in.
-        <b>Style note:</b> sprite-forge produces pixel-art only — it doesn't
-        match Wefty's chibi-cartoon mascots, so use it for new pixel-art
-        surfaces (props, hazards, mini-game elements), not mascot replacements.
+        All Codex-generated sprites land here. <b>Two lanes</b>:
+        <span class="pill painterly">painterly_cartoon</span>
+        for Wefty mascot animations (via the new
+        <code>weftypiccraft.mjs</code> runner against Codex
+        <code>image_gen</code>, or via the ChatGPT browser flow), and
+        <span class="pill pixel">pixel_art</span> for props/hazards/
+        backdrops (via Codex's <code>$generate2dsprite</code> skill,
+        a.k.a.
+        <a href="https://github.com/0x0funky/agent-sprite-forge" style="color:#B8A8FF;">agent-sprite-forge</a>).
+        Painterly is shown first because it's the active mascot pipeline.
     </p>
 
-    <div class="grid" id="grid"></div>
+    <h2 class="lane-h">Painterly cartoon · WeftyPicCraft / ChatGPT</h2>
+    <div class="grid" id="grid-painterly"></div>
+
+    <h2 class="lane-h">Pixel-art · sprite-forge ($generate2dsprite)</h2>
+    <div class="grid" id="grid-pixel"></div>
 </div>
 
 <div class="lightbox" id="lightbox"><img id="lightbox-img" alt=""></div>
@@ -211,6 +231,7 @@
 const SPRITES = [
     {
         name: 'crab-smoketest',
+        lane: 'pixel_art',
         title: 'Tiny crab walk cycle (smoke test)',
         status: 'smoketest',
         description: 'First sprite generated to validate the agent-sprite-forge pipeline. ' +
@@ -223,6 +244,7 @@ const SPRITES = [
     },
     {
         name: 'island-v1-flat-meadow-ground',
+        lane: 'pixel_art',
         title: 'Flat-bumpy meadow island — ground base (layer 1)',
         status: 'draft',
         description: 'First layer of the layered-island redesign. 256×96 ' +
@@ -247,6 +269,7 @@ const SPRITES = [
     },
     {
         name: 'moth-hazard',
+        lane: 'pixel_art',
         title: 'Storm-biome moth (Wefty Run hazard)',
         status: 'draft',
         description: 'Thread-eater hazard for the Wefty Run storm biome — ' +
@@ -266,6 +289,8 @@ const SPRITES = [
     },
     {
         name: 'wefty-fall',
+        lane: 'painterly_cartoon',
+        generator: 'ChatGPT browser (gpt-image-1) · browser_manual',
         title: 'Wefty falling (6-frame cycle)',
         status: 'draft',
         description: 'Tumble animation for the Wefty Run game-over fall — ' +
@@ -292,6 +317,7 @@ const SPRITES = [
     },
     {
         name: 'island-v0-meadow',
+        lane: 'pixel_art',
         title: 'Meadow island base v0 (pixel-art, single-frame)',
         status: 'draft',
         description: 'First meadow-island silhouette generated via the ' +
@@ -317,6 +343,8 @@ const SPRITES = [
     },
     {
         name: 'wefty-jump-up',
+        lane: 'painterly_cartoon',
+        generator: 'WeftyPicCraft v0.1.1 · Codex image_gen',
         title: 'Wefty jump-up (6-frame painterly)',
         status: 'draft',
         description: 'Painterly-cartoon Wefty 6-frame upward-jump cycle ' +
@@ -351,6 +379,8 @@ const SPRITES = [
     },
     {
         name: 'wefty-spin-hit',
+        lane: 'painterly_cartoon',
+        generator: 'ChatGPT browser (gpt-image-1) · browser_manual',
         title: 'Wefty spin attack (6-panel hit cycle)',
         status: 'draft',
         description: 'Anticipation → launch → fast-spin smear A → impact peak → ' +
@@ -390,6 +420,11 @@ function renderCard(s) {
     const usedLine = s.usedAt
         ? `<div class="meta-row"><span class="pill approved">Wired</span><span class="where">${escapeHtml(s.usedAt)}</span></div>`
         : `<div class="meta-row"><span class="pill draft">Not wired</span></div>`;
+    const lanePillClass = s.lane === 'painterly_cartoon' ? 'painterly' : 'pixel';
+    const laneLabel = s.lane === 'painterly_cartoon' ? 'painterly' : 'pixel';
+    const generatorLine = s.generator
+        ? `<div class="meta-row"><span class="where">via ${escapeHtml(s.generator)}</span></div>`
+        : '';
     return `
         <div class="card">
             <div class="thumb">
@@ -398,9 +433,11 @@ function renderCard(s) {
             <div class="body">
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                     <h3>${escapeHtml(s.title)}</h3>
+                    <span class="pill ${lanePillClass}">${laneLabel}</span>
                     <span class="pill ${escapeHtml(s.status)}">${escapeHtml(s.status)}</span>
                 </div>
                 <p class="desc">${escapeHtml(s.description)}</p>
+                ${generatorLine}
                 ${usedLine}
                 <details>
                     <summary>Prompt + files</summary>
@@ -416,21 +453,46 @@ function renderCard(s) {
         </div>`;
 }
 
-const addCard = `
+const addCardPainterly = `
     <div class="add-card">
-        <h3>+ Add a sprite</h3>
+        <h3>+ Add a painterly sprite</h3>
+        <p>1. Compose a v1.0 manifest under
+        <code>wordweft-web/sprite-forge/&lt;name&gt;/manifest.json</code>
+        following <code>design/mascots/weftypiccraft_v1.md</code>.</p>
+        <p>2. Run the Codex image_gen path:</p>
+        <pre>node design/mascots/weftypiccraft.mjs &lt;name&gt; "&lt;sheet prompt&gt;" \\
+  --into &lt;name&gt; --ref wordweft-web/wefty_run_b.png</pre>
+        <p>3. Slice the sheet into per-frame PNGs + an animation.gif:</p>
+        <pre>python3 wordweft-web/sprite-forge/&lt;name&gt;/slice.py source-sheet.png</pre>
+        <p>4. Append an entry below (set <code>lane: 'painterly_cartoon'</code>),
+        then push.</p>
+        <p>For ChatGPT-browser flow (gpt-image-1, browser_manual): paste
+        the prompt into ChatGPT, drop the returned 2×3 sheet as
+        <code>source-sheet.png</code>, then jump to step 3.</p>
+    </div>`;
+
+const addCardPixel = `
+    <div class="add-card">
+        <h3>+ Add a pixel-art sprite</h3>
         <p>1. Generate in Codex (Windows-side):</p>
         <pre>$generate2dsprite "&lt;your prompt&gt;"</pre>
         <p>2. Copy bundle into the repo:</p>
         <pre>cp -R generated-assets/&lt;name&gt;/{sheet-transparent.png,animation.gif,prompt-used.txt,pipeline-meta.json} \\
    wordweft-web/sprite-forge/&lt;name&gt;/</pre>
-        <p>3. Append an entry to <code>SPRITES</code> in this file's
-        <code>&lt;script&gt;</code> block, then push.</p>
+        <p>3. Append an entry below (set <code>lane: 'pixel_art'</code>),
+        then push.</p>
         <p>The full <code>generated-assets/</code> folder is gitignored —
         only the four files above are versioned.</p>
     </div>`;
 
-document.getElementById('grid').innerHTML = SPRITES.map(renderCard).join('') + addCard;
+const PAINTERLY_ORDER = ['wefty-jump-up', 'wefty-spin-hit', 'wefty-fall'];
+const PIXEL_ORDER = ['island-v0-meadow', 'island-v1-flat-meadow-ground', 'moth-hazard', 'crab-smoketest'];
+const byName = name => SPRITES.find(s => s.name === name);
+const painterly = PAINTERLY_ORDER.map(byName).filter(Boolean);
+const pixelArt = PIXEL_ORDER.map(byName).filter(Boolean);
+
+document.getElementById('grid-painterly').innerHTML = painterly.map(renderCard).join('') + addCardPainterly;
+document.getElementById('grid-pixel').innerHTML = pixelArt.map(renderCard).join('') + addCardPixel;
 
 document.addEventListener('click', (ev) => {
     const shot = ev.target.closest('img[data-shot]');

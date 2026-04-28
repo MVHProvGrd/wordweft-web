@@ -153,7 +153,7 @@ def main():
         save_all=True,
         append_images=gif_frames[1:],
         duration=durations,
-        loop=0 if manifest.get("loop", False) else 1,
+        loop=0,
         disposal=2,
         transparency=SENTINEL_INDEX,
         optimize=False,
