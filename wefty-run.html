@@ -2205,14 +2205,24 @@
 
     function jump() {
         if (world.gameOver) return;
+        const fireJumpFx = () => {
+            // Whoosh dust puff on a *deliberate* jump only. Anchored at
+            // Wefty's takeoff world-X and ground-Y so it stays planted
+            // on the island as the camera scrolls past.
+            world._whooshLaunchMs = performance.now();
+            world._whooshWorldX = world.cameraX + WEFTY_SCREEN_X;
+            world._whooshWorldY = world.weftyY;
+        };
         if (world.grounded) {
             world.weftyVy = -JUMP_VELOCITY;
             world.grounded = false;
             world.events.push('jump');
+            fireJumpFx();
         } else if (world.doubleJumpUntil > performance.now() && world.doubleJumpAvailable) {
             world.weftyVy = -JUMP_VELOCITY;
             world.doubleJumpAvailable = false;
             world.events.push('jump');
+            fireJumpFx();
         }
     }
 
@@ -4028,15 +4038,8 @@
                 spriteImg = weftyFall;
                 spriteScale = 0.72; spriteBottom = 0.80;
             }
-            // Ground → air edge fires the whoosh dust puff. Anchor at
-            // Wefty's world-X AND the ground-Y at that moment so the
-            // puff stays planted on the island's surface as the
-            // camera scrolls past (doesn't drift up with her jump).
-            if (world._wasGroundedForJump && !world.grounded) {
-                world._whooshLaunchMs = performance.now();
-                world._whooshWorldX = world.cameraX + WEFTY_SCREEN_X;
-                world._whooshWorldY = world.weftyY;  // ground Y at takeoff
-            }
+            // Whoosh dust puff is fired from jump() now (intentional
+            // jumps only) — walking off an edge no longer kicks it up.
             world._wasGroundedForJump = world.grounded;
         }
         const effSize = sSize * spriteScale;
