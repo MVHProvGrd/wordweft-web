@@ -291,6 +291,65 @@ const SPRITES = [
         usedAt: null,
     },
     {
+        name: 'island-v0-meadow',
+        title: 'Meadow island base v0 (pixel-art, single-frame)',
+        status: 'draft',
+        description: 'First meadow-island silhouette generated via the ' +
+            'pixel-art Codex skill ($generate2dsprite) against ' +
+            'design/mascots/sketch_v0_island.png. 1024×256 single-frame ' +
+            'prop with chunky pixel-art style and chroma-key alpha. ' +
+            'Superseded in-game by the painterly run_island_v0..v9 ' +
+            'baselines, but kept as the original silhouette spec.',
+        prompt: 'Codex $generate2dsprite skill, side-view single-frame 2D ' +
+            'pixel-art island meadow prop. Reference for shape: ' +
+            'design/mascots/sketch_v0_island.png — full-width 4:1 rolling ' +
+            'meadow with low left bump, wider left-center hill, shallow ' +
+            'middle valley, taller right-center hill, long downhill slope ' +
+            'right, low tapered tips at canvas edges. Output 1024x256, ' +
+            'one frame, chroma-key #FF00FF above topline. Chunky pixel-art ' +
+            'with crisp dark-green outline, cel-shaded pastel meadow ' +
+            'greens, hand-painted pixel clusters, thin band of darker ' +
+            'grass tufts along top contour. No trees/flowers/mushrooms/' +
+            'underside-earth/sky/water/creatures.',
+        sheet: 'sprite-forge/island-v0-meadow/sheet-transparent.png',
+        gif: null,
+        usedAt: null,
+    },
+    {
+        name: 'wefty-jump-up',
+        title: 'Wefty jump-up (6-frame painterly)',
+        status: 'draft',
+        description: 'Painterly-cartoon Wefty 6-frame upward-jump cycle ' +
+            'matching wefty_run_b.png — anticipation_squash → ' +
+            'launch_stretch → rising_smear → peak_velocity → ' +
+            'decelerating → apex_float. 470ms one-shot (loop=false), ' +
+            'pairs with the existing whoosh-puff dust SFX in jump() at ' +
+            'wefty-run.html. First asset shipped via the new ' +
+            'WeftyPicCraft v0.1.1 runner + Codex image_gen path ' +
+            '(painterly lane, bypasses the pixel-art skill). Manifest ' +
+            'follows the v1.0 schema (attempts[] log + content hashes). ' +
+            'Pending wire-in as an animated cycle on intentional jump.',
+        prompt: 'Generate a single PNG laid out as a 2-row x 3-column ' +
+            'sprite sheet (each cell 512x512) of the attached Wefty ' +
+            'mascot performing a 6-frame jump animation. Painterly ' +
+            'cartoon Wefty matching wefty_run_b.png exactly: round ' +
+            'purple yarn-ball body with multicolor strands (peach/pink/' +
+            'mint/lavender), large anime eyes, soft blush, dangling ' +
+            'pink-magenta tail. Soft cel-shading, hand-painted feel. ' +
+            'Same camera + scale across all 6 cells. Solid black ' +
+            'background. F1 anticipation_squash (compressed -12%). ' +
+            'F2 launch_stretch (+15% taller egg). F3 rising_smear (+10%, ' +
+            'tail streaming, painterly smear below). F4 peak_velocity ' +
+            '(+8%, ~5° backward tilt, big "wheee" smile). ' +
+            'F5 decelerating (+3%, S-curve tail tip). F6 apex_float ' +
+            '(spherical, ~10° tilt, weightless half-closed-eye bliss).',
+        sheet: 'sprite-forge/wefty-jump-up/sheet-transparent.png',
+        gif: 'sprite-forge/wefty-jump-up/animation.gif',
+        promptFile: 'prompts.md',
+        metaFile: 'manifest.json',
+        usedAt: null,
+    },
+    {
         name: 'wefty-spin-hit',
         title: 'Wefty spin attack (6-panel hit cycle)',
         status: 'draft',
@@ -349,8 +408,8 @@ function renderCard(s) {
                     <div class="links">
                         <a href="${escapeHtml(s.sheet)}" target="_blank">sheet</a>
                         ${s.gif ? `<a href="${escapeHtml(s.gif)}" target="_blank">animation.gif</a>` : ''}
-                        <a href="sprite-forge/${escapeHtml(s.name)}/prompt-used.txt" target="_blank">prompt-used.txt</a>
-                        <a href="sprite-forge/${escapeHtml(s.name)}/pipeline-meta.json" target="_blank">pipeline-meta.json</a>
+                        <a href="sprite-forge/${escapeHtml(s.name)}/${escapeHtml(s.promptFile || 'prompt-used.txt')}" target="_blank">${escapeHtml(s.promptFile || 'prompt-used.txt')}</a>
+                        <a href="sprite-forge/${escapeHtml(s.name)}/${escapeHtml(s.metaFile || 'pipeline-meta.json')}" target="_blank">${escapeHtml(s.metaFile || 'pipeline-meta.json')}</a>
                     </div>
                 </details>
             </div>
