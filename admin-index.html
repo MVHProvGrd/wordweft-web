@@ -17,13 +17,25 @@
     .wrap { max-width: 1100px; margin: 0 auto; }
     header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
     header a.back {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         color: #B8A8FF;
         text-decoration: none;
         font-size: 13px;
-        padding: 6px 10px;
-        border-radius: 10px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.16);
+        border: 1px solid rgba(184,168,255,0.20);
+        transition: background 0.15s, border-color 0.15s, transform 0.08s;
     }
-    header a.back:hover { background: rgba(124,111,232,0.18); }
+    header a.back:hover {
+        background: rgba(124,111,232,0.32);
+        border-color: rgba(184,168,255,0.45);
+        color: #FFFFFF;
+    }
+    header a.back:active { transform: translateY(1px); }
     h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
     .lede {
         color: #8D7FAE;
@@ -78,6 +90,26 @@
     .tile h3 { margin: 0; font-size: 17px; font-weight: 700; color: #EEE6FF; }
     .tile p { margin: 0; color: #8D7FAE; font-size: 13px; line-height: 1.5; }
     .tile .arrow { color: #B8A8FF; font-size: 13px; margin-top: 4px; }
+    .tile .step {
+        font-size: 11px; font-weight: 700;
+        color: #B8A8FF; background: rgba(124,111,232,0.18);
+        padding: 1px 7px; border-radius: 999px;
+        align-self: flex-start;
+        letter-spacing: 0.04em;
+    }
+    section { margin-top: 28px; }
+    section:first-of-type { margin-top: 0; }
+    section h2 {
+        font-size: 13px; font-weight: 800;
+        text-transform: uppercase; letter-spacing: 0.10em;
+        color: #B8A8FF;
+        margin: 0 0 4px;
+    }
+    section .sub {
+        font-size: 12px; color: #8D7FAE;
+        margin: 0 0 12px;
+        line-height: 1.5;
+    }
 </style>
 </head>
 <body>
@@ -92,71 +124,104 @@
     <div id="auth-gate"></div>
     <div id="main" style="display:none;">
         <div class="me" id="me-uid"></div>
-        <div class="grid">
-            <a class="tile" href="admin.html">
-                <h3>Reports console</h3>
-                <p>User reports grouped by reportedUser. Ban / Dismiss / Unban via the moderation Cloud Functions.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="admin-bugreports.html">
-                <h3>Bug reports</h3>
-                <p>Tester-submitted bugs with text + screenshots from <code>/test-feedback.html</code>. Mark resolved when handled.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="admin-suggestions.html">
-                <h3>Genre &amp; mood suggestions</h3>
-                <p>LLM-suggested taxonomy entries with counts and story samples. Promote or Dismiss.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="test-feedback.html">
-                <h3>Submit a bug report</h3>
-                <p>Tester-facing feedback form. File a bug yourself or hand the URL to a playtester.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="music.html">
-                <h3>Music &amp; SFX</h3>
-                <p>Every loop and sound effect with an in-page audio player. Lyria-3 generations + originals.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="design/">
-                <h3>Graphics gallery</h3>
-                <p>Complete sprite catalog by level (Wefty Run, Wefty Climb, shared, tutorial). Lightbox preview.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="design/island-splits/">
-                <h3>Island depth splits</h3>
-                <p>Per-island back/front crops for the Wefty Run depth renderer — 10 meadow + 10 storm variants.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="admin-codex-sprites.html">
-                <h3>Codex sprites</h3>
-                <p>Pixel-art sprites generated via <code>$generate2dsprite</code> in Codex (agent-sprite-forge). Prompt + status + wire-in path per entry.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="admin-island-sketches.html">
-                <h3>Island sketch taper</h3>
-                <p>Carve the hand-drawn topography sketches into proper island silhouettes — sliders for edge taper + underside curve, then download <code>sketch_v{0..9}_island.png</code>.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="admin-island-baseline.html">
-                <h3>Island baseline A/B</h3>
-                <p>Side-by-side: hand-drawn sketch · tapered shape mask · Gemini cartoon baseline · Codex pixel-art baseline. Same silhouette, two render styles.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="admin-island-elements.html">
-                <h3>Island elements</h3>
-                <p>Standalone flora — flowers, mushrooms, trees, bushes, grass clumps — generated isolated on alpha so the composer can layer them onto any island shape.</p>
-                <span class="arrow">Open →</span>
-            </a>
-            <a class="tile" href="admin-island-mockup.html">
-                <h3>Island mockup</h3>
-                <p>Random scatter of all 18 elements onto the v0 baseline along the smoothed run-line. Density / tree-share / seed sliders + Shuffle + Download.</p>
-                <span class="arrow">Open →</span>
-            </a>
-        </div>
-        <p style="color:#8D7FAE;font-size:12px;margin:18px 0 0;line-height:1.55;">
-            Submit a bug report and the review pages (Music, Graphics, Splits, Codex sprites) aren't gated —
-            they're served on-demand from the live origin and are linked here for convenience.
+
+        <section>
+            <h2>Moderation</h2>
+            <p class="sub">Admin-gated queues over user-generated data. Same RTDB <code>admins/{uid}: true</code> unlock applies to all three.</p>
+            <div class="grid">
+                <a class="tile" href="admin.html">
+                    <h3>Reports console</h3>
+                    <p>User reports grouped by reportedUser. Ban / Dismiss / Unban via the moderation Cloud Functions.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+                <a class="tile" href="admin-bugreports.html">
+                    <h3>Bug reports</h3>
+                    <p>Tester-submitted bugs with text + screenshots from <code>/test-feedback.html</code>. Mark resolved when handled.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+                <a class="tile" href="admin-suggestions.html">
+                    <h3>Genre &amp; mood suggestions</h3>
+                    <p>LLM-suggested taxonomy entries with counts and story samples. Promote or Dismiss.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Tester intake</h2>
+            <p class="sub">Outbound: a non-gated form testers can use. Reports land in the <em>Bug reports</em> queue above.</p>
+            <div class="grid">
+                <a class="tile" href="test-feedback.html">
+                    <h3>Submit a bug report</h3>
+                    <p>Tester-facing feedback form. File a bug yourself or hand the URL to a playtester.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Asset libraries</h2>
+            <p class="sub">Browse-only catalogs over committed assets. No generation, no edits — just inventory + lightboxes.</p>
+            <div class="grid">
+                <a class="tile" href="music.html">
+                    <h3>Music &amp; SFX</h3>
+                    <p>Every loop and sound effect with an in-page audio player. Lyria-3 generations + originals.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+                <a class="tile" href="design/">
+                    <h3>Graphics gallery</h3>
+                    <p>Complete sprite catalog by level (Wefty Run, Wefty Climb, shared, tutorial). Lightbox preview.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Island design pipeline</h2>
+            <p class="sub">Numbered workflow — the four steps share data and are meant to be used in order.</p>
+            <div class="grid">
+                <a class="tile" href="admin-island-sketches.html">
+                    <span class="step">Step 1 / 4</span>
+                    <h3>Island sketch taper</h3>
+                    <p>Carve the hand-drawn topography sketches into proper island silhouettes — sliders for edge taper + underside curve, then download <code>sketch_v{0..9}_island.png</code>.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+                <a class="tile" href="admin-island-baseline.html">
+                    <span class="step">Step 2 / 4</span>
+                    <h3>Island baseline A/B</h3>
+                    <p>Side-by-side: hand-drawn sketch · tapered shape mask · Gemini cartoon baseline. Smoothed run-line overlay so collision data stays honest.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+                <a class="tile" href="admin-island-elements.html">
+                    <span class="step">Step 3 / 4</span>
+                    <h3>Island elements</h3>
+                    <p>Standalone flora &amp; wildlife — flowers, mushrooms, trees, bushes, grass clumps, critters — generated isolated on alpha so the composer can layer them onto any island shape.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+                <a class="tile" href="admin-island-mockup.html">
+                    <span class="step">Step 4 / 4</span>
+                    <h3>Island mockup</h3>
+                    <p>Random scatter of all 26 elements onto any v0..v9 baseline along the smoothed run-line. Density / tree-share / seed sliders + Shuffle + sway-loop GIF export.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Pixel-art forge</h2>
+            <p class="sub">Separate pipeline from the cartoon island workflow above. Pixel-art only, hard-locked aesthetic, magenta-chroma cleanup.</p>
+            <div class="grid">
+                <a class="tile" href="admin-codex-sprites.html">
+                    <h3>Codex sprites</h3>
+                    <p>Pixel-art sprites generated via <code>$generate2dsprite</code> in Codex (agent-sprite-forge). Prompt + status + wire-in path per entry.</p>
+                    <span class="arrow">Open →</span>
+                </a>
+            </div>
+        </section>
+        <p style="color:#8D7FAE;font-size:12px;margin:32px 0 0;line-height:1.55;">
+            Only the Moderation queues are gated by <code>admins/{uid}: true</code>. Tester intake,
+            asset libraries, and the design pipelines are served on-demand from the live origin
+            and linked here for convenience.
         </p>
     </div>
 </div>

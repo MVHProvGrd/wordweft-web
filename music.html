@@ -35,15 +35,25 @@
     .wrap { max-width: 560px; margin: 0 auto; }
     header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     header a.back {
-        color: var(--ww-ink-2);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #B8A8FF;
         text-decoration: none;
         font-size: 13px;
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 6px 10px;
-        border-radius: 10px;
-        transition: background 0.15s, color 0.15s;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.16);
+        border: 1px solid rgba(184,168,255,0.20);
+        transition: background 0.15s, border-color 0.15s, transform 0.08s;
     }
-    header a.back:hover { background: var(--ww-hair); color: var(--ww-ink-1); }
+    header a.back:hover {
+        background: rgba(124,111,232,0.32);
+        border-color: rgba(184,168,255,0.45);
+        color: #FFFFFF;
+    }
+    header a.back:active { transform: translateY(1px); }
     h1 {
         font-family: var(--ww-display);
         font-weight: 800;
@@ -65,13 +75,82 @@
         border-radius: 6px;
     }
     .section-label {
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: var(--ww-ink-1);
+        margin: 36px 0 4px;
+    }
+    .section-label .count {
         font-size: 11px;
-        letter-spacing: 0.18em;
+        font-weight: 600;
+        color: var(--ww-ink-2);
+        background: var(--ww-bg-2);
+        padding: 1px 8px;
+        border-radius: 999px;
+        margin-left: 8px;
+        letter-spacing: 0;
+    }
+    .section-sub {
+        color: var(--ww-ink-2);
+        font-size: 12px;
+        line-height: 1.5;
+        margin: 0 0 12px;
+    }
+    .subgroup-label {
+        font-size: 10px;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
         font-weight: 700;
         color: var(--ww-ink-2);
-        margin: 28px 0 10px;
+        margin: 18px 0 8px;
     }
+    .toc {
+        background: var(--ww-bg-2);
+        border: 1px solid var(--ww-hair-2);
+        border-radius: 12px;
+        padding: 10px 14px;
+        margin: 0 0 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        font-size: 12px;
+    }
+    .toc a {
+        color: var(--ww-ink-1);
+        text-decoration: none;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .toc a:hover { color: var(--ww-ink-0); }
+    .toc a .count {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--ww-ink-2);
+        margin-left: 4px;
+    }
+    details.archive {
+        margin-top: 24px;
+    }
+    details.archive > summary {
+        list-style: none;
+        cursor: pointer;
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: var(--ww-ink-1);
+        padding: 8px 0;
+    }
+    details.archive > summary::-webkit-details-marker { display: none; }
+    details.archive > summary::after {
+        content: '▸';
+        margin-left: 8px;
+        display: inline-block;
+        transition: transform 0.15s;
+    }
+    details.archive[open] > summary::after { transform: rotate(90deg); }
     .track {
         background: var(--ww-bg-2);
         border: 1px solid var(--ww-hair-2);
@@ -172,19 +251,29 @@
 <body>
 <div class="wrap">
     <header>
-        <a class="back" href="/">← Back</a>
+        <a class="back" href="admin-index.html">← Back</a>
     </header>
 
     <h1>WordWeft Music</h1>
     <p class="lede">
-        All instrumental loops in the game. Generated via Google's
+        All instrumental loops + sound effects. Music generated via Google's
         <code>lyria-3-clip-preview</code> and seamlessly stitched with a
-        1.5 s equal-power crossfade so the wrap is inaudible. Each
-        player loops in-page; right-click → "Save audio as…" to grab
-        the file.
+        1.5 s equal-power crossfade so the wrap is inaudible. Each player
+        loops in-page; right-click → "Save audio as…" to grab the file.
     </p>
 
-    <div class="section-label">Live in-game</div>
+    <nav class="toc">
+        <a href="#music-live">Music · live<span class="count">7</span></a>
+        <a href="#sfx-wired">SFX · wired<span class="count">1</span></a>
+        <a href="#sfx-cues">SFX · cues<span class="count">29 + 2 ambient</span></a>
+        <a href="#music-staged">Music · staged<span class="count">4</span></a>
+        <a href="#archive">Archive</a>
+    </nav>
+
+    <div class="section-label" id="music-live">Music · live <span class="count">7</span></div>
+    <p class="section-sub">In active rotation in-game. Two distinct surfaces — gameplay loops play during the mini-game and waiting-room styles cycle on the main hub.</p>
+
+    <div class="subgroup-label">Gameplay loops</div>
 
     <div class="track">
         <div class="track-head">
@@ -216,6 +305,8 @@
         <audio controls preload="metadata" loop src="wefty_climb_loop.mp3"></audio>
         <div class="filename"><a href="wefty_climb_loop.mp3" download>wefty_climb_loop.mp3</a> · 30.8 s · 194 kbps</div>
     </div>
+
+    <div class="subgroup-label">Waiting-room styles · Settings → Music</div>
 
     <div class="track">
         <div class="track-head">
@@ -297,7 +388,8 @@
         <div class="filename"><a href="blues_loop.mp3" download>blues_loop.mp3</a> · 29.1 s · 128 kbps</div>
     </div>
 
-    <div class="section-label">Sound effects</div>
+    <div class="section-label" id="sfx-wired">SFX · wired <span class="count">1</span></div>
+    <p class="section-sub">Already in code — fires from <code>wefty-run.html</code> and the Android <code>SoundManager</code>.</p>
 
     <div class="track">
         <div class="track-head">
@@ -317,7 +409,7 @@
         <div class="filename"><a href="wefty_powerup.mp3" download>wefty_powerup.mp3</a> · ~1 s · static SFX</div>
     </div>
 
-    <div class="section-label">SFX cues — live in-game</div>
+    <div class="section-label" id="sfx-cues">SFX cues · live in-game <span class="count">29 wired</span></div>
 
     <p class="synth-note" style="background:rgba(60,180,120,0.06);border-left-color:rgba(60,180,120,0.4);">
         29 of these cues now play in-game on both web + Android at the
@@ -519,7 +611,77 @@
         <div class="filename"><a href="ambient_storm_loop.mp3" download>ambient_storm_loop.mp3</a> · 28.6 s · 96 kbps</div>
     </div>
 
-    <div class="section-label">Originals — preserved for posterity</div>
+    <div class="section-label" id="music-staged">Music · staged for upcoming levels <span class="count">4</span></div>
+    <p class="section-sub">Asset committed to the repo; not yet wired into a screen. Each is a roadmap entry waiting on its level scaffolding.</p>
+
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Skyweave</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: flying-carpet level. Asset committed; not yet wired into a screen.</p>
+        <p class="track-vibe">
+            Magical adventure-flight, soaring. Pizzicato strings + flute
+            and oboe trading a fluttering line, celesta sparkle,
+            tambourine pulse. Harmonic minor with hijaz colour, 110 BPM.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_skyweave_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_skyweave_loop.mp3" download>wefty_skyweave_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Swing</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: Wefty swinging on jungle vines + tree branches with his string. Asset committed; not yet wired.</p>
+        <p class="track-vibe">
+            Jungle-adventure loop, Tarzan-style cartoon energy. Bouncy
+            syncopated congas + bongos + low toms drive the rhythm,
+            pan flute and ocarina trade a soaring lead, pizzicato
+            strings sketch each swing arc, marimba + kalimba fill the
+            mid. E minor pentatonic, 130 BPM.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_swing_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_swing_loop.mp3" download>wefty_swing_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">MemeWeft</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: rebrand of the CaptionClash scaffold. Asset committed; not yet wired.</p>
+        <p class="track-vibe">
+            Modern internet-meme loop, playful and quirky. Lo-fi
+            boom-bap groove, wobbly saw bass, retro square-lead, pitched
+            vocal-chop stabs (no actual words). Hyperpop-adjacent but
+            lighthearted. A minor pentatonic, 120 BPM.
+        </p>
+        <audio controls preload="metadata" loop src="memeweft_loop.mp3"></audio>
+        <div class="filename"><a href="memeweft_loop.mp3" download>memeweft_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Wefty Weave</h3>
+            <span class="track-stage stage-staged">Staged</span>
+        </div>
+        <p class="track-where">Roadmap: warp/weft literal-theme level. Asset committed; not yet wired.</p>
+        <p class="track-vibe">
+            Weaving-loom loop — rhythmic and hypnotic. Marimba + kalimba
+            + wood-block lattice trading call-and-response patterns,
+            bowed-cello drone, hand-drum pulse, finger-cymbal accents.
+            D Dorian, 100 BPM.
+        </p>
+        <audio controls preload="metadata" loop src="wefty_weave_loop.mp3"></audio>
+        <div class="filename"><a href="wefty_weave_loop.mp3" download>wefty_weave_loop.mp3</a> · 29.1 s · 128 kbps</div>
+    </div>
+
+    <details class="archive" id="archive">
+    <summary>Archive · preserved originals <span class="count">6</span></summary>
+
 
     <p class="synth-note">
         These are the pre-Lyria 3-overtone synth versions of the same
@@ -619,72 +781,7 @@
         <div class="filename"><a href="blues_synth_loop.mp3" download>blues_synth_loop.mp3</a> · 34.7 s · 128 kbps</div>
     </div>
 
-    <div class="section-label">Staged for upcoming levels</div>
-
-    <div class="track">
-        <div class="track-head">
-            <h3 class="track-title">Wefty Skyweave</h3>
-            <span class="track-stage stage-staged">Staged</span>
-        </div>
-        <p class="track-where">Roadmap: flying-carpet level. Asset committed; not yet wired into a screen.</p>
-        <p class="track-vibe">
-            Magical adventure-flight, soaring. Pizzicato strings + flute
-            and oboe trading a fluttering line, celesta sparkle,
-            tambourine pulse. Harmonic minor with hijaz colour, 110 BPM.
-        </p>
-        <audio controls preload="metadata" loop src="wefty_skyweave_loop.mp3"></audio>
-        <div class="filename"><a href="wefty_skyweave_loop.mp3" download>wefty_skyweave_loop.mp3</a> · 29.1 s · 128 kbps</div>
-    </div>
-
-    <div class="track">
-        <div class="track-head">
-            <h3 class="track-title">Wefty Swing</h3>
-            <span class="track-stage stage-staged">Staged</span>
-        </div>
-        <p class="track-where">Roadmap: Wefty swinging on jungle vines + tree branches with his string. Asset committed; not yet wired.</p>
-        <p class="track-vibe">
-            Jungle-adventure loop, Tarzan-style cartoon energy. Bouncy
-            syncopated congas + bongos + low toms drive the rhythm,
-            pan flute and ocarina trade a soaring lead, pizzicato
-            strings sketch each swing arc, marimba + kalimba fill the
-            mid. E minor pentatonic, 130 BPM.
-        </p>
-        <audio controls preload="metadata" loop src="wefty_swing_loop.mp3"></audio>
-        <div class="filename"><a href="wefty_swing_loop.mp3" download>wefty_swing_loop.mp3</a> · 29.1 s · 128 kbps</div>
-    </div>
-
-    <div class="track">
-        <div class="track-head">
-            <h3 class="track-title">MemeWeft</h3>
-            <span class="track-stage stage-staged">Staged</span>
-        </div>
-        <p class="track-where">Roadmap: rebrand of the CaptionClash scaffold. Asset committed; not yet wired.</p>
-        <p class="track-vibe">
-            Modern internet-meme loop, playful and quirky. Lo-fi
-            boom-bap groove, wobbly saw bass, retro square-lead, pitched
-            vocal-chop stabs (no actual words). Hyperpop-adjacent but
-            lighthearted. A minor pentatonic, 120 BPM.
-        </p>
-        <audio controls preload="metadata" loop src="memeweft_loop.mp3"></audio>
-        <div class="filename"><a href="memeweft_loop.mp3" download>memeweft_loop.mp3</a> · 29.1 s · 128 kbps</div>
-    </div>
-
-    <div class="track">
-        <div class="track-head">
-            <h3 class="track-title">Wefty Weave</h3>
-            <span class="track-stage stage-staged">Staged</span>
-        </div>
-        <p class="track-where">Roadmap: warp/weft literal-theme level. Asset committed; not yet wired.</p>
-        <p class="track-vibe">
-            Weaving-loom loop — rhythmic and hypnotic. Marimba + kalimba
-            + wood-block lattice trading call-and-response patterns,
-            bowed-cello drone, hand-drum pulse, finger-cymbal accents.
-            D Dorian, 100 BPM.
-        </p>
-        <audio controls preload="metadata" loop src="wefty_weave_loop.mp3"></audio>
-        <div class="filename"><a href="wefty_weave_loop.mp3" download>wefty_weave_loop.mp3</a> · 29.1 s · 128 kbps</div>
-    </div>
-
+    </details>
     <p class="lede" style="margin-top: 32px; font-size: 12px;">
         Generation recipe + Lyria prompt tips live in the repo's
         <code>CLAUDE.md</code> under "Music generation (Lyria-3)".

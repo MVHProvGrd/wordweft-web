@@ -18,10 +18,25 @@
     .wrap { max-width: 1280px; margin: 0 auto; }
     header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
     header a.back {
-        color: #B8A8FF; text-decoration: none; font-size: 13px;
-        padding: 6px 10px; border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #B8A8FF;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.16);
+        border: 1px solid rgba(184,168,255,0.20);
+        transition: background 0.15s, border-color 0.15s, transform 0.08s;
     }
-    header a.back:hover { background: rgba(124,111,232,0.18); }
+    header a.back:hover {
+        background: rgba(124,111,232,0.32);
+        border-color: rgba(184,168,255,0.45);
+        color: #FFFFFF;
+    }
+    header a.back:active { transform: translateY(1px); }
     h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
     .lede { color: #8D7FAE; margin: 0 0 22px; font-size: 14px; max-width: 760px; line-height: 1.55; }
     code { font-family: "JetBrains Mono", monospace; background: rgba(124,111,232,0.18); color: #B8A8FF; padding: 1px 6px; border-radius: 4px; font-size: 12px; }

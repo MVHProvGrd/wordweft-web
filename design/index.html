@@ -17,14 +17,25 @@
     .wrap { max-width: 1280px; margin: 0 auto; }
     header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
     header a.back {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         color: #B8A8FF;
         text-decoration: none;
         font-size: 13px;
-        padding: 6px 10px;
-        border-radius: 10px;
-        transition: background 0.15s;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.16);
+        border: 1px solid rgba(184,168,255,0.20);
+        transition: background 0.15s, border-color 0.15s, transform 0.08s;
     }
-    header a.back:hover { background: rgba(124,111,232,0.18); }
+    header a.back:hover {
+        background: rgba(124,111,232,0.32);
+        border-color: rgba(184,168,255,0.45);
+        color: #FFFFFF;
+    }
+    header a.back:active { transform: translateY(1px); }
     h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 32px; }
     .lede {
         color: #8D7FAE;
@@ -169,6 +180,29 @@
         color: #C7B8E8;
         line-height: 1.4;
     }
+    .card .used {
+        font-size: 11px;
+        color: #8FE4B8;
+        line-height: 1.4;
+        font-family: "JetBrains Mono", monospace;
+        word-break: break-all;
+    }
+    .card .used.unused {
+        color: #E86F5A;
+    }
+    .card .used .label {
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 9px;
+        margin-right: 4px;
+    }
+    .toc a .count {
+        font-size: 10px;
+        font-weight: 600;
+        color: #8D7FAE;
+        margin-left: 4px;
+    }
     .card .lvl {
         display: inline-block;
         font-size: 10px;
@@ -186,6 +220,7 @@
     .lvl.both    { background: rgba(180,140,60,0.18); color: #D9B86D; }
     .lvl.shared  { background: rgba(180,80,140,0.20); color: #E08FB8; }
     .lvl.tutorial{ background: rgba(140,140,200,0.20); color: #B8B8E0; }
+    .lvl.deprecated { background: rgba(180,90,90,0.18); color: #E08F8F; }
 
     /* Lightbox */
     .lightbox {
@@ -253,7 +288,7 @@
 </head>
 <body>
 <div class="wrap">
-    <header><a class="back" href="/">← Back</a></header>
+    <header><a class="back" href="../admin-index.html">← Back</a></header>
     <h1>WordWeft · Graphics Gallery</h1>
     <p class="lede">
         Every static graphic shipping in <code>wordweft-web/</code>, grouped
@@ -264,8 +299,11 @@
 
     <div class="legend">
         <b>Sister pages.</b>
-        <a href="island-splits/">/design/island-splits/</a> for the per-island
-        back/front depth-split detail (used by the Wefty Run depth renderer).
+        <a href="../admin-island-baseline.html">/admin-island-baseline.html</a> for the
+        per-variant cartoon-island A/B with derived run-line overlay (replaces the
+        old <code>/design/island-splits/</code> static crop dump).
+        <a href="../admin-island-mockup.html">/admin-island-mockup.html</a> for the
+        live flora scatter + sway preview.
         <a href="../music.html">/music.html</a> for every loop + SFX with an
         in-page player. Edits to any sprite go in
         <code>wordweft-web/&lt;file&gt;.png</code> AND its Android twin under
@@ -319,7 +357,7 @@ const SECTIONS = [
     id: 'run-islands',
     title: 'Wefty Run · Islands (meadow)',
     lvl: 'run',
-    desc: 'Ten meadow island variants, baked from cartoon Gemini baselines (<code>design/mascots/run_island_v*_baseline.png</code>) with flora composited in via <code>design/mascots/bake_islands.mjs</code>. Each is cropped tight to its silhouette so collisions and visuals share the same extent. Trees go in <code>_back</code> (behind Wefty); stumps + bushes + mushrooms + flowers + grass clumps + critters go in <code>_front</code> (in front of Wefty). See /design/island-splits/ and the admin pages /admin-island-baseline.html, /admin-island-mockup.html, /admin-island-elements.html.',
+    desc: 'Ten meadow island variants, baked from cartoon Gemini baselines (<code>design/mascots/run_island_v*_baseline.png</code>) with flora composited in via <code>design/mascots/bake_islands.mjs</code>. Each is cropped tight to its silhouette so collisions and visuals share the same extent. Trees go in <code>_back</code> (behind Wefty); stumps + bushes + mushrooms + flowers + grass clumps + critters go in <code>_front</code> (in front of Wefty). Drill in via <code>/admin-island-baseline.html</code> (per-variant + run-line overlay) and <code>/admin-island-mockup.html</code> (live scatter + sway).',
     items: [
         ...Array.from({length: 10}, (_, i) => ({
             f: `run_island_v${i}.png`,
@@ -495,18 +533,43 @@ const SECTIONS = [
     ],
 },
 {
-    id: 'deprecated',
-    title: 'Deprecated · historical assets',
+    id: 'unused',
+    title: 'Unused · orphaned in source',
     lvl: 'deprecated',
-    desc: 'Files still in <code>wordweft-web/</code> but NOT loaded by the live runtime. Kept on disk for reference / rollback. Safe to delete in a future cleanup pass.',
+    desc: 'On disk + in the audit but no code references the filename. Either dead, awaiting wire-up, or dynamically referenced in a way the audit can\'t see.',
     items: [
-        { f: 'water_block.png',  use: 'Pre-chevron solid water fill. Loaded by wefty-run.html as a fallback constant but never drawn by the active render path. Candidate for removal.' },
-        { f: 'water_tile_f0.png', use: 'Animated 6-frame water — superseded by water_chevron_blue.png (drawn via drawWavyBand). Not loaded.' },
-        { f: 'water_tile_f1.png', use: 'Animated water frame 1 — not loaded.' },
-        { f: 'water_tile_f2.png', use: 'Animated water frame 2 — not loaded.' },
-        { f: 'water_tile_f3.png', use: 'Animated water frame 3 — not loaded.' },
-        { f: 'water_tile_f4.png', use: 'Animated water frame 4 — not loaded.' },
-        { f: 'water_tile_f5.png', use: 'Animated water frame 5 — not loaded.' },
+        { f: 'moth_hazard.png',     use: 'Generated 4-frame moth sprite — never wired into the hazard system. Pending a Wefty Run hazard wire-up.' },
+        { f: 'wefty_roll.png',      use: 'Wefty rolling sprite — appears unreferenced by the live runtime. Confirm if a future Climb feature needs it.' },
+        { f: 'water_tile_f0.png',   use: 'Pre-chevron animated water frame 0/6 — superseded by water_chevron_blue.png + drawWavyBand.' },
+        { f: 'water_tile_f1.png',   use: 'Animated water frame 1 — not loaded.' },
+        { f: 'water_tile_f2.png',   use: 'Animated water frame 2 — not loaded.' },
+        { f: 'water_tile_f3.png',   use: 'Animated water frame 3 — not loaded.' },
+        { f: 'water_tile_f4.png',   use: 'Animated water frame 4 — not loaded.' },
+        { f: 'water_tile_f5.png',   use: 'Animated water frame 5 — not loaded.' },
+    ],
+},
+{
+    id: 'deprecated',
+    title: 'Deprecated · still loaded as a fallback',
+    lvl: 'deprecated',
+    desc: 'In <code>wordweft-web/</code> AND referenced by a code path, but only as a stale fallback that the active render path never hits. Candidates for a future removal commit.',
+    items: [
+        { f: 'water_block.png',  use: 'Pre-chevron solid water fill. Loaded by wefty-run.html as a constant but the live render uses water_chevron_blue.png + drawWavyBand exclusively.' },
+    ],
+},
+{
+    id: 'archive',
+    title: 'Archive · backup of replaced assets',
+    lvl: 'deprecated',
+    archiveDir: 'archive/',
+    desc: 'Originals saved before the in-game island refactor. The 30 storm PNGs (storm now applied as a screen-wide tint) and the 30 legacy run_island_v* PNGs (pre-flora-bake depth split) are kept in <code>wordweft-web/archive/</code> for reference + rollback.',
+    items: [
+        ...Array.from({length: 10}, (_, i) => ({ f: `archive/run_island_storm_v${i}.png`,        use: `Storm-tinted v${i} (pre-screen-shader era).`,             frame: 'wide' })),
+        ...Array.from({length: 10}, (_, i) => ({ f: `archive/run_island_storm_v${i}_back.png`,   use: `Storm v${i} BACK layer (pre-screen-shader era).`,         frame: 'wide' })),
+        ...Array.from({length: 10}, (_, i) => ({ f: `archive/run_island_storm_v${i}_front.png`,  use: `Storm v${i} FRONT layer (pre-screen-shader era).`,        frame: 'wide' })),
+        ...Array.from({length: 10}, (_, i) => ({ f: `archive/run_island_v${i}_legacy.png`,       use: `Legacy v${i} composite (pre-flora-bake refactor).`,       frame: 'wide' })),
+        ...Array.from({length: 10}, (_, i) => ({ f: `archive/run_island_v${i}_back_legacy.png`,  use: `Legacy v${i} BACK layer (pre-flora-bake refactor).`,      frame: 'wide' })),
+        ...Array.from({length: 10}, (_, i) => ({ f: `archive/run_island_v${i}_front_legacy.png`, use: `Legacy v${i} FRONT layer (pre-flora-bake refactor).`,     frame: 'wide' })),
     ],
 },
 ];
@@ -517,21 +580,31 @@ function pathFor(filename) { return '../' + filename; }
 const tocEl = document.getElementById('toc');
 const sectionsEl = document.getElementById('sections');
 
+// Audit data is async-loaded; we render once then enrich each card's
+// "Used at" line as soon as asset_audit.json arrives.
+let AUDIT = null;
+const auditPromise = fetch('../asset_audit.json')
+    .then(r => r.ok ? r.json() : null)
+    .then(j => { AUDIT = j; })
+    .catch(() => { AUDIT = null; });
+
+function basename(p) { return p.split('/').pop(); }
+
 SECTIONS.forEach((s) => {
     const a = document.createElement('a');
     a.href = '#' + s.id;
-    a.textContent = s.title;
+    a.innerHTML = `${s.title}<span class="count">${s.items.length}</span>`;
     tocEl.appendChild(a);
 
     const sec = document.createElement('section');
     sec.className = 'section';
     sec.id = s.id;
     const head = document.createElement('div');
-    head.innerHTML = `<h2>${s.title}</h2><p class="desc">${s.desc}</p>`;
+    head.innerHTML = `<h2>${s.title} <span style="font-size:13px;color:#8D7FAE;font-weight:500;">· ${s.items.length}</span></h2><p class="desc">${s.desc}</p>`;
     sec.appendChild(head);
 
     const grid = document.createElement('div');
-    grid.className = 'grid' + ((s.id === 'tutorial' || s.id === 'run-bg') ? '' : '');
+    grid.className = 'grid';
     s.items.forEach((it) => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -541,6 +614,7 @@ SECTIONS.forEach((s) => {
             both: 'Run + Climb',
             shared: 'Shared',
             tutorial: 'Tutorial',
+            deprecated: 'Deprecated',
         })[s.lvl] || s.lvl;
         card.innerHTML = `
             <span class="lvl ${s.lvl}">${lvlLabel}</span>
@@ -549,11 +623,28 @@ SECTIONS.forEach((s) => {
             </div>
             <div class="name">${it.f}</div>
             <div class="use">${it.use}</div>
+            <div class="used" data-fname="${basename(it.f)}"></div>
         `;
         grid.appendChild(card);
     });
     sec.appendChild(grid);
     sectionsEl.appendChild(sec);
+});
+
+// Once audit lands, fill in the green "USED IN: ..." line on every card.
+auditPromise.then(() => {
+    if (!AUDIT) return;
+    document.querySelectorAll('.card .used').forEach((el) => {
+        const fname = el.dataset.fname;
+        const usages = AUDIT[fname];
+        if (!usages) return;          // not in audit (e.g. archive/ files)
+        if (usages.length === 0) {
+            el.classList.add('unused');
+            el.innerHTML = `<span class="label">UNUSED</span>not referenced by any code path`;
+        } else {
+            el.innerHTML = `<span class="label">USED</span>${usages.join(' · ')}`;
+        }
+    });
 });
 
 // ── Lightbox ───────────────────────────────────────────────────────────

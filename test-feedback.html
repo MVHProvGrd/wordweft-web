@@ -19,13 +19,25 @@
     .wrap { max-width: 720px; margin: 0 auto; }
     header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
     header a.back {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         color: #B8A8FF;
         text-decoration: none;
         font-size: 13px;
-        padding: 6px 10px;
-        border-radius: 10px;
+        font-weight: 600;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(124,111,232,0.16);
+        border: 1px solid rgba(184,168,255,0.20);
+        transition: background 0.15s, border-color 0.15s, transform 0.08s;
     }
-    header a.back:hover { background: rgba(124,111,232,0.18); }
+    header a.back:hover {
+        background: rgba(124,111,232,0.32);
+        border-color: rgba(184,168,255,0.45);
+        color: #FFFFFF;
+    }
+    header a.back:active { transform: translateY(1px); }
     h1 { font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; font-size: 28px; }
     .lede {
         color: #8D7FAE;
@@ -202,7 +214,7 @@
 <body>
 <div class="wrap">
     <header>
-        <a class="back" href="/">← WordWeft</a>
+        <a class="back" href="admin-index.html">← WordWeft</a>
     </header>
     <h1>Report a bug</h1>
     <p class="lede">
