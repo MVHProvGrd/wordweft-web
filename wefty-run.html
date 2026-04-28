@@ -2950,10 +2950,41 @@
     const RUN_ISLAND = {};
     const RUN_ISLAND_BACK = {};   // above red line — renders BEHIND Wefty
     const RUN_ISLAND_FRONT = {};  // at/below red line — renders IN FRONT of Wefty
-    for (const v of RUN_ISLAND_VARIANTS) {
-        RUN_ISLAND[v] = loadImg(`run_island_${v}.png`);
-        RUN_ISLAND_BACK[v] = loadImg(`run_island_${v}_back.png`);
+    // Storm variants no longer ship as separate PNGs — same meadow image,
+    // tinted on first use and cached. Until the load fires the storm key
+    // aliases to the plain image so the draw path never hits undefined.
+    const STORM_TINT = '#7A6E80';      // muted purple-grey, multiplied
+    function buildStormTint(srcImg) {
+        if (!srcImg || !srcImg.complete || srcImg.naturalWidth === 0) return null;
+        const c = document.createElement('canvas');
+        c.width = srcImg.naturalWidth;
+        c.height = srcImg.naturalHeight;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(srcImg, 0, 0);
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = STORM_TINT;
+        ctx.fillRect(0, 0, c.width, c.height);
+        // Restore alpha mask so the tint doesn't leak outside the silhouette.
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(srcImg, 0, 0);
+        return c;
+    }
+    function bindStormTint(bucket, plainKey, stormKey) {
+        const img = bucket[plainKey];
+        bucket[stormKey] = img; // start as alias to plain; replaced on load
+        const swap = () => { const t = buildStormTint(img); if (t) bucket[stormKey] = t; };
+        if (img.complete && img.naturalWidth > 0) swap();
+        else img.addEventListener('load', swap, { once: true });
+    }
+    for (let i = 0; i <= 9; i++) {
+        const v = 'v' + i;
+        const stormV = 'storm_v' + i;
+        RUN_ISLAND[v]       = loadImg(`run_island_${v}.png`);
+        RUN_ISLAND_BACK[v]  = loadImg(`run_island_${v}_back.png`);
         RUN_ISLAND_FRONT[v] = loadImg(`run_island_${v}_front.png`);
+        bindStormTint(RUN_ISLAND,       v, stormV);
+        bindStormTint(RUN_ISLAND_BACK,  v, stormV);
+        bindStormTint(RUN_ISLAND_FRONT, v, stormV);
     }
     // Per-variant walkable surface (256 normalized Y samples).
     // Populated asynchronously; until loaded, surfaceYAt falls back

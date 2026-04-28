@@ -262,12 +262,49 @@ function mulberry32(seed) {
     };
 }
 
+// Largest-connected-component silhouette extractor. Gemini sometimes
+// leaves stray grass-tuft pixels floating in the transparent area
+// (most visible on v7) or shrinks the silhouette inward leaving stray
+// pixels below it (v9). Naive first-opaque sampling treats those
+// as the topline and flora floats in open space. Enumerate every
+// connected component and keep the largest by pixel count — that's
+// always the painted island.
 function sampleTopline(imgData) {
     const { data, width, height } = imgData;
+    const N = width * height;
+    const opaque = new Uint8Array(N);
+    for (let p = 0; p < N; p++) {
+        opaque[p] = data[p * 4 + 3] > ALPHA_THRESHOLD ? 1 : 0;
+    }
+    const compId = new Int32Array(N).fill(-1);
+    const sizes = [];
+    const stack = [];
+    for (let s = 0; s < N; s++) {
+        if (!opaque[s] || compId[s] !== -1) continue;
+        const id = sizes.length;
+        compId[s] = id;
+        stack.length = 0;
+        stack.push(s);
+        let size = 0;
+        while (stack.length) {
+            const idx = stack.pop();
+            size++;
+            const x = idx % width;
+            const y = (idx - x) / width;
+            if (x > 0)          { const ni = idx - 1;     if (opaque[ni] && compId[ni] === -1) { compId[ni] = id; stack.push(ni); } }
+            if (x < width - 1)  { const ni = idx + 1;     if (opaque[ni] && compId[ni] === -1) { compId[ni] = id; stack.push(ni); } }
+            if (y > 0)          { const ni = idx - width; if (opaque[ni] && compId[ni] === -1) { compId[ni] = id; stack.push(ni); } }
+            if (y < height - 1) { const ni = idx + width; if (opaque[ni] && compId[ni] === -1) { compId[ni] = id; stack.push(ni); } }
+        }
+        sizes.push(size);
+    }
+    let bestId = 0;
+    for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[bestId]) bestId = i;
     const top = new Array(width).fill(height);
+    if (sizes.length === 0) return top;
     for (let x = 0; x < width; x++) {
         for (let y = 0; y < height; y++) {
-            if (data[(y * width + x) * 4 + 3] > ALPHA_THRESHOLD) { top[x] = y; break; }
+            if (compId[y * width + x] === bestId) { top[x] = y; break; }
         }
     }
     return top;
