@@ -1556,7 +1556,7 @@
     // Biome: NORMAL default, STORM during the 30–75m window. Reverts
     // to NORMAL past 75m so islands spawn from the meadow pool again
     // once the storm has passed, matching the storm VFX duration.
-    function currentBiome() { return (world.distance >= 30 && world.distance < 75) ? 'STORM' : 'NORMAL'; }
+    function currentBiome() { return (world.distance >= 300) ? 'STORM' : 'NORMAL'; }
 
     // Local best distance + personal top-5 scoreboard
     let bestDistance = parseInt(localStorage.getItem('wefty_run_best') || '0', 10) || 0;
@@ -2017,13 +2017,10 @@
     }
     seedPlatforms();
 
-    // Pick a sprite variant appropriate to the current biome. Meadow
-    // in pre-storm + woodland recovery, storm pool in the storm band.
+    // Pick a sprite variant. Storm-vs-meadow is now a screen-wide
+    // multiply tint (applied per-frame in the BG pass) — there are no
+    // separate storm assets, just the v0..v9 silhouettes.
     function pickRunIslandVariant() {
-        const biome = currentBiome();
-        if (biome === 'STORM') {
-            return 'storm_v' + Math.floor(Math.random() * 10);
-        }
         return 'v' + Math.floor(Math.random() * 10);
     }
 
@@ -2971,49 +2968,18 @@
     // variant; the bg/fg split was dropped 2026-04-22 because the
     // split art looked wrong. Islands now render as one sprite behind
     // Wefty; no parallax-over-player effect.
-    const RUN_ISLAND_VARIANTS = [
-        'v0','v1','v2','v3','v4','v5','v6','v7','v8','v9',
-        'storm_v0','storm_v1','storm_v2','storm_v3','storm_v4',
-        'storm_v5','storm_v6','storm_v7','storm_v8','storm_v9',
-    ];
+    const RUN_ISLAND_VARIANTS = ['v0','v1','v2','v3','v4','v5','v6','v7','v8','v9'];
     const RUN_ISLAND = {};
     const RUN_ISLAND_BACK = {};   // above red line — renders BEHIND Wefty
     const RUN_ISLAND_FRONT = {};  // at/below red line — renders IN FRONT of Wefty
-    // Storm variants no longer ship as separate PNGs — same meadow image,
-    // tinted on first use and cached. Until the load fires the storm key
-    // aliases to the plain image so the draw path never hits undefined.
+    // Storm rendering is a screen-wide multiply applied at the end of the
+    // BG pass, not per-island PNGs. Just the meadow set lives on disk.
     const STORM_TINT = '#7A6E80';      // muted purple-grey, multiplied
-    function buildStormTint(srcImg) {
-        if (!srcImg || !srcImg.complete || srcImg.naturalWidth === 0) return null;
-        const c = document.createElement('canvas');
-        c.width = srcImg.naturalWidth;
-        c.height = srcImg.naturalHeight;
-        const ctx = c.getContext('2d');
-        ctx.drawImage(srcImg, 0, 0);
-        ctx.globalCompositeOperation = 'multiply';
-        ctx.fillStyle = STORM_TINT;
-        ctx.fillRect(0, 0, c.width, c.height);
-        // Restore alpha mask so the tint doesn't leak outside the silhouette.
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(srcImg, 0, 0);
-        return c;
-    }
-    function bindStormTint(bucket, plainKey, stormKey) {
-        const img = bucket[plainKey];
-        bucket[stormKey] = img; // start as alias to plain; replaced on load
-        const swap = () => { const t = buildStormTint(img); if (t) bucket[stormKey] = t; };
-        if (img.complete && img.naturalWidth > 0) swap();
-        else img.addEventListener('load', swap, { once: true });
-    }
     for (let i = 0; i <= 9; i++) {
         const v = 'v' + i;
-        const stormV = 'storm_v' + i;
         RUN_ISLAND[v]       = loadImg(`run_island_${v}.png`);
         RUN_ISLAND_BACK[v]  = loadImg(`run_island_${v}_back.png`);
         RUN_ISLAND_FRONT[v] = loadImg(`run_island_${v}_front.png`);
-        bindStormTint(RUN_ISLAND,       v, stormV);
-        bindStormTint(RUN_ISLAND_BACK,  v, stormV);
-        bindStormTint(RUN_ISLAND_FRONT, v, stormV);
     }
     // ─── Island flora layer ─────────────────────────────────────────────
     // Static island PNGs (back/front) ship as ground only; trees + flora
@@ -3031,15 +2997,6 @@
     const RUN_ELEMENT_IMGS = {};
     for (const n of ELEMENT_NAMES) {
         RUN_ELEMENT_IMGS[n] = loadImg(`design/elements/${n}.png`);
-    }
-    // Pre-built tinted versions for the storm biome — same lazy-build
-    // pattern as the island assets above.
-    const RUN_ELEMENT_STORM_IMGS = {};
-    for (const n of ELEMENT_NAMES) {
-        const img = RUN_ELEMENT_IMGS[n];
-        const swap = () => { const t = buildStormTint(img); if (t) RUN_ELEMENT_STORM_IMGS[n] = t; };
-        if (img.complete && img.naturalWidth > 0) swap();
-        else img.addEventListener('load', swap, { once: true });
     }
 
     let RUN_ISLAND_PLACEMENTS = null;
@@ -3071,15 +3028,13 @@
     // Render every placement in the given list onto ctx, scaling/positioning
     // from cropped-canvas coords (px in placements JSON) to platform
     // screen-space (sx,sy,sw,sh = the platform's drawX/drawY/drawW/drawH).
-    function drawIslandFlora(ctx, list, cw, ch, sx, sy, sw, sh, isStorm) {
+    function drawIslandFlora(ctx, list, cw, ch, sx, sy, sw, sh) {
         if (!list || !list.length) return;
         const t = performance.now() / 1000;
         const xScale = sw / cw, yScale = sh / ch;
-        const imgs = isStorm ? RUN_ELEMENT_STORM_IMGS : RUN_ELEMENT_IMGS;
-        const fallbackImgs = RUN_ELEMENT_IMGS;
         for (let i = 0; i < list.length; i++) {
             const p = list[i];
-            const img = imgs[p.n] || fallbackImgs[p.n];
+            const img = RUN_ELEMENT_IMGS[p.n];
             if (!img || !img.complete || img.naturalWidth === 0) continue;
             const px = sx + p.x * xScale;
             const py = sy + p.y * yScale;
@@ -3730,9 +3685,9 @@
         const wlPx = waterY * h;
         const hudTopPx = HUD_BAND_TOP * h;
         const waterTick = world.frameTick || 0;
-        // Storm biome (30-75m) → desaturate the water to grey so the
+        // Storm biome (>= 300m) → desaturate the water to grey so the
         // whole scene reads as weather-affected, not just the sky.
-        const stormActive = world.distance >= 30 && world.distance < 75;
+        const stormActive = currentBiome() === 'STORM';
         const waterBase = stormActive ? '#3C4A5C' : '#1A3D6B';
         const waterWave = stormActive ? '#566779' : '#2E6FB4';
         drawWavyBand(
@@ -3808,7 +3763,7 @@
                     const placeData = RUN_ISLAND_PLACEMENTS[p.variant];
                     if (surfData && placeData && placeData.back) {
                         drawIslandFlora(bgCtx, placeData.back, surfData.w, surfData.h,
-                            drawX, drawY, drawW, drawH, p.variant.startsWith('storm_'));
+                            drawX, drawY, drawW, drawH);
                     }
                 }
             } else {
@@ -3877,6 +3832,18 @@
             }
         }
         bgCtx.restore();
+
+        // Storm shader — single screen-wide multiply over the entire BG
+        // (sky + parallax + water + islands + flora) so the storm
+        // biome reads as weather coloring the whole world. HUD band is
+        // drawn AFTER this so it stays untinted.
+        if (stormActive) {
+            bgCtx.save();
+            bgCtx.globalCompositeOperation = 'multiply';
+            bgCtx.fillStyle = STORM_TINT;
+            bgCtx.fillRect(0, 0, w, h);
+            bgCtx.restore();
+        }
 
         // HUD dock band — bottom slab, drawn LAST on the background
         // canvas so water/islands never overlap it. Same wavy pattern
@@ -4241,7 +4208,7 @@
                 const placeData = RUN_ISLAND_PLACEMENTS[p.variant];
                 if (surfData && placeData && placeData.front) {
                     drawIslandFlora(fgCtx, placeData.front, surfData.w, surfData.h,
-                        drawX, drawY, drawW, drawH, p.variant.startsWith('storm_'));
+                        drawX, drawY, drawW, drawH);
                 }
             }
         }

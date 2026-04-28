@@ -240,9 +240,10 @@ const SWAY = {
     grass_clump_small:    { ampDeg: 2.2, freqHz: 1.00 },
     grass_clump_wide:     { ampDeg: 1.6, freqHz: 1.00 },
     // Mushrooms — bob & breathe, no rotation
-    mushroom_red:         { ampDeg: 0,   freqHz: 0.50, bobPx: 2.5, pulseAmp: 0.030 },
-    mushroom_brown:       { ampDeg: 0,   freqHz: 0.50, bobPx: 2.0, pulseAmp: 0.025 },
-    mushroom_purple:      { ampDeg: 0,   freqHz: 0.75, bobPx: 2.5, pulseAmp: 0.030 },
+    // Mushrooms — pinned breathe, no bob.
+    mushroom_red:         { ampDeg: 0,   freqHz: 0.50, pulseAmp: 0.045 },
+    mushroom_brown:       { ampDeg: 0,   freqHz: 0.50, pulseAmp: 0.040 },
+    mushroom_purple:      { ampDeg: 0,   freqHz: 0.75, pulseAmp: 0.045 },
     // Flowers — nodding (rotation around stem base)
     flower_red:           { ampDeg: 1.8, freqHz: 0.75 },
     flower_yellow:        { ampDeg: 1.8, freqHz: 0.75 },
@@ -250,14 +251,15 @@ const SWAY = {
     flower_pink:          { ampDeg: 1.8, freqHz: 0.75 },
     flower_purple:        { ampDeg: 2.0, freqHz: 0.75 },
     // Critters — gentle idle bob, no rotation. Bird ticks faster.
-    critter_deer:     { ampDeg: 0, freqHz: 0.50, bobPx: 1.5, pulseAmp: 0.010 },
-    critter_raccoon:  { ampDeg: 0, freqHz: 0.50, bobPx: 1.0, pulseAmp: 0.010 },
-    critter_squirrel: { ampDeg: 0, freqHz: 0.75, bobPx: 1.0, pulseAmp: 0.015 },
-    critter_opossum:  { ampDeg: 0, freqHz: 0.50, bobPx: 1.0, pulseAmp: 0.010 },
-    critter_fox:      { ampDeg: 0, freqHz: 0.50, bobPx: 1.5, pulseAmp: 0.010 },
-    critter_rabbit:   { ampDeg: 0, freqHz: 0.75, bobPx: 1.0, pulseAmp: 0.010 },
-    critter_bird:     { ampDeg: 0, freqHz: 1.00, bobPx: 1.5, pulseAmp: 0.015 },
-    critter_owl:      { ampDeg: 0, freqHz: 0.50, bobPx: 0.5, pulseAmp: 0.005 },
+    // Critters — pinned breathe, no bob.
+    critter_deer:     { ampDeg: 0, freqHz: 0.50, pulseAmp: 0.020 },
+    critter_raccoon:  { ampDeg: 0, freqHz: 0.50, pulseAmp: 0.020 },
+    critter_squirrel: { ampDeg: 0, freqHz: 0.75, pulseAmp: 0.025 },
+    critter_opossum:  { ampDeg: 0, freqHz: 0.50, pulseAmp: 0.020 },
+    critter_fox:      { ampDeg: 0, freqHz: 0.50, pulseAmp: 0.020 },
+    critter_rabbit:   { ampDeg: 0, freqHz: 0.75, pulseAmp: 0.020 },
+    critter_bird:     { ampDeg: 0, freqHz: 1.00, pulseAmp: 0.030 },
+    critter_owl:      { ampDeg: 0, freqHz: 0.50, pulseAmp: 0.012 },
 };
 function targetH(name) {
     if (TARGET_H[name] != null) return TARGET_H[name];
