@@ -265,7 +265,16 @@ const Game = (() => {
 
             // Reset timer on turn change
             if (oldIndex !== currentPlayerIndex) {
-                if (typeof Sound !== 'undefined') Sound.playTurnChange();
+                if (typeof Sound !== 'undefined') {
+                    // If MY turn just started after someone else's, layer in the
+                    // dedicated "your turn now" ping over the existing turn-change
+                    // tone. Same playTurnChange for every other transition so the
+                    // generic UX cue still fires.
+                    Sound.playTurnChange();
+                    if (currentPlayerIndex === Room.myIndex && oldIndex !== Room.myIndex && Sound.playSfx) {
+                        Sound.playSfx('sfx_opponent_submitted', 0.55);
+                    }
+                }
                 hasVotedToExtend = false;
                 extensionGrantedThisTurn = false;
                 // Active player just changed → extension eligibility shifts.
@@ -1047,7 +1056,10 @@ const Game = (() => {
         if (currentPlayerIndex !== Room.myIndex) return;
 
         const wordsToSubmit = splitWords(text);
-        if (!isValidSubmission(wordsToSubmit)) return;
+        if (!isValidSubmission(wordsToSubmit)) {
+            try { Sound && Sound.playSfx && Sound.playSfx('sfx_word_reject', 0.5); } catch (_) {}
+            return;
+        }
 
         if (containsProfanity(text)) {
             showToast("Let's keep it clean!", '#EF4444');
@@ -1561,6 +1573,13 @@ const Game = (() => {
         document.body.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 10);
         setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 2500);
+        // Audio cue keyed off the toast colour (only red/green get a
+        // sound — amber + purple stay silent so we don't drown the UI).
+        try {
+            if (typeof Sound === 'undefined' || !Sound.playSfx) return;
+            if (color === '#EF4444') Sound.playSfx('sfx_toast_error', 0.5);
+            else if (color === '#10B981') Sound.playSfx('sfx_toast_success', 0.5);
+        } catch (_) {}
     }
 
     // Host migration

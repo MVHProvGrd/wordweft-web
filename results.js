@@ -43,7 +43,25 @@ const Results = (() => {
         _words = ctx.words;
         _getPlayerColor = ctx.getPlayerColor;
 
-        if (typeof Sound !== 'undefined') { Sound.stopMusic(); Sound.playGameEnd(); }
+        if (typeof Sound !== 'undefined') {
+            Sound.stopMusic();
+            // Grade-tiered fanfare layered after the existing playGameEnd
+            // sting. Branch on the LLM-returned letter; '+' suffix on A
+            // bumps to the bigger triumph cue. Falls back to the
+            // generic playGameEnd if the SFX helper isn't loaded.
+            Sound.playGameEnd();
+            if (Sound.playSfx) {
+                const g = (data && data.storyGrade) ? String(data.storyGrade).toUpperCase() : '';
+                const cue = (g === 'A+' || g.startsWith('S')) ? 'sfx_grade_aplus'
+                          : g.startsWith('A') ? 'sfx_grade_a'
+                          : g.startsWith('B') ? 'sfx_grade_b'
+                          : g.startsWith('C') ? 'sfx_grade_c'
+                          : g.startsWith('D') ? 'sfx_grade_d'
+                          : g.startsWith('F') ? 'sfx_grade_f'
+                          : null;
+                if (cue) setTimeout(() => Sound.playSfx(cue, 0.55), 600);
+            }
+        }
         App.showScreen('results');
 
         // ⚠️ Report-from-results affordance — often the FIRST time a

@@ -317,16 +317,18 @@
         <div class="filename"><a href="wefty_powerup.mp3" download>wefty_powerup.mp3</a> · ~1 s · static SFX</div>
     </div>
 
-    <div class="section-label">SFX candidates — audition</div>
+    <div class="section-label">SFX cues — live in-game</div>
 
-    <p class="synth-note" style="background:rgba(220,90,140,0.06);border-left-color:rgba(220,90,140,0.4);">
-        Auditioning options for the audit gaps. Files exist on web +
-        Android (<code>wordweft-web/sfx/</code> + <code>res/raw/</code>)
-        but <em>not yet wired into any code path</em> — pick which you
-        like and I'll wire them at the right call sites. Synth-rendered
-        from the toolkit at <code>tools/gen_sfx.py</code> (sines,
-        triangles, noise + ADSR); regenerate or tweak any single cue
-        without touching the others.
+    <p class="synth-note" style="background:rgba(60,180,120,0.06);border-left-color:rgba(60,180,120,0.4);">
+        29 of these cues now play in-game on both web + Android at the
+        call sites identified by the audit (jumps, letter pickups,
+        toasts, biome transitions, grade fanfares, achievements,
+        screen nav, etc.). Three cues stay on shelf for now:
+        <code>sfx_ledge_grab</code> + <code>sfx_ledge_slip</code> by
+        request, and <code>sfx_hint_reveal</code> until the hint
+        feature ships. Synth-rendered from the toolkit at
+        <code>tools/gen_sfx.py</code>; regenerate or tweak any single
+        cue without touching the others.
     </p>
 
     <div class="section-label" style="font-size:10px;color:var(--ww-ink-2);margin-top:18px;">Tier 1 — gameplay readability</div>
@@ -337,12 +339,12 @@
             <audio controls preload="none" src="sfx/sfx_word_reject.mp3"></audio>
         </div>
         <div class="sfx-cell">
-            <p class="sfx-title">sfx_ledge_grab</p>
+            <p class="sfx-title">sfx_ledge_grab <em style="color:var(--ww-ink-2);font-weight:400;">— on shelf</em></p>
             <p class="sfx-tag">Climb — feet hit ledge. Low thump 85 Hz + brief gravel, ~110 ms.</p>
             <audio controls preload="none" src="sfx/sfx_ledge_grab.mp3"></audio>
         </div>
         <div class="sfx-cell">
-            <p class="sfx-title">sfx_ledge_slip</p>
+            <p class="sfx-title">sfx_ledge_slip <em style="color:var(--ww-ink-2);font-weight:400;">— on shelf</em></p>
             <p class="sfx-tag">Climb — grip fails. Pitch-down whine 700→180 Hz + gravel, ~220 ms.</p>
             <audio controls preload="none" src="sfx/sfx_ledge_slip.mp3"></audio>
         </div>
@@ -446,6 +448,11 @@
             <audio controls preload="none" src="sfx/sfx_powerup_pickup.mp3"></audio>
         </div>
         <div class="sfx-cell">
+            <p class="sfx-title">sfx_heart_pickup</p>
+            <p class="sfx-tag">Run/Climb extra-life pickup. Two warm pulses (A4 → C5) + low pad — heartbeat-shaped.</p>
+            <audio controls preload="none" src="sfx/sfx_heart_pickup.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
             <p class="sfx-title">sfx_power_glider</p>
             <p class="sfx-tag">Run — glider deploy. Air whoosh + chirp 440→880 Hz, ~300 ms.</p>
             <audio controls preload="none" src="sfx/sfx_power_glider.mp3"></audio>
@@ -475,7 +482,7 @@
             <audio controls preload="none" src="sfx/sfx_screen_transition.mp3"></audio>
         </div>
         <div class="sfx-cell">
-            <p class="sfx-title">sfx_hint_reveal</p>
+            <p class="sfx-title">sfx_hint_reveal <em style="color:var(--ww-ink-2);font-weight:400;">— awaiting feature</em></p>
             <p class="sfx-tag">When/if hint feature ships. Bell-like E5+G5 sustain, ~500 ms.</p>
             <audio controls preload="none" src="sfx/sfx_hint_reveal.mp3"></audio>
         </div>
@@ -484,9 +491,9 @@
     <div class="track">
         <div class="track-head">
             <h3 class="track-title">Snow biome wind ambience</h3>
-            <span class="track-stage stage-cand">Candidate</span>
+            <span class="track-stage stage-live">Live</span>
         </div>
-        <p class="track-where">Climb — for layering UNDER the climb music at low volume in the SNOW biome.</p>
+        <p class="track-where">Climb — fades in UNDER the climb music at 0.16 volume when the SNOW biome activates; fades out on biome change or game-over.</p>
         <p class="track-vibe">
             White-noise wind bed swelling + ebbing, pitched air-flow whistles
             panning across stereo, distant low rumble, sparse glassy bell
@@ -499,9 +506,9 @@
     <div class="track">
         <div class="track-head">
             <h3 class="track-title">Storm biome thunder ambience</h3>
-            <span class="track-stage stage-cand">Candidate</span>
+            <span class="track-stage stage-live">Live</span>
         </div>
-        <p class="track-where">Run — for layering UNDER the run music at low volume in the STORM biome.</p>
+        <p class="track-where">Run — fades in UNDER the run music at 0.18 volume when the STORM biome activates; fades out on game-over.</p>
         <p class="track-vibe">
             Distant rolling thunder rumbles every 6-8 s, rain hiss bed,
             far-away thunder cracks (no close lightning), wind through

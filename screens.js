@@ -309,6 +309,7 @@ const Screens = (() => {
                     toast.style.animation = 'none';
                     toast.offsetHeight;
                     toast.style.animation = '';
+                    try { typeof Sound !== 'undefined' && Sound.playSfx && Sound.playSfx('sfx_achievement_unlock', 0.6); } catch (_) {}
                     setTimeout(() => toast.classList.add('hidden'), 3000);
                 }, i * 3200);
             });

@@ -1,10 +1,10 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v152';
-// 2026-04-28 14:34Z is replaced by the sync-wordweft-web workflow
+const CACHE_NAME = 'wordweft-v154';
+// 2026-04-28 15:08Z is replaced by the sync-wordweft-web workflow
 // at deploy time with the UTC timestamp of the sync (e.g.
 // "2026-04-23 21:45Z"). When running from source it stays as the
 // placeholder and the page shows "(dev)" instead.
-const BUILD_TIMESTAMP = '2026-04-28 14:34Z';
+const BUILD_TIMESTAMP = '2026-04-28 15:08Z';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -85,6 +85,34 @@ const STATIC_ASSETS = [
     '/blues_loop.mp3',
     '/wefty_game_over.mp3',
     '/wefty_powerup.mp3',
+    '/ambient_snow_wind_loop.mp3',
+    '/ambient_storm_loop.mp3',
+    '/sfx/sfx_word_reject.mp3',
+    '/sfx/sfx_biome_change.mp3',
+    '/sfx/sfx_letter_collect_w.mp3',
+    '/sfx/sfx_letter_collect_e.mp3',
+    '/sfx/sfx_letter_collect_f.mp3',
+    '/sfx/sfx_letter_collect_t.mp3',
+    '/sfx/sfx_letter_collect_y.mp3',
+    '/sfx/sfx_spring_bounce.mp3',
+    '/sfx/sfx_grade_aplus.mp3',
+    '/sfx/sfx_grade_a.mp3',
+    '/sfx/sfx_grade_b.mp3',
+    '/sfx/sfx_grade_c.mp3',
+    '/sfx/sfx_grade_d.mp3',
+    '/sfx/sfx_grade_f.mp3',
+    '/sfx/sfx_achievement_unlock.mp3',
+    '/sfx/sfx_opponent_submitted.mp3',
+    '/sfx/sfx_toast_error.mp3',
+    '/sfx/sfx_toast_success.mp3',
+    '/sfx/sfx_lasso_miss.mp3',
+    '/sfx/sfx_powerup_pickup.mp3',
+    '/sfx/sfx_heart_pickup.mp3',
+    '/sfx/sfx_power_glider.mp3',
+    '/sfx/sfx_power_doublejump.mp3',
+    '/sfx/sfx_power_slowmo.mp3',
+    '/sfx/sfx_power_shield.mp3',
+    '/sfx/sfx_screen_transition.mp3',
     '/needle_icon.png',
     '/spring_pad.png',
     '/spring_pad_v2.png',

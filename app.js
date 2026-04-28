@@ -901,6 +901,14 @@ const App = (() => {
         // Stop TTS when navigating
         if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
+        // Soft transition cue — only on user-driven nav between top-level
+        // screens; skip for in-game flow (lobby↔game↔grading↔results),
+        // which has its own beats and would feel cluttered.
+        const _silentScreens = new Set(['lobby', 'game', 'grading', 'results']);
+        if (!_silentScreens.has(name) && typeof Sound !== 'undefined' && Sound.playSfx) {
+            try { Sound.playSfx('sfx_screen_transition', 0.4); } catch (_) {}
+        }
+
         // Stop the joiner waiting animation when leaving the lobby so timers
         // don't keep running across screens.
         if (name !== 'lobby') hideLobbyJoinerView();

@@ -8,7 +8,7 @@ const Sound = (() => {
   // wefty-run.html uses localStorage.wefty_sound_muted).
   function setMuted(m) {
     muted = !!m;
-    if (muted) stopMusic();
+    if (muted) { stopMusic(); stopAmbient(); }
   }
   function isMuted() { return muted; }
 
@@ -253,6 +253,76 @@ const Sound = (() => {
     }
   }
 
+  // ── Static SFX (mp3 cues from /sfx/) ───────────────────────────────
+  // Cache one HTMLAudioElement per cue so repeat plays don't re-fetch.
+  // For overlapping plays (e.g. multiple letter pickups in the same
+  // tick) we clone the cached element so the original keeps decoded
+  // metadata and the clone GCs after playback ends.
+  const sfxCache = {};
+  function playSfx(name, volume) {
+    if (muted) return;
+    if (typeof name !== 'string' || !name) return;
+    const v = (typeof volume === 'number') ? volume : 0.55;
+    let proto = sfxCache[name];
+    if (!proto) {
+      proto = new Audio('sfx/' + name + '.mp3');
+      proto.preload = 'auto';
+      sfxCache[name] = proto;
+    }
+    let a;
+    try { a = proto.cloneNode(); } catch (e) { a = proto; }
+    a.volume = v;
+    try { a.currentTime = 0; } catch (e) {}
+    const p = a.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+
+  // Looping ambient layer — for biome-specific atmosphere (snow wind,
+  // storm thunder) mixed UNDER the main music track at low volume.
+  // Single slot — starting a new layer cross-fades over the old one
+  // so biome transitions feel smooth instead of cutting.
+  let ambientAudio = null;
+  let ambientFadeId = null;
+  function startAmbient(name, targetVolume) {
+    if (muted) return;
+    const tv = (typeof targetVolume === 'number') ? targetVolume : 0.18;
+    if (ambientAudio && ambientAudio.dataset.name === name) return;
+    stopAmbient();
+    const a = new Audio(name);
+    a.loop = true;
+    a.volume = 0;
+    a.dataset.name = name;
+    a.play().catch(() => {});
+    ambientAudio = a;
+    // 1.5 s linear fade-in
+    let t = 0;
+    const step = 50;
+    const total = 1500;
+    if (ambientFadeId) clearInterval(ambientFadeId);
+    ambientFadeId = setInterval(() => {
+      t += step;
+      if (!ambientAudio) { clearInterval(ambientFadeId); ambientFadeId = null; return; }
+      ambientAudio.volume = Math.min(tv, tv * (t / total));
+      if (t >= total) { clearInterval(ambientFadeId); ambientFadeId = null; }
+    }, step);
+  }
+  function stopAmbient() {
+    if (ambientFadeId) { clearInterval(ambientFadeId); ambientFadeId = null; }
+    if (!ambientAudio) return;
+    const a = ambientAudio;
+    ambientAudio = null;
+    // 0.8 s fade-out then stop, so we don't pop
+    const start = a.volume;
+    let t = 0;
+    const step = 40;
+    const total = 800;
+    const id = setInterval(() => {
+      t += step;
+      try { a.volume = Math.max(0, start * (1 - t / total)); } catch (e) {}
+      if (t >= total) { clearInterval(id); try { a.pause(); a.src = ''; } catch (e) {} }
+    }, step);
+  }
+
   return {
     playClick,
     playTurnChange,
@@ -260,8 +330,11 @@ const Sound = (() => {
     playGameStart,
     playGameEnd,
     playTimerWarning,
+    playSfx,
     startMusic,
     stopMusic,
+    startAmbient,
+    stopAmbient,
     setMuted,
     isMuted
   };

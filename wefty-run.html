@@ -2320,6 +2320,7 @@
         world.lassoLastHitX = wx + LASSO_RANGE * 0.9;
         world.lassoLastHitY = wy - LASSO_RANGE * 0.3;
         world.lassoHit = false;
+        world.events.push('lasso-miss');
         return false;
     }
 
@@ -2633,7 +2634,7 @@
             if (Math.sqrt(dx * dx + dy * dy) < 0.055) {
                 lt.collected = true;
                 world.collectedLetters.add(lt.letter);
-                world.events.push('letter');
+                world.events.push('letter:' + (lt.letter || '').toLowerCase());
                 if (world.collectedLetters.size === 5) {
                     // Full WEFTY word — grant shrink mode for 18s.
                     world.shrinkUntil = performance.now() + 18000;
@@ -2810,21 +2811,35 @@
             else if (e === 'milestone') hasSound && Sound.playTurnChange();
             else if (e === 'jump')      hasSound && Sound.playClick();
             else if (e === 'hazard-hit') hasSound && Sound.playTimerWarning();
-            else if (e === 'letter')    hasSound && Sound.playClick();
-            else if (e === 'lasso')     hasSound && Sound.playWordSubmit();
-            else if (e === 'spring')    hasSound && Sound.playTurnChange();
-            // Ability activations get a short two-tone confirm so
-            // they don't sound like the celebratory shrink fanfare,
-            // which is now reserved for the all-5-letters WEFTY event.
-            else if (e === 'glider')      hasSound && Sound.playTurnChange();
-            else if (e === 'double-jump') hasSound && Sound.playTurnChange();
-            else if (e === 'slow-mo')     hasSound && Sound.playTurnChange();
-            else if (e === 'shield')      hasSound && Sound.playTurnChange();
+            else if (e && e.startsWith && e.startsWith('letter:')) {
+                // Per-letter pitched pickup so the player hears progress
+                // climbing from W up to Y.
+                const letter = e.split(':')[1];
+                if (hasSound) {
+                    if (Sound.playSfx) Sound.playSfx('sfx_letter_collect_' + letter);
+                    else Sound.playClick();
+                }
+            }
+            else if (e === 'letter') hasSound && Sound.playClick(); // legacy fallback
+            else if (e === 'lasso')      hasSound && Sound.playWordSubmit();
+            else if (e === 'lasso-miss') hasSound && Sound.playSfx && Sound.playSfx('sfx_lasso_miss');
+            else if (e === 'spring')    hasSound && Sound.playSfx && Sound.playSfx('sfx_spring_bounce', 0.6);
+            // Ability activations get distinct cues now (was uniform
+            // playTurnChange — indistinguishable in audio).
+            else if (e === 'glider')      hasSound && Sound.playSfx && Sound.playSfx('sfx_power_glider');
+            else if (e === 'double-jump') hasSound && Sound.playSfx && Sound.playSfx('sfx_power_doublejump');
+            else if (e === 'slow-mo')     hasSound && Sound.playSfx && Sound.playSfx('sfx_power_slowmo');
+            else if (e === 'shield')      hasSound && Sound.playSfx && Sound.playSfx('sfx_power_shield');
             else if (e === 'shield-broken') hasSound && Sound.playTimerWarning();
-            else if (e === 'pickup') hasSound && Sound.playClick();
-            else if (e === 'heart')  hasSound && Sound.playClick();
+            else if (e === 'pickup') hasSound && Sound.playSfx && Sound.playSfx('sfx_powerup_pickup', 0.5);
+            else if (e === 'heart')  hasSound && Sound.playSfx && Sound.playSfx('sfx_heart_pickup', 0.55);
             else if (e === 'biome-storm') {
-                hasSound && Sound.playGameStart();
+                if (hasSound && Sound.playSfx) Sound.playSfx('sfx_biome_change');
+                else hasSound && Sound.playGameStart();
+                // Layer in the storm-biome ambience under the run music.
+                if (hasSound && Sound.startAmbient) {
+                    Sound.startAmbient('ambient_storm_loop.mp3', 0.18);
+                }
                 const banner = document.getElementById('storm-banner');
                 banner.classList.remove('hidden');
                 // First flash to punch the title card in.
@@ -2855,6 +2870,7 @@
             else if (e === 'game-over') {
                 hasSound && Sound.playGameEnd();
                 try { musicLoop.pause(); } catch (_) {}
+                if (hasSound && Sound.stopAmbient) Sound.stopAmbient();
                 musicOver.currentTime = 0;
                 musicOver.play().catch(() => {});
                 const score = Math.round(world.distance * 10);

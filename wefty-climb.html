@@ -1017,12 +1017,13 @@
         }
         world.lassoReadyAtTick = world.frameTick + LASSO_COOLDOWN_FRAMES;
         world.lassoFlashUntilTick = world.frameTick + 22;
-        try { Sound && Sound.playWordSubmit && Sound.playWordSubmit(); } catch (_) {}
         if (best) {
+            try { Sound && Sound.playWordSubmit && Sound.playWordSubmit(); } catch (_) {}
             world.lassoLastHitX = best.x; world.lassoLastHitY = best.y;
             const idx = world.hazards.indexOf(best);
             if (idx >= 0) world.hazards.splice(idx, 1);
         } else {
+            try { Sound && Sound.playSfx && Sound.playSfx('sfx_lasso_miss'); } catch (_) {}
             // Miss — flick up at the full 0.3 strike range so the
             // visible reach matches the snag range.
             world.lassoLastHitX = world.weftyX;
@@ -1169,6 +1170,7 @@
                     if (world.hearts <= 0) {
                         world.gameOver = true;
                         try { musicLoop.pause(); } catch (_) {}
+                        try { Sound && Sound.stopAmbient && Sound.stopAmbient(); } catch (_) {}
                     }
                 }
                 const idx = world.hazards.indexOf(hz);
@@ -1739,8 +1741,19 @@
         if (biome !== toastLastBiome) {
             if (toastLastBiome !== '') {
                 pushToast(`<div class="label">BIOME · ${biome}</div><div class="body">Keep climbing</div>`);
+                try { Sound && Sound.playSfx && Sound.playSfx('sfx_biome_change'); } catch (_) {}
             }
             toastLastBiome = biome;
+            // Snow biome — layer in the alpine wind ambience UNDER the
+            // climb music. Other biomes drop the ambience back to the
+            // music alone.
+            try {
+                if (biome === 'SNOW' && Sound && Sound.startAmbient) {
+                    Sound.startAmbient('ambient_snow_wind_loop.mp3', 0.16);
+                } else if (Sound && Sound.stopAmbient) {
+                    Sound.stopAmbient();
+                }
+            } catch (_) {}
         }
     }
 
