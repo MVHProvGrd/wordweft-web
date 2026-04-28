@@ -148,6 +148,7 @@ const ELEMENTS = {
     mushroom: ['mushroom_red', 'mushroom_brown', 'mushroom_purple'],
     tree:     ['tree_evergreen_tall', 'tree_evergreen_short', 'tree_round_green', 'tree_round_dark', 'tree_stump_mossy', 'tree_stump_plain'],
     bush:     ['bush_round', 'bush_berry', 'grass_clump_small', 'grass_clump_wide'],
+    critter:  ['critter_deer', 'critter_raccoon', 'critter_squirrel', 'critter_opossum', 'critter_fox', 'critter_rabbit', 'critter_bird', 'critter_owl'],
 };
 // Target heights as fraction of canvas height. Approximate visual scale.
 const TARGET_H = {
@@ -163,21 +164,33 @@ const TARGET_H = {
     bush_berry: 0.09,           // halved per feedback
     grass_clump_small: 0.10,
     grass_clump_wide: 0.10,
+    critter_deer:     0.18,
+    critter_fox:      0.13,
+    critter_raccoon:  0.12,
+    critter_opossum:  0.10,
+    critter_owl:      0.10,
+    critter_rabbit:   0.10,
+    critter_squirrel: 0.09,
+    critter_bird:     0.06,
 };
-// Names that anchor to the topline (background layer behind everything).
-// Everything else — including stumps — scatters across the visible front
-// face of the island.
-const TOPLINE_NAMES = new Set([
-    'tree_evergreen_tall', 'tree_evergreen_short',
-    'tree_round_green', 'tree_round_dark',
-]);
+// Names that anchor to the topline. Trees go in the BACK layer behind
+// everything (TOPLINE_NAMES ∩ TREE_NAMES). Critters also pin to the
+// topline because animals stand on the visible ground ridge, but they
+// render in the FRONT layer like the rest of the small flora.
 const STUMP_NAMES = new Set(['tree_stump_mossy', 'tree_stump_plain']);
 const TREE_NAMES = new Set([
     'tree_evergreen_tall', 'tree_evergreen_short',
     'tree_round_green', 'tree_round_dark',
 ]);
+const CRITTER_NAMES = new Set([
+    'critter_deer', 'critter_raccoon', 'critter_squirrel', 'critter_opossum',
+    'critter_fox', 'critter_rabbit', 'critter_bird', 'critter_owl',
+]);
+const TOPLINE_NAMES = new Set([...TREE_NAMES, ...CRITTER_NAMES]);
 // Anything with a trunk that other trunks must not overlap.
 const TRUNK_NAMES = new Set([...TREE_NAMES, ...STUMP_NAMES]);
+const CRITTER_MIN_SPACING_FRAC = 0.15;
+const CRITTER_TREE_CLEARANCE_PX_FRAC = 0.04; // critters keep some distance from tree trunks too
 const TRUNK_SAMPLE_FRAC = 0.08; // bottom-most 8% of element bbox = trunk band
 const TREE_TRUNK_MARGIN_PX = 4; // extra clearance between trunk x-ranges
 // Per-placement scale variance: trees ±15%, stumps 50%–100%.
@@ -234,6 +247,15 @@ const SWAY = {
     flower_blue:          { ampDeg: 2.0, freqHz: 0.75 },
     flower_pink:          { ampDeg: 1.8, freqHz: 0.75 },
     flower_purple:        { ampDeg: 2.0, freqHz: 0.75 },
+    // Critters — gentle idle bob, no rotation. Bird ticks faster.
+    critter_deer:     { ampDeg: 0, freqHz: 0.50, bobPx: 1.5, pulseAmp: 0.010 },
+    critter_raccoon:  { ampDeg: 0, freqHz: 0.50, bobPx: 1.0, pulseAmp: 0.010 },
+    critter_squirrel: { ampDeg: 0, freqHz: 0.75, bobPx: 1.0, pulseAmp: 0.015 },
+    critter_opossum:  { ampDeg: 0, freqHz: 0.50, bobPx: 1.0, pulseAmp: 0.010 },
+    critter_fox:      { ampDeg: 0, freqHz: 0.50, bobPx: 1.5, pulseAmp: 0.010 },
+    critter_rabbit:   { ampDeg: 0, freqHz: 0.75, bobPx: 1.0, pulseAmp: 0.010 },
+    critter_bird:     { ampDeg: 0, freqHz: 1.00, bobPx: 1.5, pulseAmp: 0.015 },
+    critter_owl:      { ampDeg: 0, freqHz: 0.50, bobPx: 0.5, pulseAmp: 0.005 },
 };
 function targetH(name) {
     if (TARGET_H[name] != null) return TARGET_H[name];
@@ -509,11 +531,12 @@ function computePlacements() {
     const rng = mulberry32(seed * 1000 + density + treesPct);
     const treeShare = treesPct / 100;
     const restShare = 1 - treeShare;
-    const wFlower = restShare * 0.45;
-    const wGrass = restShare * 0.30;
-    const wMush = restShare * 0.20;
+    const wCritter = restShare * 0.05;     // ~5% of non-tree slots are critters (sparse)
+    const wFlower = restShare * 0.43;
+    const wGrass = restShare * 0.29;
+    const wMush = restShare * 0.18;
     const wBush = treeShare * 0.45;
-    // wTree implicit = 1 - wFlower - wGrass - wMush - wBush
+    // wTree implicit = 1 - wCritter - wFlower - wGrass - wMush - wBush
 
     const treeNames = ELEMENTS.tree.filter(n => TREE_NAMES.has(n));
     const stumpNames = ELEMENTS.tree.filter(n => STUMP_NAMES.has(n));
@@ -521,6 +544,7 @@ function computePlacements() {
     const grassNames = ['grass_clump_small', 'grass_clump_wide'];
     const mushNames = ELEMENTS.mushroom;
     const flowerNames = ELEMENTS.flower;
+    const critterNames = ELEMENTS.critter || [];
 
     // Per-column painted-bottom for interior scatter bounds.
     const sample = document.createElement('canvas');
@@ -547,7 +571,10 @@ function computePlacements() {
 
     const out = [];
     const placedTrunks = []; // [{leftX, rightX, name}] — shared by trees + stumps
-    let trunksSkipped = 0;
+    const placedCrittersX = [];
+    const critterMinSpacing = CRITTER_MIN_SPACING_FRAC * baseW;
+    const critterTreeClearance = CRITTER_TREE_CLEARANCE_PX_FRAC * baseW;
+    let trunksSkipped = 0, crittersSkipped = 0;
 
     // Pick an x for any trunk-bearing element at a given scale multiplier.
     // Stumps and trees share this list so neither can land on top of the other.
@@ -570,10 +597,11 @@ function computePlacements() {
     for (let i = 0; i < density; i++) {
         const r = rng();
         let name;
-        if (r < wFlower) name = flowerNames[Math.floor(rng() * flowerNames.length)];
-        else if (r < wFlower + wGrass) name = grassNames[Math.floor(rng() * grassNames.length)];
-        else if (r < wFlower + wGrass + wMush) name = mushNames[Math.floor(rng() * mushNames.length)];
-        else if (r < wFlower + wGrass + wMush + wBush) name = bushNames[Math.floor(rng() * bushNames.length)];
+        if (r < wCritter && critterNames.length) name = critterNames[Math.floor(rng() * critterNames.length)];
+        else if (r < wCritter + wFlower) name = flowerNames[Math.floor(rng() * flowerNames.length)];
+        else if (r < wCritter + wFlower + wGrass) name = grassNames[Math.floor(rng() * grassNames.length)];
+        else if (r < wCritter + wFlower + wGrass + wMush) name = mushNames[Math.floor(rng() * mushNames.length)];
+        else if (r < wCritter + wFlower + wGrass + wMush + wBush) name = bushNames[Math.floor(rng() * bushNames.length)];
         else {
             // tree slot — split tree/stump roughly 60/40
             name = (rng() < 0.6 && treeNames.length > 0)
@@ -588,6 +616,17 @@ function computePlacements() {
                 : STUMP_SCALE_MIN + rng() * (STUMP_SCALE_MAX - STUMP_SCALE_MIN);
             xPos = tryPickXForTrunk(name, scaleMult);
             if (xPos == null) { trunksSkipped++; continue; }
+        } else if (CRITTER_NAMES.has(name)) {
+            // Spaced from other critters AND from tree trunks so animals
+            // don't pile up or visually clip into a trunk.
+            for (let a = 0; a < 25; a++) {
+                const cand = validX[Math.floor(rng() * validX.length)];
+                const tooClose = placedCrittersX.some(px => Math.abs(px - cand) < critterMinSpacing)
+                              || placedTrunks.some(pt => cand >= pt.leftX - critterTreeClearance && cand <= pt.rightX + critterTreeClearance);
+                if (!tooClose) { xPos = cand; break; }
+            }
+            if (xPos == null) { crittersSkipped++; continue; }
+            placedCrittersX.push(xPos);
         } else {
             xPos = validX[Math.floor(rng() * validX.length)];
         }
@@ -628,7 +667,10 @@ function computePlacements() {
     });
 
     placements = out;
-    const skipNote = trunksSkipped ? ` · skipped: ${trunksSkipped} tree/stump (overlap)` : '';
+    const skipParts = [];
+    if (trunksSkipped) skipParts.push(`${trunksSkipped} tree/stump`);
+    if (crittersSkipped) skipParts.push(`${crittersSkipped} critter`);
+    const skipNote = skipParts.length ? ` · skipped: ${skipParts.join(', ')} (spacing)` : '';
     placementsMeta = `${out.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${skipNote}`;
 }
 
