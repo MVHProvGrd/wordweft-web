@@ -1,0 +1,143 @@
+{
+  "manifest_version": "1.0",
+  "animation_id": "wefty_jump_up_v1",
+  "character": "wefty",
+  "action_name": "jump_up",
+  "frame_count": 6,
+  "loop": false,
+  "view": "front",
+  "mood": "joyful_launch",
+  "canvas": {
+    "width": 512,
+    "height": 512,
+    "background": "transparent"
+  },
+  "style": {
+    "lane": "painterly_cartoon",
+    "reference_image": "wordweft-web/wefty_run_b.png",
+    "reference_notes": "Match existing wefty_run_b.png — purple yarn-ball with multicolor strands (peach/pink/mint/lavender), large anime eyes, soft blush, dangling pink-magenta yarn tail.",
+    "forbidden_terms": [
+      "pixel art",
+      "8-bit",
+      "16-bit",
+      "chunky pixels",
+      "magenta chroma-key",
+      "indexed palette",
+      "nearest-neighbor",
+      "hard outlines"
+    ]
+  },
+  "generation": {
+    "provider": "codex",
+    "model": "image_gen",
+    "workflow_mode": "codex_image_gen_api",
+    "tool_entrypoint": "weftypiccraft.mjs",
+    "tool_version": "0.1.1",
+    "attempt_count": 3,
+    "attempts": [
+      {
+        "n": 1,
+        "workflow_mode": "codex_image_gen_api",
+        "started_at_utc": "2026-04-28T15:02:00Z",
+        "result": "failed_install_broken",
+        "notes": "Original misdiagnosis: blamed Cloudflare 403. Real cause: WSL was running the Windows-side codex install (under /mnt/c/.../npm/codex) which has no @openai/codex-linux-x64 optional dep, so codex.js threw immediately. Our polling-wrapper hit its enclosing 360s timeout and reported SIGTERM 143."
+      },
+      {
+        "n": 2,
+        "workflow_mode": "codex_image_gen_api",
+        "started_at_utc": "2026-04-28T15:12:00Z",
+        "result": "failed_install_broken",
+        "notes": "Same root cause as #1. Polling-wrapper timeout extended to 720s; codex itself was still exiting in milliseconds with the missing-native-binary error."
+      },
+      {
+        "n": 3,
+        "workflow_mode": "codex_image_gen_api",
+        "started_at_utc": null,
+        "result": "pending",
+        "notes": "Fix: `npm install -g @openai/codex@latest` from inside WSL populated /home/usafaux2004/.npm-global/lib/node_modules/@openai/codex-linux-x64. weftypiccraft.mjs now prepends the WSL npm bin to PATH before spawning codex, and respects CODEX_BIN= for explicit override. Smoke-test against the WSL binary returned READY_OK."
+      }
+    ],
+    "created_at_utc": "2026-04-28T20:41:02.691Z",
+    "created_by": "claude",
+    "source_sheet_sha256": "0c3318b613eca055a626487f904daeca78c7b68c01093d7a6de985abef85649f",
+    "source_sheet_bytes": 1552478,
+    "prompt_bundle_sha256": "d245f53742975fd211a1fdbb2cdff4de2ef17a9c97c2647552404966213242cd"
+  },
+  "prompts": {
+    "global_prefix": "Painterly cartoon Wefty (yarn-ball mascot): round purple body wrapped in multicolor yarn strands (peach, pink, mint, lavender), large anime-style eyes with white catchlights, soft pink blush dots, tiny smile, dangling pink-magenta yarn tail. Match the attached reference (wefty_run_b.png) exactly for proportions, face, line quality, and yarn palette. Soft cel-shading, subtle gradients, hand-painted feel. Same camera angle and scale across all frames; centered character in each cell; transparent background.",
+    "negative_prompt": "pixel art, 8-bit, 16-bit, chunky pixels, magenta chroma key, indexed palette, nearest-neighbor scaling, hard outlines, text, watermark, signature, multiple characters, props, background scenery, crop, partial body, cell borders, frame numbers, labels.",
+    "frames": [
+      {
+        "index": 0,
+        "name": "anticipation_squash",
+        "duration_ms": 100,
+        "prompt": "Frame 1 — Anticipation. Wefty compressed vertically by ~12% (slightly wider, shorter pumpkin shape). Yarn-strand wrap bunches a touch at the top. Tail curled tightly underneath the body. Eyes narrowed in determination with sparkle highlights, brows slightly furrowed, smile small and tight. Loaded-spring feeling. No motion lines yet. Identity matches reference exactly."
+      },
+      {
+        "index": 1,
+        "name": "launch_stretch",
+        "duration_ms": 50,
+        "prompt": "Frame 2 — Launch. Wefty stretched vertically by ~15% (taller egg shape), released from the squash. Tail trailing straight downward as if just leaving the ground. Eyes wide open in surprise/joy, mouth open in a small 'o'. Faint upward speed lines BELOW the body only. Continuation of Frame 1's anticipation. Identity matches reference exactly."
+      },
+      {
+        "index": 2,
+        "name": "rising_smear",
+        "duration_ms": 60,
+        "prompt": "Frame 3 — Rising fast. Wefty body stretched ~10% vertically, tail streaming straight down behind/below. Eyes wide with delight, sparkles in the pupils, smile open and excited. Soft painterly motion smear below the body — a faint trailing yarn-strand echo. Yarn wrap fans slightly outward at the equator from rising velocity. Continuation of Frame 2 launch. Identity matches reference exactly."
+      },
+      {
+        "index": 3,
+        "name": "peak_velocity",
+        "duration_ms": 70,
+        "prompt": "Frame 4 — Peak rising velocity. Body still stretched ~8% vertically with a slight backward tilt (~5° rear) as if leaning into the rise. Yarn strands fanning outward more pronounced at the equator. Tail streaming down. Eyes wide and joyful with a big open 'wheee' smile. Subtle warm sparkle highlights on the upper body. No smear (motion is steady at this instant). Continuation of Frame 3. Identity matches reference exactly."
+      },
+      {
+        "index": 4,
+        "name": "decelerating",
+        "duration_ms": 80,
+        "prompt": "Frame 5 — Decelerating near apex. Body relaxing back toward a sphere, ~3% vertical stretch remaining, slight backward tilt (~5°) held. Yarn tail catching up and curving softly upward at its tip in an early S-curve. Eyes still wide, smile relaxing into a softer grin. No motion lines. Continuation of Frame 4 toward apex. Identity matches reference exactly."
+      },
+      {
+        "index": 5,
+        "name": "apex_float",
+        "duration_ms": 110,
+        "prompt": "Frame 6 — Apex / brief float. Wefty fully spherical (matches reference proportions), gentle backward tilt (~10°), yarn tail floating free in a soft S-curve as if weightless. Eyes half-closed in bliss, peaceful smile. Faint sparkle highlights along the top of the body suggesting the top of the jump. Held weightless pose ready to begin falling. Identity matches reference exactly."
+      }
+    ]
+  },
+  "sheet": {
+    "source_sheet_file": "source-sheet.png",
+    "layout": "2x3",
+    "frame_order": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "outputs": {
+    "sprite_dir": "wordweft-web/sprite-forge/wefty-jump-up/",
+    "prompts_file": "prompts.md",
+    "manifest_file": "manifest.json",
+    "slice_command": "python3 slice.py source-sheet.png"
+  },
+  "qa": {
+    "checks": [
+      "character identity preserved (matches wefty_run_b.png)",
+      "style consistency across all 6 frames",
+      "transparent or solid-black background per cell",
+      "motion continuity (anticipation -> peak -> apex)",
+      "no forbidden pixel-art terms used",
+      "GIF transparency uses sentinel-anchored palette index 255 (slicer)"
+    ],
+    "status": "pending"
+  },
+  "notes": [
+    "Total cycle = 470ms. Loop = false (one-shot launch into apex; the fall back is wefty-fall).",
+    "Designed to play once when Wefty intentionally jumps. Pairs with the existing whoosh-puff dust SFX wired in jump() at wefty-run.html.",
+    "Two early codex attempts failed because WSL was using the Windows-side codex CLI install (no linux-x64 native dep). Fixed via WSL-local `npm install -g @openai/codex@latest` and a runner PATH prefix; staying on Mode A (codex_image_gen_api).",
+    "If regenerated, increment animation_id suffix (_v2, _v3 …)."
+  ]
+}
