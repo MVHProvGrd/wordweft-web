@@ -1,0 +1,31 @@
+{
+  "name": "wefty-fall",
+  "description": "Wefty falling animation — 6-frame cycle for the Wefty Run game-over fall sequence.",
+  "frame_count": 6,
+  "fps": 12,
+  "loop": false,
+  "source": {
+    "tool": "ChatGPT Image (web)",
+    "input": "wefty_fall.png reference",
+    "format": "2x3 grid sheet (3 cols, 2 rows), generated as a single image",
+    "generated_at": "2026-04-28"
+  },
+  "pipeline": {
+    "slice": "python3 slice.py source-sheet.png",
+    "outputs": [
+      "frame_1.png",
+      "frame_2.png",
+      "frame_3.png",
+      "frame_4.png",
+      "frame_5.png",
+      "frame_6.png",
+      "sheet-transparent.png",
+      "animation.gif"
+    ]
+  },
+  "wired": {
+    "android": null,
+    "web": null,
+    "notes": "Not yet wired into either platform. Currently in-game uses static wefty_fall.png. Wire by replacing the single-image draw with a 6-frame cycle in WeftyRunScreen.kt and wefty-run.html."
+  }
+}

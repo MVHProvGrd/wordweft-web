@@ -1,0 +1,32 @@
+Master prompt (run once per frame, swapping FRAME_X)
+
+Use the attached reference image (wefty_fall.png) as the exact character/style source. Generate one sprite frame for a 6-frame falling animation cycle. Character must remain identical (face, yarn colors, outline style, proportions). Transparent background. No text. No extra objects. Keep same camera/view and scale. Pixel-art-friendly clean silhouette.
+
+Frame instruction: FRAME_X
+
+Output: single PNG frame, square canvas, centered character.
+
+────────────────────────────────────────
+Frame instructions
+────────────────────────────────────────
+
+FRAME_1: Arms raised unevenly, legs spread, surprised open mouth.
+FRAME_2: Left arm down/out, right arm up; left leg tucked, right leg kicked out; slight stretch.
+FRAME_3: Both arms mid-height outward; legs slightly crossed; slight squash.
+FRAME_4: Mirror of frame 2 (right arm down/out, left up; right leg tucked, left kicked out).
+FRAME_5: Both arms up bent; legs wide extended; tiny clockwise tilt.
+FRAME_6: Recovery pose toward frame 1; legs recoiling inward; slight squash.
+
+────────────────────────────────────────
+Consistency suffix (appended to every prompt)
+────────────────────────────────────────
+
+Maintain exact same line weight, face details, yarn pattern style, and color palette as the reference. Do not redesign character. Do not change expression style except pose-related motion.
+
+────────────────────────────────────────
+Source
+────────────────────────────────────────
+
+Generated outside Codex via ChatGPT Image with the master prompt above. ChatGPT returned a single 2x3 grid sheet (3 frames per row, 2 rows). The slice script (slice.py in this folder) cuts the grid into per-frame PNGs + assembles a horizontal sheet-transparent.png + animation.gif.
+
+Re-run after a refresh: drop a new source-sheet.png in this folder and re-run slice.py.

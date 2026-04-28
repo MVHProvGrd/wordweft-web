@@ -264,6 +264,32 @@ const SPRITES = [
         gif: 'sprite-forge/moth-hazard/animation.gif',
         usedAt: null,
     },
+    {
+        name: 'wefty-fall',
+        title: 'Wefty falling (6-frame cycle)',
+        status: 'draft',
+        description: 'Tumble animation for the Wefty Run game-over fall — ' +
+            'asymmetric arms + alternating leg kicks across 6 frames so the ' +
+            'mascot reads as flailing, not posed. In-game today is a static ' +
+            'wefty_fall.png; pending wire-in as an animated cycle on death.',
+        prompt: 'Use the attached reference image (wefty_fall.png) as the exact ' +
+            'character/style source. Generate one sprite frame for a 6-frame ' +
+            'falling animation cycle. Character must remain identical (face, ' +
+            'yarn colors, outline style, proportions). Transparent background. ' +
+            'No text. No extra objects. Keep same camera/view and scale. ' +
+            'Pixel-art-friendly clean silhouette. Frame instructions: ' +
+            'F1 arms raised unevenly, legs spread, surprised mouth — ' +
+            'F2 left arm down/out, right up; left leg tucked, right kicked — ' +
+            'F3 both arms mid-height outward, legs slightly crossed, slight squash — ' +
+            'F4 mirror of F2 — ' +
+            'F5 both arms up bent, legs wide extended, slight CW tilt — ' +
+            'F6 recovery toward F1, legs recoiling inward, slight squash. ' +
+            'Maintain exact line weight, face details, yarn pattern, and palette ' +
+            'as reference. Do not redesign character.',
+        sheet: 'sprite-forge/wefty-fall/sheet-transparent.png',
+        gif: 'sprite-forge/wefty-fall/animation.gif',
+        usedAt: null,
+    },
 ];
 
 function escapeHtml(s) {
