@@ -104,6 +104,42 @@
     .stage-synth  { background: rgba(180,140,60,0.15); color: #8a6a2a; }
     .stage-archive { background: rgba(120,120,120,0.18); color: #555; }
     .stage-sfx    { background: rgba(60,140,200,0.15); color: #2a6a8a; }
+    .stage-cand   { background: rgba(220,90,140,0.15); color: #a83b66; }
+
+    /* Compact audition grid: 2 columns, tight, lots of options at once */
+    .sfx-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .sfx-cell {
+        background: var(--ww-bg-2);
+        border: 1px solid var(--ww-hair-2);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+    .sfx-cell .sfx-title {
+        font-family: var(--ww-mono);
+        font-size: 11px;
+        color: var(--ww-ink-1);
+        font-weight: 600;
+        margin: 0 0 2px;
+    }
+    .sfx-cell .sfx-tag {
+        font-size: 10px;
+        color: var(--ww-ink-2);
+        margin: 0 0 6px;
+        line-height: 1.35;
+    }
+    .sfx-cell audio {
+        width: 100%;
+        height: 28px;
+    }
+    @media (max-width: 480px) {
+        .sfx-grid { grid-template-columns: 1fr; }
+    }
     .track-where { color: var(--ww-ink-2); font-size: 12px; margin: 0 0 8px; }
     .track-vibe { font-size: 13px; color: var(--ww-ink-1); margin: 8px 0 10px; line-height: 1.5; }
     audio { width: 100%; margin-top: 4px; }
@@ -129,6 +165,7 @@
         .stage-synth   { color: #d9b86d; }
         .stage-archive { color: #b8b8b8; }
         .stage-sfx     { color: #6db8d9; }
+        .stage-cand    { color: #f08aae; }
     }
 </style>
 </head>
@@ -278,6 +315,201 @@
         </p>
         <audio controls preload="metadata" src="wefty_powerup.mp3"></audio>
         <div class="filename"><a href="wefty_powerup.mp3" download>wefty_powerup.mp3</a> · ~1 s · static SFX</div>
+    </div>
+
+    <div class="section-label">SFX candidates — audition</div>
+
+    <p class="synth-note" style="background:rgba(220,90,140,0.06);border-left-color:rgba(220,90,140,0.4);">
+        Auditioning options for the audit gaps. Files exist on web +
+        Android (<code>wordweft-web/sfx/</code> + <code>res/raw/</code>)
+        but <em>not yet wired into any code path</em> — pick which you
+        like and I'll wire them at the right call sites. Synth-rendered
+        from the toolkit at <code>tools/gen_sfx.py</code> (sines,
+        triangles, noise + ADSR); regenerate or tweak any single cue
+        without touching the others.
+    </p>
+
+    <div class="section-label" style="font-size:10px;color:var(--ww-ink-2);margin-top:18px;">Tier 1 — gameplay readability</div>
+    <div class="sfx-grid">
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_word_reject</p>
+            <p class="sfx-tag">Invalid word / profanity buzz. Falling 600→380 Hz square-ish, ~160 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_word_reject.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_ledge_grab</p>
+            <p class="sfx-tag">Climb — feet hit ledge. Low thump 85 Hz + brief gravel, ~110 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_ledge_grab.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_ledge_slip</p>
+            <p class="sfx-tag">Climb — grip fails. Pitch-down whine 700→180 Hz + gravel, ~220 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_ledge_slip.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_biome_change</p>
+            <p class="sfx-tag">Run/Climb biome boundary cross. C5-E5-A5 stinger + sparkle, ~400 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_biome_change.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_letter_collect_w</p>
+            <p class="sfx-tag">Run — first WEFTY letter. Plucky pizzicato C5.</p>
+            <audio controls preload="none" src="sfx/sfx_letter_collect_w.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_letter_collect_e</p>
+            <p class="sfx-tag">Run — 2nd letter. Pizzicato E5 (one step up from W).</p>
+            <audio controls preload="none" src="sfx/sfx_letter_collect_e.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_letter_collect_f</p>
+            <p class="sfx-tag">Run — 3rd letter. Pizzicato G5.</p>
+            <audio controls preload="none" src="sfx/sfx_letter_collect_f.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_letter_collect_t</p>
+            <p class="sfx-tag">Run — 4th letter. Pizzicato B5.</p>
+            <audio controls preload="none" src="sfx/sfx_letter_collect_t.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_letter_collect_y</p>
+            <p class="sfx-tag">Run — final letter Y; D6 pizzicato + sparkle tail (precedes the existing power-up cue).</p>
+            <audio controls preload="none" src="sfx/sfx_letter_collect_y.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_spring_bounce</p>
+            <p class="sfx-tag">Run — spring-pad bounce. Boing pitch-rise 380→1100 Hz exp, ~160 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_spring_bounce.mp3"></audio>
+        </div>
+    </div>
+
+    <div class="section-label" style="font-size:10px;color:var(--ww-ink-2);margin-top:18px;">Tier 2 — feedback + power-ups</div>
+    <div class="sfx-grid">
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_grade_aplus</p>
+            <p class="sfx-tag">A+ result — major arpeggio + sparkle, ~1.0 s.</p>
+            <audio controls preload="none" src="sfx/sfx_grade_aplus.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_grade_a</p>
+            <p class="sfx-tag">A result — solid major triad rise, ~0.7 s.</p>
+            <audio controls preload="none" src="sfx/sfx_grade_a.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_grade_b</p>
+            <p class="sfx-tag">B result — major-third + fifth, ~0.5 s.</p>
+            <audio controls preload="none" src="sfx/sfx_grade_b.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_grade_c</p>
+            <p class="sfx-tag">C result — neutral repeated tone, ~0.4 s.</p>
+            <audio controls preload="none" src="sfx/sfx_grade_c.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_grade_d</p>
+            <p class="sfx-tag">D result — soft minor descending A4-G4-F4, ~0.5 s.</p>
+            <audio controls preload="none" src="sfx/sfx_grade_d.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_grade_f</p>
+            <p class="sfx-tag">F result — low E3 sting + rumble, ~0.5 s.</p>
+            <audio controls preload="none" src="sfx/sfx_grade_f.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_achievement_unlock</p>
+            <p class="sfx-tag">Achievement card. Sparkle arpeggio E5-G5-B5-E6 + bell sustain, ~0.85 s.</p>
+            <audio controls preload="none" src="sfx/sfx_achievement_unlock.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_opponent_submitted</p>
+            <p class="sfx-tag">Multiplayer — your turn now. Soft 880 Hz ping, ~300 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_opponent_submitted.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_toast_error</p>
+            <p class="sfx-tag">Red toast (block failed, etc). Two-tone descending buzz, ~260 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_toast_error.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_toast_success</p>
+            <p class="sfx-tag">Green toast. Soft bell 880 Hz + 1760 Hz sparkle, ~450 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_toast_success.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_lasso_miss</p>
+            <p class="sfx-tag">Run/Climb — lasso fired but didn't hit. Filtered noise whoosh, ~280 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_lasso_miss.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_powerup_pickup</p>
+            <p class="sfx-tag">Generic "got an item" cue — distinct from per-power activation chirps below.</p>
+            <audio controls preload="none" src="sfx/sfx_powerup_pickup.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_power_glider</p>
+            <p class="sfx-tag">Run — glider deploy. Air whoosh + chirp 440→880 Hz, ~300 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_power_glider.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_power_doublejump</p>
+            <p class="sfx-tag">Run — double-jump. Quick "zing-zing" two-pulse pitch rise.</p>
+            <audio controls preload="none" src="sfx/sfx_power_doublejump.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_power_slowmo</p>
+            <p class="sfx-tag">Run — slow-mo activate. Pitch-down sweep 1200→220 Hz exp, ~550 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_power_slowmo.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_power_shield</p>
+            <p class="sfx-tag">Run/Climb — shield activate. Bell shimmer C5 + harmonics, ~450 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_power_shield.mp3"></audio>
+        </div>
+    </div>
+
+    <div class="section-label" style="font-size:10px;color:var(--ww-ink-2);margin-top:18px;">Tier 3 — atmosphere + UI polish</div>
+    <div class="sfx-grid">
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_screen_transition</p>
+            <p class="sfx-tag">Hub ↔ screen nav. Filtered-noise swoosh + low whoosh, ~180 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_screen_transition.mp3"></audio>
+        </div>
+        <div class="sfx-cell">
+            <p class="sfx-title">sfx_hint_reveal</p>
+            <p class="sfx-tag">When/if hint feature ships. Bell-like E5+G5 sustain, ~500 ms.</p>
+            <audio controls preload="none" src="sfx/sfx_hint_reveal.mp3"></audio>
+        </div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Snow biome wind ambience</h3>
+            <span class="track-stage stage-cand">Candidate</span>
+        </div>
+        <p class="track-where">Climb — for layering UNDER the climb music at low volume in the SNOW biome.</p>
+        <p class="track-vibe">
+            White-noise wind bed swelling + ebbing, pitched air-flow whistles
+            panning across stereo, distant low rumble, sparse glassy bell
+            hits. Cold and vast. 30 s seamless loop.
+        </p>
+        <audio controls preload="metadata" loop src="ambient_snow_wind_loop.mp3"></audio>
+        <div class="filename"><a href="ambient_snow_wind_loop.mp3" download>ambient_snow_wind_loop.mp3</a> · 28.6 s · 96 kbps</div>
+    </div>
+
+    <div class="track">
+        <div class="track-head">
+            <h3 class="track-title">Storm biome thunder ambience</h3>
+            <span class="track-stage stage-cand">Candidate</span>
+        </div>
+        <p class="track-where">Run — for layering UNDER the run music at low volume in the STORM biome.</p>
+        <p class="track-vibe">
+            Distant rolling thunder rumbles every 6-8 s, rain hiss bed,
+            far-away thunder cracks (no close lightning), wind through
+            trees, low-mid drone. Foreboding but kept-distant. 30 s
+            seamless loop.
+        </p>
+        <audio controls preload="metadata" loop src="ambient_storm_loop.mp3"></audio>
+        <div class="filename"><a href="ambient_storm_loop.mp3" download>ambient_storm_loop.mp3</a> · 28.6 s · 96 kbps</div>
     </div>
 
     <div class="section-label">Originals — preserved for posterity</div>
