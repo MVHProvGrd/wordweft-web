@@ -1257,7 +1257,7 @@
         <div class="dock-key">4</div>
     </div>
 </div>
-<button id="btn-lasso" class="action-btn lasso-btn" style="--cooldown:0">LASSO</button>
+<button id="btn-lasso" class="action-btn lasso-btn" style="--cooldown:0">SPIN</button>
 <button id="btn-jump"  class="action-btn jump-btn">JUMP</button>
 <div id="active-chips" class="active-chips"></div>
 <div id="toasts" class="toasts"></div>
@@ -1364,7 +1364,7 @@
      default preset, Cancel restores whatever was loaded at edit-mode
      entry. World is paused while editing so Wefty doesn't die. -->
 <div class="edit-bar" id="edit-bar">
-    <span class="edit-hint">Drag LASSO + JUMP wherever you want</span>
+    <span class="edit-hint">Drag SPIN + JUMP wherever you want</span>
     <button id="edit-reset">Reset</button>
     <button id="edit-cancel">Cancel</button>
     <button id="edit-save" class="primary">Save</button>
@@ -1603,7 +1603,7 @@
         { icon: 'tut_tap_jump.svg', title: 'Tap to jump',
           body: 'A short tap jumps. Hit the green Jump button, or press Space / ↑ on web.' },
         { icon: 'scissors_hazard.png', title: 'Dodge the scissors',
-          body: 'Spinning scissors float above platforms. Jump under them or tap the orange Lasso to snag the nearest one (1.5s cooldown).' },
+          body: 'Spinning scissors float above platforms. Jump under them or tap the orange Spin button to clear nearby ones (1.0s cooldown, melee range).' },
         { icon: 'tut_spell_wefty.svg', title: 'Spell WEFTY',
           body: 'Grab the floating W · E · F · T · Y letters. Collect all five and Wefty shrinks for 18 seconds — scissors fly right over her.' },
         { icon: 'tut_spring_pad.svg', title: 'Spring pads',
@@ -1611,10 +1611,10 @@
         { icon: 'tut_powerups.svg', title: 'Power-up inventory',
           body: 'Blue kite, green orb, lilac clock, and navy shield go into your inventory. Tap the coloured buttons (or 1–4) to activate: 2× double-jump, Slow 5s slow-mo, Glide 10s slow-fall (hold Jump mid-air), Shield absorbs next hit.' },
         { icon: 'yarn_knot.png', title: 'Level 2 at 300 m',
-          body: 'Past 300m the world storms: crimson palette, angry scowling yarn knots on the ground, and run speed ramps from 1.0× to 1.3× over the next 100m. Jump or lasso the knots.' },
+          body: 'Past 300m the world storms: crimson palette, angry scowling yarn knots on the ground, and run speed ramps from 1.0× to 1.3× over the next 100m. Jump or spin the knots.' },
         { icon: 'tut_keys.svg', title: 'PC key bindings', desktopOnly: true, keys: [
             ['Jump', 'Space / ↑ / W'],
-            ['Lasso', 'L or F'],
+            ['Spin', 'L or F'],
             ['Double-jump orb', '1'],
             ['Slow-mo', '2'],
             ['Glider', '3'],
@@ -1717,7 +1717,7 @@
     const PR_DURATION_MS = 3000;
     const TIPS = [
         '💡 Tip · <span class="accent">Hold Jump</span> in mid-air to glide',
-        '💡 Tip · <span class="accent">Lasso</span> snags scissors before they hit',
+        '💡 Tip · <span class="accent">Spin</span> clears nearby scissors before they hit',
         '💡 Tip · <span class="accent">Draw thread bridges</span> to span gaps',
         '💡 Tip · Collect all <span class="accent">5 WEFTY letters</span> for shrink power',
         '💡 Tip · <span class="accent">Storm</span> kicks in past 300m — speed ramps + knots',
@@ -2228,6 +2228,10 @@
             world._whooshLaunchMs = performance.now();
             world._whooshWorldX = world.cameraX + WEFTY_SCREEN_X;
             world._whooshWorldY = world.weftyY;
+            // Painterly jump-up cycle starts now. Reset descent timer
+            // so the fall loop also restarts cleanly when she peaks.
+            world._jumpAnimStart = world._whooshLaunchMs;
+            world._fallAnimStart = 0;
         };
         if (world.grounded) {
             world.weftyVy = -JUMP_VELOCITY;
@@ -2321,6 +2325,45 @@
         world.lassoLastHitY = wy - LASSO_RANGE * 0.3;
         world.lassoHit = false;
         world.events.push('lasso-miss');
+        return false;
+    }
+
+    // Spin attack — melee replacement for lasso. Same cooldown plumbing
+    // (reuses lassoReadyAtTick / lassoCooldownStartTick so the existing
+    // pie-slice ring on the action button keeps working) but with a
+    // much smaller radius and the painterly wefty-spin-hit cycle
+    // playing on Wefty herself instead of a yarn rope. Lasso code above
+    // is intentionally left intact as a fallback.
+    const SPIN_RANGE = 0.10;
+    const SPIN_COOLDOWN_TICKS = 60;
+    function fireSpin() {
+        if (world.gameOver || world.isPaused) return false;
+        if ((world.frameTick || 0) < world.lassoReadyAtTick) return false;
+        const wx = world.cameraX + WEFTY_SCREEN_X;
+        const wy = world.weftyY - 0.05;
+        let hits = 0;
+        for (let i = world.hazards.length - 1; i >= 0; i--) {
+            const hz = world.hazards[i];
+            const dx = hz.worldX - wx, dy = hz.y - wy;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < SPIN_RANGE) {
+                world.hazards.splice(i, 1);
+                hits++;
+            }
+        }
+        const cdMult = Math.max(1, world.currentSpeedMultiplier || 1);
+        const cdScaled = Math.max(24, Math.floor(SPIN_COOLDOWN_TICKS / cdMult));
+        const ftNow = world.frameTick || 0;
+        world.lassoCooldownStartTick = ftNow;
+        world.lassoReadyAtTick = ftNow + cdScaled;
+        // Do NOT set lassoFlashUntilTick — that drives the rope/lasso
+        // visual flash, which we don't want for a melee spin.
+        world._spinAnimStart = performance.now();
+        if (hits > 0) {
+            world.events.push('spin-hit');
+            return true;
+        }
+        world.events.push('spin-miss');
         return false;
     }
 
@@ -2823,6 +2866,8 @@
             else if (e === 'letter') hasSound && Sound.playClick(); // legacy fallback
             else if (e === 'lasso')      hasSound && Sound.playWordSubmit();
             else if (e === 'lasso-miss') hasSound && Sound.playSfx && Sound.playSfx('sfx_lasso_miss');
+            else if (e === 'spin-hit')   hasSound && Sound.playWordSubmit();
+            else if (e === 'spin-miss')  hasSound && Sound.playSfx && Sound.playSfx('sfx_lasso_miss');
             else if (e === 'spring')    hasSound && Sound.playSfx && Sound.playSfx('sfx_spring_bounce', 0.6);
             // Ability activations get distinct cues now (was uniform
             // playTurnChange — indistinguishable in audio).
@@ -2938,6 +2983,42 @@
     const weftyFall = loadImg('wefty_fall.png');
     const weftyJumpSquash = loadImg('wefty_jump_squash.png');
     const weftyJumpStretch = loadImg('wefty_jump_stretch.png');
+
+    // Painterly 6-frame cycles from sprite-forge/. Per-frame durations
+    // come from each sprite's manifest. Jump-up plays once on launch
+    // (470ms, then holds the apex_float frame). Fall loops at ~12fps
+    // while airborne-descending. Spin-hit plays once over 360ms and
+    // overrides the normal sprite for the duration.
+    const weftyJumpUpFrames = [1,2,3,4,5,6].map(i => loadImg(`sprite-forge/wefty-jump-up/frame_${i}.png`));
+    const WEFTY_JUMP_UP_MS = [100, 50, 60, 70, 80, 110];
+    const WEFTY_JUMP_UP_TOTAL = WEFTY_JUMP_UP_MS.reduce((a, b) => a + b, 0);
+    const weftyFallFrames = [1,2,3,4,5,6].map(i => loadImg(`sprite-forge/wefty-fall/frame_${i}.png`));
+    const WEFTY_FALL_FRAME_MS = 83;
+    const WEFTY_FALL_TOTAL = WEFTY_FALL_FRAME_MS * 6;
+    const weftySpinHitFrames = [1,2,3,4,5,6].map(i => loadImg(`sprite-forge/wefty-spin-hit/frame_${i}.png`));
+    const WEFTY_SPIN_HIT_MS = [70, 60, 50, 40, 60, 80];
+    const WEFTY_SPIN_HIT_TOTAL = WEFTY_SPIN_HIT_MS.reduce((a, b) => a + b, 0);
+
+    // Pick a frame index from a per-frame durations array, given an
+    // elapsed time. `hold=true` clamps to the last frame past the
+    // total; `hold=false` loops by modding the elapsed time.
+    function pickFrame(durations, elapsedMs, hold) {
+        const total = durations.reduce((a, b) => a + b, 0);
+        const e = hold ? elapsedMs : (elapsedMs % total);
+        if (hold && elapsedMs >= total) return durations.length - 1;
+        let acc = 0;
+        for (let i = 0; i < durations.length; i++) {
+            acc += durations[i];
+            if (e < acc) return i;
+        }
+        return durations.length - 1;
+    }
+    function pickFrameUniform(frameMs, elapsedMs, frameCount, hold) {
+        const total = frameMs * frameCount;
+        const e = hold ? elapsedMs : (elapsedMs % total);
+        if (hold && elapsedMs >= total) return frameCount - 1;
+        return Math.min(frameCount - 1, Math.floor(e / frameMs));
+    }
     const weftyGlider = loadImg('wefty_glider.png');
     const weftyShield = loadImg('wefty_shield.png');
     const weftySpring = loadImg('wefty_spring.png');
@@ -3266,7 +3347,8 @@
     jumpBtn.addEventListener('pointercancel', releaseJump);
     jumpBtn.addEventListener('pointerleave', releaseJump);
     const lassoBtn = document.getElementById('btn-lasso');
-    lassoBtn.addEventListener('click', (e) => { e.stopPropagation(); fireLasso(); });
+    // Button now triggers the melee spin attack (lasso function preserved above).
+    lassoBtn.addEventListener('click', (e) => { e.stopPropagation(); fireSpin(); });
 
     // Inventory buttons.
     // Power-up dock slots — new face-lift shape (Part B).
@@ -3314,7 +3396,7 @@
             world.jumpHeld = true;
         } else if (e.code === 'KeyL' || e.code === 'KeyF') {
             e.preventDefault();
-            fireLasso();
+            fireSpin();
         } else if (e.code === 'KeyH' || e.code === 'Slash') {
             e.preventDefault();
             openTutorial(false);
@@ -4119,33 +4201,61 @@
         const gliderActive = world.gliderUntil > performance.now() && !world.grounded;
         const hasShield = world.shieldCharges > 0;
         const hasDoubleJump = world.doubleJumpUntil > performance.now();
+        const nowMs = performance.now();
+        const spinAge = world._spinAnimStart ? (nowMs - world._spinAnimStart) : Infinity;
+        const inSpin = spinAge < WEFTY_SPIN_HIT_TOTAL;
         let spriteImg, spriteScale = 1, spriteBottom = 0.86;
-        if (gliderActive && weftyGlider.complete && weftyGlider.naturalWidth) {
+        if (inSpin) {
+            // Spin-hit overrides every other state (including powerups).
+            // Plays once, 360ms, then falls through to normal logic next
+            // frame.
+            const idx = pickFrame(WEFTY_SPIN_HIT_MS, spinAge, true);
+            const f = weftySpinHitFrames[idx];
+            if (f && f.complete && f.naturalWidth) {
+                spriteImg = f; spriteScale = 1.4; spriteBottom = 0.78;
+            } else {
+                spriteImg = weftyRunA;
+            }
+        } else if (gliderActive && weftyGlider.complete && weftyGlider.naturalWidth) {
             spriteImg = weftyGlider; spriteScale = 1.55; spriteBottom = 0.70;
         } else if (hasShield && weftyShield.complete && weftyShield.naturalWidth) {
             spriteImg = weftyShield; spriteScale = 1.10; spriteBottom = 0.82;
         } else if (hasDoubleJump && weftySpring.complete && weftySpring.naturalWidth) {
             spriteImg = weftySpring; spriteScale = 0.65; spriteBottom = 0.92;
         } else {
-            // Jump animation: stretch while rising, open-arms fall on
-            // descent. Squash frame was scrapped. _wasGroundedForJump
-            // is still tracked for the dust-puff spawn upstream.
+            // Painterly 6-frame cycles. Rising → wefty-jump-up plays
+            // once over 470ms then holds apex_float. Descending →
+            // wefty-fall loops at ~12fps. _jumpAnimStart is stamped in
+            // jump(); _fallAnimStart auto-stamps on rising→falling
+            // transition. _wasGroundedForJump is still tracked for the
+            // dust-puff spawn upstream.
             if (world.grounded) {
                 spriteImg = weftyRunA;
-            } else if (world.weftyVy < 0 && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) {
-                spriteImg = weftyJumpStretch;
-                // Stretch sprite: ball is ~37% of its canvas vs ~70%
-                // of run_a → scale 1.90 matches ball-to-ball across
-                // rolling / stretch / fall transitions. bottom 0.88
-                // anchors her feet (tall stretched body extends up).
-                spriteScale = 1.90; spriteBottom = 0.88;
+                world._fallAnimStart = 0;
+            } else if (world.weftyVy < 0) {
+                const start = world._jumpAnimStart || nowMs;
+                const idx = pickFrame(WEFTY_JUMP_UP_MS, nowMs - start, true);
+                const f = weftyJumpUpFrames[idx];
+                if (f && f.complete && f.naturalWidth) {
+                    spriteImg = f; spriteScale = 1.4; spriteBottom = 0.78;
+                } else if (weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) {
+                    // Fallback to legacy stretch frame if painterly hasn't loaded yet.
+                    spriteImg = weftyJumpStretch;
+                    spriteScale = 1.90; spriteBottom = 0.88;
+                } else {
+                    spriteImg = weftyRunA;
+                }
             } else {
-                // wefty_fall PNG's opaque content (256×216) is ~40%
-                // wider than wefty_run_a's (184×184) in the same
-                // 256×256 canvas; scale 0.72 matches diameters so she
-                // doesn't snap huge on the way down.
-                spriteImg = weftyFall;
-                spriteScale = 0.72; spriteBottom = 0.80;
+                if (!world._fallAnimStart) world._fallAnimStart = nowMs;
+                const idx = pickFrameUniform(WEFTY_FALL_FRAME_MS, nowMs - world._fallAnimStart, 6, false);
+                const f = weftyFallFrames[idx];
+                if (f && f.complete && f.naturalWidth) {
+                    spriteImg = f; spriteScale = 1.4; spriteBottom = 0.78;
+                } else {
+                    // Legacy fallback: original wefty_fall.png at its tuned scale.
+                    spriteImg = weftyFall;
+                    spriteScale = 0.72; spriteBottom = 0.80;
+                }
             }
             // Whoosh dust puff is fired from jump() now (intentional
             // jumps only) — walking off an edge no longer kicks it up.
