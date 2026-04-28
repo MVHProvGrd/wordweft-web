@@ -93,25 +93,35 @@ def main():
     sheet.save(sheet_path)
     print(f"wrote {sheet_path.name}  {sheet.size}")
 
-    # Preview GIF — pad onto a same-size canvas so transparency
-    # propagates cleanly through GIF's 1-bit alpha.
-    gif_path = here / "animation.gif"
-    # GIF transparency is finicky; quantize each frame to a palette that
-    # reserves index 0 for transparency.
+    # Preview GIF — uniform GIF_FRAME_MS per frame. GIF transparency
+    # requires the transparent palette index to actually map to "ignore
+    # this pixel" — Pillow's auto-quantize doesn't guarantee that
+    # (it'll happily mark some random palette index as transparent and
+    # corrupt the render). Reliable recipe:
+    #   1. Threshold each frame's alpha to 1-bit.
+    #   2. Composite onto a sentinel-color RGB so the formerly-
+    #      transparent pixels now ARE that color.
+    #   3. Build a palette where index 0 is the sentinel + indices
+    #      1..255 are an adaptive palette of the actual frame colors.
+    #   4. Quantize each frame against that fixed palette.
+    #   5. Save with transparency=0. Renderers see "index 0 = ignore"
+    #      and skip those pixels cleanly.
+    SENTINEL = (255, 0, 255)  # magenta; outside Wefty palette
     gif_frames = []
     for f in frames:
-        # Drop alpha to 1-bit by alpha-thresholding at 128.
-        px = f.load()
-        out = Image.new("RGBA", f.size, (0, 0, 0, 0))
-        op = out.load()
-        for y in range(f.size[1]):
-            for x in range(f.size[0]):
-                r, g, b, a = px[x, y]
-                if a >= 128:
-                    op[x, y] = (r, g, b, 255)
-                else:
-                    op[x, y] = (0, 0, 0, 0)
-        gif_frames.append(out)
+        rgba = f.convert("RGBA")
+        alpha = rgba.split()[3].point(lambda a: 255 if a >= 128 else 0)
+        bg = Image.new("RGB", rgba.size, SENTINEL)
+        bg.paste(rgba, mask=alpha)
+        adaptive = bg.quantize(colors=255, method=Image.Quantize.MEDIANCUT)
+        adaptive_palette = adaptive.getpalette()[:255 * 3]
+        final_palette = list(SENTINEL) + adaptive_palette
+        final_pal_img = Image.new("P", (1, 1))
+        final_pal_img.putpalette(final_palette)
+        p_final = bg.quantize(palette=final_pal_img, dither=Image.Dither.NONE)
+        gif_frames.append(p_final)
+
+    gif_path = here / "animation.gif"
     gif_frames[0].save(
         gif_path,
         save_all=True,
@@ -120,6 +130,7 @@ def main():
         loop=0,
         disposal=2,
         transparency=0,
+        optimize=False,
     )
     print(f"wrote {gif_path.name}  ({len(gif_frames)} frames @ {GIF_FRAME_MS}ms)")
 

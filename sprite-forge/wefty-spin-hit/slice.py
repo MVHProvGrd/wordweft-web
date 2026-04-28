@@ -95,19 +95,50 @@ def main():
     sheet.save(sheet_path)
     print(f"wrote {sheet_path.name}  {sheet.size}")
 
-    # Preview GIF with per-frame durations. GIF transparency is finicky;
-    # threshold each frame's alpha to 1-bit at 128 so the bg color
-    # (transparent pixel index 0) keys cleanly.
+    # Preview GIF with per-frame durations. GIF transparency requires
+    # the transparent palette index to actually map to "ignore this
+    # pixel" — Pillow's auto-quantize doesn't guarantee that. The
+    # reliable recipe:
+    #   1. Threshold each frame's alpha to 1-bit (>= 128 keeps RGB,
+    #      < 128 becomes a sentinel color).
+    #   2. Composite onto a sentinel-color RGB background so the
+    #      formerly-transparent pixels now ARE that color.
+    #   3. Quantize using a pre-built palette image where index 0 is
+    #      the sentinel — Image.quantize(palette=) snaps each
+    #      sentinel pixel to index 0.
+    #   4. Save with transparency=0. Renderers see "index 0 is
+    #      transparent" and skip those pixels cleanly.
+    SENTINEL = (255, 0, 255)  # magenta; intentionally outside Wefty palette
+    palette_data = list(SENTINEL) + [0, 0, 0] * 255
+    pal_img = Image.new("P", (1, 1))
+    pal_img.putpalette(palette_data)
+
     gif_frames = []
     for f in frames:
-        px = f.load()
-        out = Image.new("RGBA", f.size, (0, 0, 0, 0))
-        op = out.load()
-        for y in range(f.size[1]):
-            for x in range(f.size[0]):
-                r, g, b, a = px[x, y]
-                op[x, y] = (r, g, b, 255) if a >= 128 else (0, 0, 0, 0)
-        gif_frames.append(out)
+        rgba = f.convert("RGBA")
+        # Threshold alpha
+        alpha = rgba.split()[3].point(lambda a: 255 if a >= 128 else 0)
+        bg = Image.new("RGB", rgba.size, SENTINEL)
+        bg.paste(rgba, mask=alpha)
+        # Quantize to a palette where index 0 is reserved for SENTINEL.
+        # Use ADAPTIVE for the rest of the palette so character colors
+        # don't get crushed.
+        p = bg.quantize(colors=255, method=Image.Quantize.MEDIANCUT)
+        # `quantize` produced its own adaptive palette indexed 0..254.
+        # We need to remap so SENTINEL lives at index 0. Easiest: build
+        # a new image with our palette + transparent index, then use
+        # quantize again with the explicit pal_img.
+        # Better: skip the auto-quantize — quantize directly against
+        # pal_img after merging an adaptive palette.
+        adaptive = bg.quantize(colors=255, method=Image.Quantize.MEDIANCUT)
+        adaptive_palette = adaptive.getpalette()[:255 * 3]
+        # Final palette: index 0 = SENTINEL, indices 1..255 = adaptive
+        final_palette = list(SENTINEL) + adaptive_palette
+        final_pal_img = Image.new("P", (1, 1))
+        final_pal_img.putpalette(final_palette)
+        p_final = bg.quantize(palette=final_pal_img, dither=Image.Dither.NONE)
+        gif_frames.append(p_final)
+
     gif_path = here / "animation.gif"
     gif_frames[0].save(
         gif_path,
@@ -117,6 +148,7 @@ def main():
         loop=0,
         disposal=2,
         transparency=0,
+        optimize=False,
     )
     total_ms = sum(durations)
     print(f"wrote {gif_path.name}  ({len(gif_frames)} frames, {total_ms}ms cycle)")
