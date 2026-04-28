@@ -73,17 +73,33 @@
 <body>
 <div class="wrap">
     <header><a class="back" href="admin-index.html">← admin</a></header>
-    <h1>Island mockup · v0 + flora scatter</h1>
+    <h1>Island mockup · flora scatter</h1>
     <p class="lede">
         Random placement of the 18 element assets along the smoothed run-line of
-        <code>run_island_v0_baseline.png</code>. Trees, bushes, mushrooms, flowers,
-        and grass clumps anchored to the topline (each element's lowest opaque
-        pixel sits on the run-line). Elements drawn back-to-front by topline-y
-        so hilltop items appear behind valley items. Hit Shuffle for a fresh
-        scatter; tweak density and category weights below.
+        any of the 10 cartoon island baselines. Pick a variant in the dropdown,
+        tweak density and category weights, hit Shuffle for a fresh scatter, or
+        record a 4-second sway loop as a GIF.
     </p>
 
     <div class="controls">
+        <div class="ctrl">
+            <label for="variant">Island variant</label>
+            <div class="row">
+                <select id="variant" style="flex:1;background:#1E1238;color:#EEE6FF;border:1px solid rgba(238,230,255,0.16);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13px;">
+                    <option value="0">v0 · meadow ridge</option>
+                    <option value="1">v1</option>
+                    <option value="2">v2</option>
+                    <option value="3">v3</option>
+                    <option value="4">v4</option>
+                    <option value="5">v5</option>
+                    <option value="6">v6</option>
+                    <option value="7">v7</option>
+                    <option value="8">v8</option>
+                    <option value="9">v9</option>
+                </select>
+            </div>
+            <div class="hint">Switches the painted ground; placements re-roll with the same seed.</div>
+        </div>
         <div class="ctrl">
             <label for="density">Element density</label>
             <div class="row">
@@ -342,20 +358,30 @@ const elementBBoxes = {};     // name → bbox
 const elementTrunkXRange = {}; // name → { minX, maxX } in image-pixel space (trees only)
 const allNames = Object.values(ELEMENTS).flat();
 
-(async () => {
-    baseline = await loadImage('design/mascots/run_island_v0_baseline.png');
+let currentVariant = 0;
+const variantEl = document.getElementById('variant');
+
+async function loadIslandVariant(v) {
+    try {
+        baseline = await loadImage(`design/mascots/run_island_v${v}_baseline.png`);
+    } catch (e) {
+        meta.textContent = `run_island_v${v}_baseline.png not found — sync may be in progress`;
+        return;
+    }
+    currentVariant = v;
     baseW = baseline.naturalWidth;
     baseH = baseline.naturalHeight;
     stage.width = baseW;
     stage.height = baseH;
-
-    // Run-line: alpha sample → moving-max → blur (same params as baseline page defaults)
     stageCtx.drawImage(baseline, 0, 0);
     const raw = sampleTopline(stageCtx.getImageData(0, 0, baseW, baseH));
     const halfWin = Math.max(8, Math.round(baseW * 0.02));
     const halfBlur = Math.max(4, Math.round(baseW * 0.006));
     runLine = boxBlur(movingMax(raw, halfWin, baseH), halfBlur, baseH);
+    computePlacements();
+}
 
+(async () => {
     await Promise.all(allNames.map(async n => {
         const img = await loadImage(`design/elements/${n}.png`);
         elementImgs[n] = img;
@@ -364,9 +390,10 @@ const allNames = Object.values(ELEMENTS).flat();
             elementTrunkXRange[n] = detectTrunkXRange(img, elementBBoxes[n]);
         }
     }));
-
-    computePlacements();
+    await loadIslandVariant(parseInt(variantEl.value, 10));
 })();
+
+variantEl.addEventListener('change', () => loadIslandVariant(parseInt(variantEl.value, 10)));
 
 function pickWeighted(rng, names, weights) {
     const total = weights.reduce((a, b) => a + b, 0);
@@ -626,7 +653,7 @@ document.getElementById('download').addEventListener('click', () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'island_v0_mockup.png';
+        a.download = `island_v${currentVariant}_mockup.png`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }, 'image/png');
@@ -675,7 +702,7 @@ document.getElementById('record-gif').addEventListener('click', async () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'island_v0_sway.gif';
+        a.download = `island_v${currentVariant}_sway.gif`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         gifStatusEl.textContent = `GIF saved (${(blob.size / 1024 / 1024).toFixed(2)} MB).`;
         setTimeout(() => URL.revokeObjectURL(url), 60000);

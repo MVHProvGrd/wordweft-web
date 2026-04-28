@@ -160,8 +160,22 @@
         baseline with a derived run-line overlay — sampled directly from PNG alpha then smoothed past
         the grass-blade spikes.
     </p>
-    <div class="legend">
-        <span><span class="swatch red"></span>red = derived run-line. raw alpha sample → moving-max → small box blur. The moving-max chooses, in each window, the row furthest <em>down</em> on the canvas where alpha is solid — that's the surface <em>between</em> blades, ignoring brief upward spikes.</span>
+    <div class="legend" style="margin-bottom:14px;">
+        <label style="font-size:12px;color:#B8A8FF;font-weight:600;">Variant
+            <select id="variant" style="margin-left:8px;background:#291847;color:#EEE6FF;border:1px solid rgba(238,230,255,0.16);border-radius:8px;padding:4px 10px;font-family:inherit;">
+                <option value="0">v0</option>
+                <option value="1">v1</option>
+                <option value="2">v2</option>
+                <option value="3">v3</option>
+                <option value="4">v4</option>
+                <option value="5">v5</option>
+                <option value="6">v6</option>
+                <option value="7">v7</option>
+                <option value="8">v8</option>
+                <option value="9">v9</option>
+            </select>
+        </label>
+        <span><span class="swatch red"></span>red = derived run-line. raw alpha sample → moving-max → small box blur.</span>
     </div>
 
     <div class="controls-strip">
@@ -183,29 +197,29 @@
         </div>
     </div>
 
-    <div class="row" id="v0">
+    <div class="row">
         <div class="card sketch">
             <span class="pill sketch">Sketch</span>
-            <h3>sketch_v0.png</h3>
-            <div class="meta">2048×1024 · hand-drawn topography reference</div>
-            <div class="img-wrap"><img src="design/mascots/sketch_v0.png" alt="sketch_v0"></div>
+            <h3 id="sketch-name">sketch_v0.png</h3>
+            <div class="meta" id="sketch-meta">hand-drawn topography reference</div>
+            <div class="img-wrap"><img id="sketch-img" alt="sketch"></div>
         </div>
         <div class="card shape">
             <span class="pill shape">Shape mask</span>
-            <h3>sketch_v0_island.png</h3>
+            <h3 id="shape-name">sketch_v0_island.png</h3>
             <div class="meta">5% taper · smoothstep · 0 chamfer</div>
-            <div class="img-wrap"><img src="design/mascots/sketch_v0_island.png" alt="sketch_v0_island"></div>
+            <div class="img-wrap"><img id="shape-img" alt="shape mask"></div>
         </div>
         <div class="card cartoon">
             <span class="pill cartoon">Gemini · cartoon</span>
-            <h3>run_island_v0_baseline.png</h3>
-            <div class="meta">gemini-2.5-flash-image · refs: shape mask + v0_APPROVED · click to open full size</div>
+            <h3 id="cartoon-name">run_island_v0_baseline.png</h3>
+            <div class="meta" id="cartoon-meta">gemini-2.5-flash-image · refs: shape mask + v0_APPROVED · click to open full size</div>
             <div class="img-wrap"><canvas id="gemini-overlay" style="cursor:zoom-in;"></canvas></div>
         </div>
     </div>
 
     <div class="full-section">
-        <h2>Full size · run_island_v0_baseline.png with derived run-line</h2>
+        <h2 id="full-heading">Full size · run_island_v0_baseline.png with derived run-line</h2>
         <p class="sub">Native pixel dimensions, displayed at up to canvas width. The smoothing sliders above drive this canvas too — same render, just bigger. Click for an even-larger view in a new tab.</p>
         <div class="full-wrap"><canvas id="gemini-full" style="cursor:zoom-in;"></canvas></div>
     </div>
@@ -319,8 +333,38 @@ function openFullSize(srcCanvas) {
     }, 'image/png');
 }
 
-(async () => {
-    geminiImg = await loadImage('design/mascots/run_island_v0_baseline.png');
+const variantEl = document.getElementById('variant');
+const sketchImg = document.getElementById('sketch-img');
+const shapeImg = document.getElementById('shape-img');
+const sketchName = document.getElementById('sketch-name');
+const shapeName = document.getElementById('shape-name');
+const cartoonName = document.getElementById('cartoon-name');
+const cartoonMeta = document.getElementById('cartoon-meta');
+const fullHeading = document.getElementById('full-heading');
+
+async function loadVariant(v) {
+    const sketchUrl = `design/mascots/sketch_v${v}.png`;
+    const shapeUrl = `design/mascots/sketch_v${v}_island.png`;
+    const cartoonUrl = `design/mascots/run_island_v${v}_baseline.png`;
+
+    sketchImg.src = sketchUrl;
+    shapeImg.src = shapeUrl;
+    sketchName.textContent = `sketch_v${v}.png`;
+    shapeName.textContent = `sketch_v${v}_island.png`;
+    cartoonName.textContent = `run_island_v${v}_baseline.png`;
+    fullHeading.textContent = `Full size · run_island_v${v}_baseline.png with derived run-line`;
+
+    // Probe the cartoon — if it's not yet generated/synced, fall back gracefully.
+    const probe = await fetch(cartoonUrl + '?cb=' + Date.now(), { method: 'HEAD' }).catch(() => null);
+    if (!probe || !probe.ok) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        fullCtx.clearRect(0, 0, fullCanvas.width, fullCanvas.height);
+        cartoonMeta.textContent = `not generated yet — run \`node gen_island_baselines.mjs v${v}\` then reload`;
+        return;
+    }
+    cartoonMeta.textContent = 'gemini-2.5-flash-image · refs: shape mask + v0_APPROVED · click to open full size';
+
+    geminiImg = await loadImage(cartoonUrl);
     geminiW = geminiImg.naturalWidth;
     geminiH = geminiImg.naturalHeight;
     canvas.width = geminiW;
@@ -335,11 +379,14 @@ function openFullSize(srcCanvas) {
     ctx.drawImage(geminiImg, 0, 0);
     geminiRawTop = sampleTopline(ctx.getImageData(0, 0, geminiW, geminiH), ALPHA_THRESHOLD);
     render();
-})();
+}
 
+variantEl.addEventListener('change', () => loadVariant(variantEl.value));
 [windowEl, blurEl].forEach(el => el.addEventListener('input', render));
 canvas.addEventListener('click', () => openFullSize(canvas));
 fullCanvas.addEventListener('click', () => openFullSize(fullCanvas));
+
+loadVariant(variantEl.value);
 </script>
 </body>
 </html>
