@@ -29,6 +29,8 @@ fill); tweak BG_THRESHOLD if your generation has a different background.
 """
 import sys
 import os
+import shutil
+import subprocess
 from pathlib import Path
 from PIL import Image
 
@@ -119,6 +121,12 @@ def main():
         final_pal_img = Image.new("P", (1, 1))
         final_pal_img.putpalette(final_palette)
         p_final = bg.quantize(palette=final_pal_img, dither=Image.Dither.NONE)
+        # Pillow's top-level transparency=/disposal= kwargs only stick to
+        # frame 0 in save_all mode; subsequent frames need it baked into
+        # their info dict or the renderer paints the sentinel opaque
+        # (= flicker every other frame).
+        p_final.info["transparency"] = 0
+        p_final.info["disposal"] = 2
         gif_frames.append(p_final)
 
     gif_path = here / "animation.gif"
@@ -133,6 +141,21 @@ def main():
         optimize=False,
     )
     print(f"wrote {gif_path.name}  ({len(gif_frames)} frames @ {GIF_FRAME_MS}ms)")
+
+    # Pillow writes full-frame disposal=2 GIFs that flicker in browsers
+    # (the disposal step briefly paints palette index 0 = sentinel
+    # magenta as opaque between frames). gifsicle's optimizer rebuilds
+    # the GIF as delta frames with proper transparent restore, killing
+    # the flicker. Skipped silently if gifsicle isn't installed.
+    if shutil.which("gifsicle"):
+        subprocess.run(
+            ["gifsicle", "-O3", "--careful", str(gif_path), "-o", str(gif_path)],
+            check=True,
+        )
+        print(f"optimized {gif_path.name} via gifsicle")
+    else:
+        print("warning: gifsicle not found — GIF may flicker in browsers. " +
+              "Install with: apt-get install gifsicle")
 
 
 if __name__ == "__main__":
