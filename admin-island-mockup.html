@@ -191,6 +191,8 @@ const TOPLINE_NAMES = new Set([...TREE_NAMES, ...CRITTER_NAMES]);
 const TRUNK_NAMES = new Set([...TREE_NAMES, ...STUMP_NAMES]);
 const CRITTER_MIN_SPACING_FRAC = 0.15;
 const CRITTER_TREE_CLEARANCE_PX_FRAC = 0.04; // critters keep some distance from tree trunks too
+const FLORA_MIN_SPACING_FRAC = 0.018;        // anti-cluster: same-type flora must be N px apart in x
+const STUMP_FLORA_CLEARANCE_PX_FRAC = 0.035; // non-stump flora rejects candidates inside any stump's x range + this margin
 const TRUNK_SAMPLE_FRAC = 0.08; // bottom-most 8% of element bbox = trunk band
 const TREE_TRUNK_MARGIN_PX = 4; // extra clearance between trunk x-ranges
 // Per-placement scale variance: trees ±15%, stumps 50%–100%.
@@ -571,13 +573,19 @@ function computePlacements() {
 
     const out = [];
     const placedTrunks = []; // [{leftX, rightX, name}] — shared by trees + stumps
+    const placedStumpsRange = []; // [{leftX, rightX}] — non-stump flora avoid these
+    const placedFloraByName = {}; // name → array of x positions for cluster prevention
     const placedCrittersX = [];
     const critterMinSpacing = CRITTER_MIN_SPACING_FRAC * baseW;
     const critterTreeClearance = CRITTER_TREE_CLEARANCE_PX_FRAC * baseW;
-    let trunksSkipped = 0, crittersSkipped = 0;
+    const floraMinSpacing = FLORA_MIN_SPACING_FRAC * baseW;
+    const stumpFloraClearance = STUMP_FLORA_CLEARANCE_PX_FRAC * baseW;
+    let trunksSkipped = 0, crittersSkipped = 0, floraSkipped = 0;
 
     // Pick an x for any trunk-bearing element at a given scale multiplier.
     // Stumps and trees share this list so neither can land on top of the other.
+    // Stumps additionally register their canvas-x range so non-stump flora
+    // can avoid placing in front of them.
     function tryPickXForTrunk(name, scaleMult) {
         const g = trunkGeom(name, scaleMult);
         for (let a = 0; a < 30; a++) {
@@ -588,6 +596,15 @@ function computePlacements() {
             const overlap = placedTrunks.some(pt => !(trunkRight < pt.leftX || trunkLeft > pt.rightX));
             if (!overlap) {
                 placedTrunks.push({ leftX: trunkLeft, rightX: trunkRight, name });
+                if (STUMP_NAMES.has(name)) {
+                    // Use the bbox width (whole stump silhouette), not just the trunk band.
+                    const bbox = elementBBoxes[name];
+                    const fullHalfW = ((bbox.maxX - bbox.minX) / 2) * g.scale;
+                    placedStumpsRange.push({
+                        leftX: cand + (g.trunkOffsetCanvas - fullHalfW) - stumpFloraClearance,
+                        rightX: cand + (g.trunkOffsetCanvas + fullHalfW) + stumpFloraClearance,
+                    });
+                }
                 return cand;
             }
         }
@@ -622,13 +639,26 @@ function computePlacements() {
             for (let a = 0; a < 25; a++) {
                 const cand = validX[Math.floor(rng() * validX.length)];
                 const tooClose = placedCrittersX.some(px => Math.abs(px - cand) < critterMinSpacing)
-                              || placedTrunks.some(pt => cand >= pt.leftX - critterTreeClearance && cand <= pt.rightX + critterTreeClearance);
+                              || placedTrunks.some(pt => cand >= pt.leftX - critterTreeClearance && cand <= pt.rightX + critterTreeClearance)
+                              || placedStumpsRange.some(s => cand >= s.leftX && cand <= s.rightX);
                 if (!tooClose) { xPos = cand; break; }
             }
             if (xPos == null) { crittersSkipped++; continue; }
             placedCrittersX.push(xPos);
         } else {
-            xPos = validX[Math.floor(rng() * validX.length)];
+            // Non-stump flora: anti-cluster (same-name spacing) + stump-clearance
+            // (don't draw in front of a stump and obscure it).
+            const sameXs = placedFloraByName[name] || [];
+            let pick = null;
+            for (let a = 0; a < 16; a++) {
+                const cand = validX[Math.floor(rng() * validX.length)];
+                const overStump = placedStumpsRange.some(s => cand >= s.leftX && cand <= s.rightX);
+                const tooClose = sameXs.some(px => Math.abs(px - cand) < floraMinSpacing);
+                if (!overStump && !tooClose) { pick = cand; break; }
+            }
+            if (pick == null) { floraSkipped++; continue; }
+            xPos = pick;
+            (placedFloraByName[name] ||= []).push(xPos);
         }
 
         const tlY = runLine[xPos];
@@ -670,6 +700,7 @@ function computePlacements() {
     const skipParts = [];
     if (trunksSkipped) skipParts.push(`${trunksSkipped} tree/stump`);
     if (crittersSkipped) skipParts.push(`${crittersSkipped} critter`);
+    if (floraSkipped) skipParts.push(`${floraSkipped} flora`);
     const skipNote = skipParts.length ? ` · skipped: ${skipParts.join(', ')} (spacing)` : '';
     placementsMeta = `${out.length} elements · seed ${seed} · density ${density} · ${treesPct}% trees/bushes${skipNote}`;
 }

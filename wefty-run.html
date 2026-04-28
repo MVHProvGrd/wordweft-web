@@ -2136,10 +2136,28 @@
 
         // Floating reward platforms — small high-up ledges sprinkled
         // over gaps or near the main chain, each carrying a bonus.
+        // Two placement modes:
+        //   - over-gap (preferred when the gap fits): single-jump
+        //     reachable, ftop in the original 0.30..0.48 above
+        //     PLATFORM_Y range. No trees in the gap so no clipping.
+        //   - over-island (fallback): raised so the sprite's bottom
+        //     stays above the tallest tree (≈ 0.45 above PLATFORM_Y
+        //     after the 2× island scale). Needs a double-jump.
         if (world.distance > 8 && Math.random() < 0.30) {
             const flen = 0.22 + Math.random() * 0.20;
-            const fxStart = x + len * 0.20 + Math.random() * (len * 0.6 + 0.18);
-            const ftop = PLATFORM_Y - (0.30 + Math.random() * 0.18);
+            const lastEnd = last.xEnd;
+            const gapWidth = x - lastEnd;
+            const fitsInGap = gapWidth >= flen + 0.10;
+            const overGap = fitsInGap && Math.random() < 0.65;
+            let fxStart;
+            if (overGap) {
+                fxStart = lastEnd + 0.05 + Math.random() * (gapWidth - flen - 0.10);
+            } else {
+                fxStart = x + len * 0.20 + Math.random() * (len * 0.6 + 0.18);
+            }
+            const ftop = overGap
+                ? PLATFORM_Y - (0.30 + Math.random() * 0.18)   // standard reach
+                : PLATFORM_Y - (0.52 + Math.random() * 0.10);  // clears tree tops over an island
             world.floatingPlatforms.push({ xStart: fxStart, xEnd: fxStart + flen, top: ftop });
             // Hearts only roll into the reward pool while Wefty actually
             // needs them (needles <= 3). Full at 5 → no banked freebies.

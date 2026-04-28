@@ -319,28 +319,53 @@ const SECTIONS = [
     id: 'run-islands',
     title: 'Wefty Run · Islands (meadow)',
     lvl: 'run',
-    desc: 'Ten meadow island variants. Each is split into _back (trees behind Wefty) and _front (grass / flowers / mushrooms / opossum in front of Wefty) by the depth renderer — see /design/island-splits/ for the per-variant split crops.',
+    desc: 'Ten meadow island variants, baked from cartoon Gemini baselines (<code>design/mascots/run_island_v*_baseline.png</code>) with flora composited in via <code>design/mascots/bake_islands.mjs</code>. Each is cropped tight to its silhouette so collisions and visuals share the same extent. Trees go in <code>_back</code> (behind Wefty); stumps + bushes + mushrooms + flowers + grass clumps + critters go in <code>_front</code> (in front of Wefty). See /design/island-splits/ and the admin pages /admin-island-baseline.html, /admin-island-mockup.html, /admin-island-elements.html.',
     items: [
         ...Array.from({length: 10}, (_, i) => ({
             f: `run_island_v${i}.png`,
-            use: i === 3 ? 'Opossum island (v3) — flagship variant.'
-                 : i === 7 ? 'Oversized tree crown — rendered at 0.9 scale.'
-                 : `Meadow island variant v${i}.`,
+            use: i === 7 ? 'Oversized tree crown — rendered at 0.9 scale via ISLAND_SCALE_OVERRIDES.'
+                 : `Meadow island variant v${i} — silhouette-cropped, flora baked in.`,
             frame: 'wide',
         })),
     ],
 },
 {
-    id: 'run-islands-storm',
-    title: 'Wefty Run · Islands (storm)',
+    id: 'run-island-elements',
+    title: 'Wefty Run · Island elements (flora + critters)',
     lvl: 'run',
-    desc: 'Storm-biome retint of the meadow set, applied during the 30–75 m storm window. Same physical hitboxes; greyer water + dust palette.',
+    desc: 'Standalone PNGs that the bake pipeline scatters onto each island. Generated via Gemini in <code>design/mascots/gen_elements.mjs</code> with <code>run_island_v0_APPROVED.png</code> as the style anchor; isolated on transparent alpha so the runtime / bake can layer them onto any silhouette. Live preview at /admin-island-elements.html.',
     items: [
-        ...Array.from({length: 10}, (_, i) => ({
-            f: `run_island_storm_v${i}.png`,
-            use: `Storm island variant v${i}.`,
-            frame: 'wide',
-        })),
+        // Trees + stumps
+        { f: 'design/elements/tree_evergreen_tall.png',  use: 'Tall pine — slow majestic sway in the mockup. ±15% size variance per placement.' },
+        { f: 'design/elements/tree_evergreen_short.png', use: 'Short pine — medium sway.' },
+        { f: 'design/elements/tree_round_green.png',     use: 'Bright round deciduous — bushy canopy.' },
+        { f: 'design/elements/tree_round_dark.png',      use: 'Darker round deciduous — slightly taller variant.' },
+        { f: 'design/elements/tree_stump_mossy.png',     use: 'Mossy stump — 50–100% scale variance, no flora drawn over it.' },
+        { f: 'design/elements/tree_stump_plain.png',     use: 'Plain stump — same rules.' },
+        // Bushes + grass clumps
+        { f: 'design/elements/bush_round.png',           use: 'Two-tone leafy bush.' },
+        { f: 'design/elements/bush_berry.png',           use: 'Bush with red berries.' },
+        { f: 'design/elements/grass_clump_small.png',    use: 'Small grass tuft — fast small whip in the mockup.' },
+        { f: 'design/elements/grass_clump_wide.png',     use: 'Wide grass clump — same.' },
+        // Mushrooms — bob + breathe, no rotation in mockup
+        { f: 'design/elements/mushroom_red.png',         use: 'Toadstool — red cap, white spots. Bob & breathe motion.' },
+        { f: 'design/elements/mushroom_brown.png',       use: 'Earthy brown cap.' },
+        { f: 'design/elements/mushroom_purple.png',      use: 'Whimsical violet cap with pink dots.' },
+        // Flowers
+        { f: 'design/elements/flower_red.png',           use: 'Red flower — nodding sway.' },
+        { f: 'design/elements/flower_yellow.png',        use: 'Yellow flower — nodding sway.' },
+        { f: 'design/elements/flower_blue.png',          use: 'Blue flower — nodding sway.' },
+        { f: 'design/elements/flower_pink.png',          use: 'Pink flower — nodding sway.' },
+        { f: 'design/elements/flower_purple.png',        use: 'Purple flower — nodding sway.' },
+        // Wildlife
+        { f: 'design/elements/critter_deer.png',         use: 'Fawn — biggest critter (0.18). Pinned to topline, drawn in FRONT.' },
+        { f: 'design/elements/critter_fox.png',          use: 'Sitting fox.' },
+        { f: 'design/elements/critter_raccoon.png',      use: 'Raccoon with classic mask.' },
+        { f: 'design/elements/critter_owl.png',          use: 'Perched owl — barely-moving bob.' },
+        { f: 'design/elements/critter_opossum.png',      use: 'Friendly opossum.' },
+        { f: 'design/elements/critter_rabbit.png',       use: 'Sitting rabbit.' },
+        { f: 'design/elements/critter_squirrel.png',     use: 'Squirrel with acorn.' },
+        { f: 'design/elements/critter_bird.png',         use: 'Songbird — fastest tick of all critters (~1 Hz).' },
     ],
 },
 {
@@ -382,7 +407,7 @@ const SECTIONS = [
     items: [
         { f: 'hud_chevron_green.png', use: 'Green chevron HUD band. Anchored to viewport bottom (108 px + safe-area).', frame: 'banner' },
         { f: 'first_bridge_bg.png',   use: 'First-bridge background plate. Renders behind Wefty on takeoff.', frame: 'wide' },
-        { f: 'first_bridge_fg.png',   use: 'First-bridge foreground plate. Renders in front of Wefty on takeoff.', frame: 'wide' },
+        { f: 'first_bridge_fg.png',   use: 'First-bridge foreground plate (rope rail). LOADED but not yet drawn — runtime currently paints only the BG. Wire-up pending so Wefty rolls behind the rope.', frame: 'wide' },
         { f: 'wordweft_logo.png',     use: 'Brand logo. Splash + share-card + Hub header.', frame: 'wide' },
     ],
 },
@@ -467,6 +492,33 @@ const SECTIONS = [
         { f: 'tut_storm.svg',          use: 'Slide — storm biome warning.' },
         { f: 'tut_spell_wefty.svg',    use: 'Slide — collect W-E-F-T-Y letters.' },
         { f: 'tut_best.svg',           use: 'Slide — beat your personal best.' },
+    ],
+},
+{
+    id: 'deprecated',
+    title: 'Deprecated · historical assets',
+    lvl: 'deprecated',
+    desc: 'Files still in <code>wordweft-web/</code> but NOT loaded by the live runtime. Kept on disk for reference / rollback. Safe to delete in a future cleanup pass.',
+    items: [
+        { f: 'run_island_storm_v0.png',  use: 'Old storm-biome retint of v0. DEPRECATED 2026-04-28: storm now applied at runtime via a multiply-tint on the meadow PNG (see <code>buildStormTint</code> in wefty-run.html). Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v1.png',  use: 'Same as above — runtime tints meadow. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v2.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v3.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v4.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v5.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v6.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v7.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v8.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v9.png',  use: 'Same as above. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v0_back.png',  use: 'DEPRECATED — runtime aliases storm_v0 → tinted v0_back. Not loaded.', frame: 'wide' },
+        { f: 'run_island_storm_v0_front.png', use: 'DEPRECATED — runtime aliases storm_v0 → tinted v0_front. Not loaded.', frame: 'wide' },
+        { f: 'water_block.png',  use: 'Pre-chevron solid water fill. Loaded by wefty-run.html as a fallback constant but never drawn by the active render path. Candidate for removal.' },
+        { f: 'water_tile_f0.png', use: 'Animated 6-frame water — superseded by water_chevron_blue.png (drawn via drawWavyBand). Not loaded.' },
+        { f: 'water_tile_f1.png', use: 'Animated water frame 1 — not loaded.' },
+        { f: 'water_tile_f2.png', use: 'Animated water frame 2 — not loaded.' },
+        { f: 'water_tile_f3.png', use: 'Animated water frame 3 — not loaded.' },
+        { f: 'water_tile_f4.png', use: 'Animated water frame 4 — not loaded.' },
+        { f: 'water_tile_f5.png', use: 'Animated water frame 5 — not loaded.' },
     ],
 },
 ];
