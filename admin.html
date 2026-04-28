@@ -355,6 +355,116 @@
         border-color: rgba(232,179,76,0.40);
         color: #FFE6B8;
     }
+    /* ─── Unified button system ────────────────────────────────────
+       Earlier blocks set per-class colors but with inconsistent base
+       sizing. These rules sit at the end of the stylesheet so source
+       order makes them the winner across the file.
+       Variants: outline (neutral) · primary (purple) · danger (red)
+                 success (green) · warn (amber). Active state ↔ primary. */
+    .auth-card button, .ban-btn, .unban-btn, .warn-btn, .dismiss-btn,
+    .context-btn, .ctx-close,
+    .toolbar button, .toolbar a.cross-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.08s;
+        white-space: nowrap;
+    }
+    .auth-card button:active, .ban-btn:active, .unban-btn:active,
+    .warn-btn:active, .dismiss-btn:active, .context-btn:active,
+    .ctx-close:active, .toolbar button:active, .toolbar a.cross-link:active {
+        transform: translateY(1px);
+    }
+    .ban-btn[disabled], .unban-btn[disabled], .warn-btn[disabled],
+    .dismiss-btn[disabled], .context-btn[disabled] {
+        opacity: 0.45;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    /* Outline (low-stakes, neutral) */
+    .context-btn, .dismiss-btn, .ctx-close,
+    .toolbar button, .toolbar a.cross-link {
+        background: rgba(124,111,232,0.16);
+        color: #B8A8FF;
+        border-color: rgba(184,168,255,0.20);
+    }
+    .context-btn:hover, .dismiss-btn:hover, .ctx-close:hover,
+    .toolbar button:hover, .toolbar a.cross-link:hover {
+        background: rgba(124,111,232,0.32);
+        border-color: rgba(184,168,255,0.45);
+        color: #FFFFFF;
+    }
+    /* Active state (filter / tab) */
+    .toolbar button.active {
+        background: #7C6FE8;
+        color: #FFFFFF;
+        border-color: #7C6FE8;
+    }
+    .toolbar button.active:hover {
+        background: #9385ED;
+        border-color: #9385ED;
+    }
+    /* Primary (auth flow) */
+    .auth-card button {
+        background: #7C6FE8;
+        color: #FFFFFF;
+        border-color: #7C6FE8;
+        padding: 8px 18px;
+    }
+    .auth-card button:hover {
+        background: #9385ED;
+        border-color: #9385ED;
+    }
+    /* Danger (ban) */
+    .ban-btn {
+        background: #E86F5A;
+        color: #FFFFFF;
+        border-color: #E86F5A;
+    }
+    .ban-btn:hover {
+        background: #F08672;
+        border-color: #F08672;
+    }
+    /* Success (unban) */
+    .unban-btn {
+        background: rgba(120,200,140,0.18);
+        color: #8FD9A3;
+        border-color: rgba(120,200,140,0.42);
+    }
+    .unban-btn:hover {
+        background: rgba(120,200,140,0.32);
+        border-color: rgba(120,200,140,0.65);
+        color: #FFFFFF;
+    }
+    /* Warn (amber, soft) */
+    .warn-btn {
+        background: rgba(232,179,76,0.16);
+        color: #FFE6B8;
+        border-color: rgba(232,179,76,0.45);
+    }
+    .warn-btn:hover {
+        background: rgba(232,179,76,0.32);
+        border-color: rgba(232,179,76,0.70);
+        color: #FFFFFF;
+    }
+    /* ctx-close — icon-style "×" close, slightly tighter */
+    .ctx-close {
+        padding: 4px 12px;
+        font-size: 18px;
+    }
+
     .meta-row .meta-pill.danger {
         background: rgba(232,111,90,0.15);
         border-color: rgba(232,111,90,0.50);

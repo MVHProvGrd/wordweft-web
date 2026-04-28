@@ -82,7 +82,32 @@
         flex-direction: column;
         gap: 6px;
         transition: border-color 0.15s, transform 0.1s;
+        position: relative;
     }
+    /* iOS-style notification dot in the tile's top-right corner. Hidden
+       until the auth-success branch fills it from RTDB; turns red and
+       shows the count once it knows. */
+    .tile .badge {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        background: #E86F5A;
+        color: #FFFFFF;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1;
+        min-width: 18px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #291847;       /* sits like a halo over the tile bg */
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+    }
+    .tile .badge.show { display: inline-flex; }
+    .tile .badge.muted { background: #4A3D6A; color: #B8A8FF; }
     .tile:hover {
         border-color: rgba(184,168,255,0.55);
         transform: translateY(-1px);
@@ -130,16 +155,19 @@
             <p class="sub">Admin-gated queues over user-generated data. Same RTDB <code>admins/{uid}: true</code> unlock applies to all three.</p>
             <div class="grid">
                 <a class="tile" href="admin.html">
+                    <span class="badge" id="badge-reports"></span>
                     <h3>Reports console</h3>
                     <p>User reports grouped by reportedUser. Ban / Dismiss / Unban via the moderation Cloud Functions.</p>
                     <span class="arrow">Open →</span>
                 </a>
                 <a class="tile" href="admin-bugreports.html">
+                    <span class="badge" id="badge-bugreports"></span>
                     <h3>Bug reports</h3>
                     <p>Tester-submitted bugs with text + screenshots from <code>/test-feedback.html</code>. Mark resolved when handled.</p>
                     <span class="arrow">Open →</span>
                 </a>
                 <a class="tile" href="admin-suggestions.html">
+                    <span class="badge" id="badge-suggestions"></span>
                     <h3>Genre &amp; mood suggestions</h3>
                     <p>LLM-suggested taxonomy entries with counts and story samples. Promote or Dismiss.</p>
                     <span class="arrow">Open →</span>
@@ -294,7 +322,53 @@ auth.onAuthStateChanged(async (user) => {
     }
     gate.style.display = 'none';
     main.style.display = '';
+    refreshBadges();
 });
+
+// ── Notification badges ────────────────────────────────────────────
+// Counts unresolved items across the three moderation queues. Cheap
+// once-per-load read; could be promoted to a server-maintained counter
+// if these grow big, but for now the queues are small.
+function setBadge(id, n) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (n > 0) {
+        el.textContent = n > 99 ? '99+' : String(n);
+        el.classList.remove('muted');
+        el.classList.add('show');
+    } else {
+        el.classList.remove('show');
+    }
+}
+
+async function refreshBadges() {
+    // Reports console — anything where resolved !== true.
+    db.ref('reports').once('value').then((s) => {
+        let n = 0;
+        s.forEach((c) => { if (!(c.val() && c.val().resolved === true)) n++; });
+        setBadge('badge-reports', n);
+    }).catch(() => {});
+
+    // Bug reports — top-level keys, resolved !== true.
+    db.ref('bugReports').once('value').then((s) => {
+        let n = 0;
+        s.forEach((c) => { if (!(c.val() && c.val().resolved === true)) n++; });
+        setBadge('badge-bugreports', n);
+    }).catch(() => {});
+
+    // Genre & mood suggestions — entries where neither promoted nor
+    // dismissed are still pending review. Path = gradingSuggestions/{kind}/{key}.
+    db.ref('gradingSuggestions').once('value').then((s) => {
+        let n = 0;
+        s.forEach((kindSnap) => {
+            kindSnap.forEach((entry) => {
+                const v = entry.val() || {};
+                if (v.promoted !== true && v.dismissed !== true) n++;
+            });
+        });
+        setBadge('badge-suggestions', n);
+    }).catch(() => {});
+}
 </script>
 </body>
 </html>
