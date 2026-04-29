@@ -1602,7 +1602,7 @@
           body: 'Draw a thread across any gap and Wefty walks across. Any stroke works — the longer the gap, the longer the bridge.' },
         { icon: 'tut_tap_jump.svg', title: 'Tap to jump',
           body: 'A short tap jumps. Hit the green Jump button, or press Space / ↑ on web.' },
-        { icon: 'scissors_hazard.png', title: 'Dodge the scissors',
+        { icon: 'scissors_open.png', title: 'Dodge the scissors',
           body: 'Spinning scissors float above platforms. Jump under them or tap the orange Spin button to clear nearby ones (1.0s cooldown, melee range).' },
         { icon: 'tut_spell_wefty.svg', title: 'Spell WEFTY',
           body: 'Grab the floating W · E · F · T · Y letters. Collect all five and Wefty shrinks for 18 seconds — scissors fly right over her.' },
@@ -3034,10 +3034,8 @@
         const m = pa.map((v,i) => Math.round(v + (pb[i]-v) * t));
         return '#' + m.map(v => v.toString(16).padStart(2,'0')).join('');
     }
-    const scissorsImg = loadImg('scissors_hazard.png');
     const scissorsOpenImg = loadImg('scissors_open.png');
     const scissorsClosedImg = loadImg('scissors_closed.png');
-    const needleImg = loadImg('needle_icon.png');
     // Spring-pad PLATFORM sprite (Wave 4 · new Gemini v2 with 3
     // coil springs + wooden base). Distinct from the double-jump
     // pickup icon which still uses the older spring_pad.png.
@@ -3190,7 +3188,6 @@
     // texture SCROLLS VERTICALLY at a slow speed to suggest flowing
     // current. Direction (up/down) is assigned per-gap at spawn so
     // adjacent rivers vary.
-    const WATER_BLOCK = loadImg('water_block.png');
     const WATER_CHEVRON = loadImg('water_chevron_blue.png');
     const HUD_CHEVRON = loadImg('hud_chevron_green.png');
     const WATER_SCROLL_SPEED = 0.15;   // slow; full tile every ~7s
@@ -4168,15 +4165,14 @@
             const tick = world.frameTick || 0;
             const openReady = scissorsOpenImg.complete && scissorsOpenImg.naturalWidth > 0;
             const closedReady = scissorsClosedImg.complete && scissorsClosedImg.naturalWidth > 0;
-            const fallback = (scissorsImg.complete && scissorsImg.naturalWidth > 0) ? scissorsImg : null;
             for (const hz of world.hazards) {
                 if (hz.worldX < world.cameraX - 0.1 || hz.worldX > world.cameraX + 1.1) continue;
                 const sx = (hz.worldX - world.cameraX) * w;
                 const sy = hz.y * h;
                 const phase = tick * 0.22 + hz.worldX * 9;
                 const frame = Math.sin(phase) > 0
-                    ? (openReady ? scissorsOpenImg : fallback)
-                    : (closedReady ? scissorsClosedImg : fallback);
+                    ? (openReady ? scissorsOpenImg : null)
+                    : (closedReady ? scissorsClosedImg : null);
                 if (!frame) continue;
                 fgCtx.save();
                 fgCtx.translate(sx, sy);
@@ -4302,9 +4298,18 @@
             fgCtx.rotate(rollDeg * Math.PI / 180);
             fgCtx.drawImage(spriteImg, -effSize / 2, -effSize / 2, effSize, effSize);
             fgCtx.restore();
+            // Stamp Wefty's screen-space hitbox for the storm-tint clip
+            // pass (further down). Tints apply to flora/hazards/bridges
+            // but exclude this circle so Wefty stays vibrant in storm.
+            world._weftyScreenCx = cx;
+            world._weftyScreenCy = imgCenterY;
+            world._weftyScreenR = effSize / 2;
         } else {
             fgCtx.fillStyle = palette.main;
             fgCtx.beginPath(); fgCtx.arc(cx, feetY - h * 0.07, h * 0.055, 0, Math.PI * 2); fgCtx.fill();
+            world._weftyScreenCx = cx;
+            world._weftyScreenCy = feetY - h * 0.07;
+            world._weftyScreenR = h * 0.055;
         }
 
         // Post-Wefty FG pass. Islands' _front layer (grass/flowers/
@@ -4417,6 +4422,32 @@
                 }
             }
         }
+        // Storm tint, fg-canvas pass. The bgCtx multiply at :3935-3944
+        // already tints sky/parallax/water/ground. This pass tints
+        // everything that lives on fgCtx (flora canopy, hazards,
+        // bridge ropes, lasso flash) so the world reads as one
+        // tinted unit during the storm biome. Wefty herself is
+        // explicitly EXCLUDED via an evenodd-clip carved around her
+        // screen-space hitbox, so she stays full-color and still
+        // passes behind flora that overlaps her edge (flora outside
+        // the clip stays tinted; flora inside the clip stays
+        // un-tinted, which is acceptable since that strip is small
+        // relative to the full canopy mass and the alternative —
+        // pixel-precise mask compositing — costs an extra
+        // back-buffer canvas + copy per frame).
+        if (stormActive && world._weftyScreenR) {
+            fgCtx.save();
+            fgCtx.beginPath();
+            fgCtx.rect(0, 0, w, h);
+            fgCtx.arc(world._weftyScreenCx, world._weftyScreenCy,
+                world._weftyScreenR * 0.95, 0, Math.PI * 2);
+            fgCtx.clip('evenodd');
+            fgCtx.globalCompositeOperation = 'multiply';
+            fgCtx.fillStyle = STORM_TINT;
+            fgCtx.fillRect(0, 0, w, h);
+            fgCtx.restore();
+        }
+
         // Lasso cooldown — pie-slice overlay. `--cooldown` goes 1 → 0
         // across the ACTUAL cooldown duration (which shrinks with the
         // world speed multiplier). Reads cooldownStartTick so the wedge

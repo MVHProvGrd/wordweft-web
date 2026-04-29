@@ -1,10 +1,10 @@
 // WordWeft Service Worker — caches static assets for offline shell
-const CACHE_NAME = 'wordweft-v163';
-// 2026-04-29 15:03Z is replaced by the sync-wordweft-web workflow
+const CACHE_NAME = 'wordweft-v164';
+// 2026-04-29 15:51Z is replaced by the sync-wordweft-web workflow
 // at deploy time with the UTC timestamp of the sync (e.g.
 // "2026-04-23 21:45Z"). When running from source it stays as the
 // placeholder and the page shows "(dev)" instead.
-const BUILD_TIMESTAMP = '2026-04-29 15:03Z';
+const BUILD_TIMESTAMP = '2026-04-29 15:51Z';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -55,7 +55,6 @@ const STATIC_ASSETS = [
     '/run_ledge_meadow_v2.png',
     '/run_ledge_meadow_v3.png',
     '/run_ledge_storm_v0.png',
-    '/tut_meet_wefty.svg',
     '/tut_bridge_gaps.svg',
     '/tut_tap_jump.svg',
     '/tut_dodge_scissors.svg',
@@ -71,7 +70,6 @@ const STATIC_ASSETS = [
     '/wefty_run_a.png',
     '/wefty_run_b.png',
     '/wefty_fall.png',
-    '/scissors_hazard.png',
     '/scissors_open.png',
     '/scissors_closed.png',
     '/parallax_bg.png',
@@ -113,11 +111,9 @@ const STATIC_ASSETS = [
     '/sfx/sfx_power_slowmo.mp3',
     '/sfx/sfx_power_shield.mp3',
     '/sfx/sfx_screen_transition.mp3',
-    '/needle_icon.png',
     '/spring_pad.png',
     '/spring_pad_v2.png',
     '/glider_kite.png',
-    '/double_jump.png',
     '/slowmo_yarn.png',
     '/yarn_shield.png',
     '/yarn_knot.png',
