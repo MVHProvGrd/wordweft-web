@@ -707,7 +707,7 @@
     </div>
 </div>
 <div class="edit-bar" id="edit-bar">
-    <span class="edit-hint">Drag LASSO + JUMP wherever you want</span>
+    <span class="edit-hint">Drag SPIN + JUMP wherever you want</span>
     <button id="edit-reset">Reset</button>
     <button id="edit-cancel">Cancel</button>
     <button id="edit-save" class="primary">Save</button>
@@ -760,7 +760,7 @@
             <dt>A / D or ←/→</dt><dd>Move left / right</dd>
             <dt>W / Space / ↑</dt><dd>Jump</dd>
             <dt>S / ↓</dt><dd>Drop through the ledge below</dd>
-            <dt>F / L</dt><dd>Throw lasso at a scissor above (available on demand)</dd>
+            <dt>F / L</dt><dd>Spin attack — clears nearby scissors (1.0s cooldown, melee range)</dd>
             <dt>❤</dt><dd>Hit points — scissors each cost one. Zero = game over.</dd>
         </dl>
         <button class="start-btn" id="btn-start">Start climbing</button>
@@ -774,7 +774,7 @@
     <!-- D-pad / drop-through removed: tilt steers, jumping down never
          helps. Only Lasso (left) + Jump (right) remain. -->
     <button id="btn-tilt" class="tilt-prompt hidden">Tap to enable tilt</button>
-    <button id="btn-lasso" class="lasso-btn">LASSO</button>
+    <button id="btn-lasso" class="lasso-btn">SPIN</button>
     <button id="btn-jump"  class="jump-btn">JUMP</button>
 </div>
 
@@ -994,6 +994,8 @@
         if (world.weftyGrounded) {
             world.weftyVy = -JUMP_VELOCITY;
             world.weftyGrounded = false;
+            world._jumpAnimStart = performance.now();
+            world._fallAnimStart = 0;
             try { Sound && Sound.playGameStart && Sound.playGameStart(); } catch (_) {}
         }
     }
@@ -1029,6 +1031,38 @@
             world.lassoLastHitX = world.weftyX;
             world.lassoLastHitY = world.weftyY - 0.30;
         }
+    }
+
+    // Spin attack — melee replacement for lasso. Mirrors the Wefty
+    // Run port: smaller range, in-place painterly animation, no
+    // rope visual. Lasso code above is intentionally left intact as
+    // a fallback. Reuses lassoReadyAtTick so the existing cooldown
+    // plumbing keeps working without forking state.
+    const SPIN_RANGE = 0.20;
+    const SPIN_COOLDOWN_TICKS = 60;
+    function fireSpin() {
+        if (world.gameOver) return false;
+        if ((world.frameTick || 0) < world.lassoReadyAtTick) return false;
+        let hits = 0;
+        for (let i = world.hazards.length - 1; i >= 0; i--) {
+            const hz = world.hazards[i];
+            const dx = hz.x - world.weftyX, dy = hz.y - world.weftyY;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < SPIN_RANGE) {
+                world.hazards.splice(i, 1);
+                hits++;
+            }
+        }
+        world.lassoReadyAtTick = (world.frameTick || 0) + SPIN_COOLDOWN_TICKS;
+        // Do NOT set lassoFlashUntilTick — the rope/lasso visual
+        // shouldn't fire for melee spin.
+        world._spinAnimStart = performance.now();
+        if (hits > 0) {
+            try { Sound && Sound.playWordSubmit && Sound.playWordSubmit(); } catch (_) {}
+        } else {
+            try { Sound && Sound.playSfx && Sound.playSfx('sfx_lasso_miss'); } catch (_) {}
+        }
+        return hits > 0;
     }
 
     // ── Simulation step ──────────────────────────────────────────────
@@ -1209,7 +1243,7 @@
             e.preventDefault(); jump();
         });
         document.getElementById('btn-lasso').addEventListener('click', (e) => {
-            e.preventDefault(); fireLasso();
+            e.preventDefault(); fireSpin();
         });
         // New CTA restart button (Beat 2 of the game-over 2-beat).
         const ctaRestartBtn = document.getElementById('cta-restart');
@@ -1656,7 +1690,7 @@
         if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') {
             jump(); e.preventDefault();
         }
-        if (k === 'f' || k === 'F' || k === 'l' || k === 'L') fireLasso();
+        if (k === 'f' || k === 'F' || k === 'l' || k === 'L') fireSpin();
     });
     window.addEventListener('keyup', (e) => {
         const k = e.key;
@@ -1669,7 +1703,7 @@
     const PR_DURATION_MS = 3000;
     const CLIMB_TIPS = [
         '💡 <span class="accent">Tilt</span> to steer · <span class="accent">Jump</span> to hop',
-        '💡 <span class="accent">Lasso</span> drops scissors from above',
+        '💡 <span class="accent">Spin</span> clears nearby scissors',
         '💡 Draw a <span class="accent">thread bridge</span> across gaps',
         '💡 New biome every <span class="accent">150 m</span>',
         '💡 Catch hearts to top up lives',
@@ -1880,12 +1914,45 @@
     const ledgeSnow  = [0,1,2,3].map(i => loadImg(`climb_ledge_snow_v${i}.png`));
     const scissors   = loadImg('scissors_open.png');
     const pickupHeart = loadImg('pickup_heart.png');
-    const weftyRoll  = loadImg('wefty_run_a.png');
-    const weftyFall  = loadImg('wefty_fall.png');
-    const weftyJumpSquash = loadImg('wefty_jump_squash.png');
-    const weftyJumpStretch = loadImg('wefty_jump_stretch.png');
-    const lassoImg   = loadImg('lasso.png');
-    const ropeImg    = loadImg('rope_texture.png');
+    const weftyRunA  = loadImg('wefty_run_a.png');
+    const weftyRunB  = loadImg('wefty_run_b.png');
+    const weftyFall  = loadImg('wefty_fall.png');                       // legacy fallback
+    const weftyJumpSquash = loadImg('wefty_jump_squash.png');           // legacy fallback (unused)
+    const weftyJumpStretch = loadImg('wefty_jump_stretch.png');         // legacy fallback
+    const lassoImg   = loadImg('lasso.png');                            // dormant — lasso replaced by spin
+    const ropeImg    = loadImg('rope_texture.png');                     // dormant — lasso replaced by spin
+
+    // Painterly 6-frame cycles ported from Wefty Run. Per-frame
+    // durations come from each sprite's manifest. Jump-up plays once
+    // on launch (470 ms then holds apex_float). Fall loops at ~12 fps
+    // while airborne-descending. Spin-hit plays once over 360 ms and
+    // overrides the normal sprite for the duration.
+    const weftyJumpUpFrames = [1,2,3,4,5,6].map(i => loadImg(`sprite-forge/wefty-jump-up/frame_${i}.png`));
+    const WEFTY_JUMP_UP_MS = [100, 50, 60, 70, 80, 110];
+    const WEFTY_JUMP_UP_TOTAL = WEFTY_JUMP_UP_MS.reduce((a, b) => a + b, 0);
+    const weftyFallFrames = [1,2,3,4,5,6].map(i => loadImg(`sprite-forge/wefty-fall/frame_${i}.png`));
+    const WEFTY_FALL_FRAME_MS = 83;
+    const weftySpinHitFrames = [1,2,3,4,5,6].map(i => loadImg(`sprite-forge/wefty-spin-hit/frame_${i}.png`));
+    const WEFTY_SPIN_HIT_MS = [70, 60, 50, 40, 60, 80];
+    const WEFTY_SPIN_HIT_TOTAL = WEFTY_SPIN_HIT_MS.reduce((a, b) => a + b, 0);
+
+    function pickFrame(durations, elapsedMs, hold) {
+        const total = durations.reduce((a, b) => a + b, 0);
+        const e = hold ? elapsedMs : (elapsedMs % total);
+        if (hold && elapsedMs >= total) return durations.length - 1;
+        let acc = 0;
+        for (let i = 0; i < durations.length; i++) {
+            acc += durations[i];
+            if (e < acc) return i;
+        }
+        return durations.length - 1;
+    }
+    function pickFrameUniform(frameMs, elapsedMs, frameCount, hold) {
+        const total = frameMs * frameCount;
+        const e = hold ? elapsedMs : (elapsedMs % total);
+        if (hold && elapsedMs >= total) return frameCount - 1;
+        return Math.min(frameCount - 1, Math.floor(e / frameMs));
+    }
 
     // ── Music loop ─────────────────────────────────────────────────
     // Reuse Run's loop until we have Climb-specific music.
@@ -2118,34 +2185,62 @@
         const wSize = h * 0.08;
         const wx = world.weftyX * w;
         const wy = (world.weftyY - world.cameraY) * h;
-        // Jump animation — stretch rising, open-arms fall descending.
-        // Squash frame was scrapped (timing too tight vs shorter climb
-        // jumps).
+        const nowMs = performance.now();
+        // Painterly 6-frame mascot pipeline ported from Wefty Run.
+        // Spin-hit overrides every other state (360 ms one-shot).
+        // Otherwise: grounded → run_a/b alternation at ~6 fps;
+        // rising → jump-up cycle holding apex_float; descending
+        // airborne → fall loop. Legacy jump_stretch / fall PNGs
+        // remain as fallbacks if the painterly frames fail to load.
         world._wasGroundedForJump = world.weftyGrounded;
-        const _spriteIsStretch = !world.weftyGrounded && world.weftyVy < 0
-            && weftyJumpStretch.complete && weftyJumpStretch.naturalWidth;
-        const sprite = world.weftyGrounded ? weftyRoll
-            : _spriteIsStretch ? weftyJumpStretch
-            : weftyFall;
-        // Per-sprite scale: stretch is bigger to match the ball head
-        // diameter on rising jumps; fall is scaled DOWN because its
-        // opaque content (256×216) is ~40% wider than roll's (184×184)
-        // in the same 256×256 canvas and otherwise reads huge on
-        // landing.
-        const _stretchScale = _spriteIsStretch ? 1.90
-            : (sprite === weftyFall ? 0.72 : 1.0);
-        if (sprite.complete && sprite.naturalWidth) {
+        const spinAge = world._spinAnimStart ? (nowMs - world._spinAnimStart) : Infinity;
+        const inSpin = spinAge < WEFTY_SPIN_HIT_TOTAL;
+        let sprite = null, scale = 1.0, isRoll = false;
+        if (inSpin) {
+            const idx = pickFrame(WEFTY_SPIN_HIT_MS, spinAge, true);
+            const f = weftySpinHitFrames[idx];
+            if (f && f.complete && f.naturalWidth) { sprite = f; scale = 1.4; }
+        } else if (world.weftyGrounded) {
+            // Run-cycle a/b alternation at ~6 fps. Time-based so the
+            // swap continues even when Wefty is briefly stationary.
+            const useB = Math.floor(nowMs / 167) % 2 === 1;
+            sprite = useB ? weftyRunB : weftyRunA;
+            if (!sprite || !sprite.complete || !sprite.naturalWidth) sprite = weftyRunA;
+            isRoll = true;
+        } else if (world.weftyVy < 0) {
+            const start = world._jumpAnimStart || nowMs;
+            const idx = pickFrame(WEFTY_JUMP_UP_MS, nowMs - start, true);
+            const f = weftyJumpUpFrames[idx];
+            if (f && f.complete && f.naturalWidth) {
+                sprite = f; scale = 1.4;
+            } else if (weftyJumpStretch.complete && weftyJumpStretch.naturalWidth) {
+                sprite = weftyJumpStretch; scale = 1.90;
+            } else {
+                sprite = weftyRunA;
+            }
+        } else {
+            if (!world._fallAnimStart) world._fallAnimStart = nowMs;
+            const idx = pickFrameUniform(WEFTY_FALL_FRAME_MS, nowMs - world._fallAnimStart, 6, false);
+            const f = weftyFallFrames[idx];
+            if (f && f.complete && f.naturalWidth) {
+                sprite = f; scale = 1.4;
+            } else if (weftyFall.complete && weftyFall.naturalWidth) {
+                sprite = weftyFall; scale = 0.72;
+            }
+        }
+        if (sprite && sprite.complete && sprite.naturalWidth) {
             // Reset rotation origin every time she lands so she plants
-            // upright. rollOriginWorldX lives outside this draw block
-            // (declared below) and is updated on the air→ground edge.
+            // upright. Also reset _fallAnimStart on the air→ground
+            // edge so the next descent starts a fresh loop.
             if (world.weftyGrounded && !world._wasGrounded) {
                 world.rollOriginWorldX = world.weftyX;
+                world._fallAnimStart = 0;
             }
             world._wasGrounded = world.weftyGrounded;
-            const rollDeg = (sprite === weftyRoll)
+            const rollDeg = isRoll
                 ? ((world.weftyX - (world.rollOriginWorldX || 0)) * w / (wSize * Math.PI)) * 360
                 : 0;
-            const drawSize = wSize * _stretchScale;
+            const drawSize = wSize * scale;
             fgCtx.save();
             fgCtx.translate(wx, wy - drawSize * 0.30);
             fgCtx.rotate(rollDeg * Math.PI / 180);
