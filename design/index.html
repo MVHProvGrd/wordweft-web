@@ -344,7 +344,6 @@ const SECTIONS = [
         { f: 'wefty_jump_squash.png',  use: 'Legacy jump anticipation. Replaced in-game by the 6-frame sprite-forge/wefty-jump-up cycle; kept as a fallback if the painterly frames fail to load.' },
         { f: 'wefty_jump_stretch.png', use: 'Legacy jump apex (stretch). Replaced in-game by sprite-forge/wefty-jump-up; kept as a fallback.' },
         { f: 'wefty_fall.png',         use: 'Legacy falling sprite. Replaced in-game by the 6-frame sprite-forge/wefty-fall loop; kept as a fallback.' },
-        { f: 'wefty_roll.png',         use: 'Rolling. Wefty Climb horizontal movement (yarn-ball roll).' },
         { f: 'wefty_glider.png',       use: 'Gliding. Active when GLIDE power-up is consumed in Run.' },
         { f: 'wefty_spring.png',       use: 'Spring-launched. Held during spring_pad bounce arc.' },
         { f: 'wefty_shield.png',       use: 'Shielded. Active while SHIELD power-up absorbs hits.' },
@@ -539,7 +538,6 @@ const SECTIONS = [
     desc: 'On disk + in the audit but no code references the filename. Either dead, awaiting wire-up, or dynamically referenced in a way the audit can\'t see.',
     items: [
         { f: 'moth_hazard.png',     use: 'Generated 4-frame moth sprite — never wired into the hazard system. Pending a Wefty Run hazard wire-up.' },
-        { f: 'wefty_roll.png',      use: 'Wefty rolling sprite — appears unreferenced by the live runtime. Confirm if a future Climb feature needs it.' },
         { f: 'water_tile_f0.png',   use: 'Pre-chevron animated water frame 0/6 — superseded by water_chevron_blue.png + drawWavyBand.' },
         { f: 'water_tile_f1.png',   use: 'Animated water frame 1 — not loaded.' },
         { f: 'water_tile_f2.png',   use: 'Animated water frame 2 — not loaded.' },
