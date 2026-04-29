@@ -342,17 +342,23 @@ function setBadge(id, n) {
 }
 
 async function refreshBadges() {
-    // Reports console — anything where resolved !== true.
+    // Reports console — anything where resolved is falsy. Note: the
+    // moderation panel writes a resolved OBJECT
+    // ({resolvedBy, action, resolvedAt}), not boolean true, so a strict
+    // === true check kept counting resolved reports as open (stale
+    // badge bug). Truthy check covers both the object form and the
+    // legacy boolean.
     db.ref('reports').once('value').then((s) => {
         let n = 0;
-        s.forEach((c) => { if (!(c.val() && c.val().resolved === true)) n++; });
+        s.forEach((c) => { if (!(c.val() && c.val().resolved)) n++; });
         setBadge('badge-reports', n);
     }).catch(() => {});
 
-    // Bug reports — top-level keys, resolved !== true.
+    // Bug reports — top-level keys, resolved is boolean true today,
+    // but match the same truthy semantics for symmetry / future-proofing.
     db.ref('bugReports').once('value').then((s) => {
         let n = 0;
-        s.forEach((c) => { if (!(c.val() && c.val().resolved === true)) n++; });
+        s.forEach((c) => { if (!(c.val() && c.val().resolved)) n++; });
         setBadge('badge-bugreports', n);
     }).catch(() => {});
 
