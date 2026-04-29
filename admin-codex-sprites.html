@@ -293,10 +293,11 @@ const SPRITES = [
         generator: 'ChatGPT browser (gpt-image-1) · browser_manual',
         title: 'Wefty falling (6-frame cycle)',
         status: 'draft',
-        description: 'Tumble animation for the Wefty Run game-over fall — ' +
+        description: 'Tumble animation for the Wefty Run airborne descent — ' +
             'asymmetric arms + alternating leg kicks across 6 frames so the ' +
-            'mascot reads as flailing, not posed. In-game today is a static ' +
-            'wefty_fall.png; pending wire-in as an animated cycle on death.',
+            'mascot reads as flailing, not posed. Wired into wefty-run.html: ' +
+            'loops at ~12fps while Wefty is airborne and descending; replaces ' +
+            'the legacy static wefty_fall.png (kept as a fallback).',
         prompt: 'Use the attached reference image (wefty_fall.png) as the exact ' +
             'character/style source. Generate one sprite frame for a 6-frame ' +
             'falling animation cycle. Character must remain identical (face, ' +
@@ -313,7 +314,7 @@ const SPRITES = [
             'as reference. Do not redesign character.',
         sheet: 'sprite-forge/wefty-fall/sheet-transparent.png',
         gif: 'sprite-forge/wefty-fall/animation.gif',
-        usedAt: null,
+        usedAt: 'wefty-run.html · airborne descent (12fps loop)',
     },
     {
         name: 'island-v0-meadow',
@@ -356,7 +357,9 @@ const SPRITES = [
             'WeftyPicCraft v0.1.1 runner + Codex image_gen path ' +
             '(painterly lane, bypasses the pixel-art skill). Manifest ' +
             'follows the v1.0 schema (attempts[] log + content hashes). ' +
-            'Pending wire-in as an animated cycle on intentional jump.',
+            'Wired into wefty-run.html: cycle restarts on every intentional ' +
+            'jump and holds apex_float until the descent begins. Replaces ' +
+            'wefty_jump_stretch on the rising arc (kept as a fallback).',
         prompt: 'Generate a single PNG laid out as a 2-row x 3-column ' +
             'sprite sheet (each cell 512x512) of the attached Wefty ' +
             'mascot performing a 6-frame jump animation. Painterly ' +
@@ -375,7 +378,7 @@ const SPRITES = [
         gif: 'sprite-forge/wefty-jump-up/animation.gif',
         promptFile: 'prompts.md',
         metaFile: 'manifest.json',
-        usedAt: null,
+        usedAt: 'wefty-run.html · rising arc one-shot, holds apex_float',
     },
     {
         name: 'wefty-spin-hit',
@@ -387,7 +390,9 @@ const SPRITES = [
             'deceleration smear B → recovery. Per-panel timing is intentionally ' +
             'non-uniform (70 / 60 / 50 / 40 / 60 / 80 ms — 360ms total cycle) ' +
             'for game-feel: snappy at impact, longer at the wind-up + settle. ' +
-            'Intended for a lasso-snap-success or a future melee mini-game cue.',
+            'Wired into wefty-run.html: fires on the SPIN button (replaces the ' +
+            'old LASSO mechanic), 0.20 melee range, ~60-tick cooldown. Lasso ' +
+            'rope/projectile code is preserved as a fallback.',
         prompt: 'Global style lock: Use attached Wefty reference exactly (same ' +
             'character, proportions, face style, yarn colors/pattern, outline). ' +
             'Transparent bg. Same camera, centered, no extras, no text. ' +
@@ -406,7 +411,7 @@ const SPRITES = [
             'reference. Do not redesign character.',
         sheet: 'sprite-forge/wefty-spin-hit/sheet-transparent.png',
         gif: 'sprite-forge/wefty-spin-hit/animation.gif',
-        usedAt: null,
+        usedAt: 'wefty-run.html · SPIN button (replaces lasso, 0.20 melee range)',
     },
 ];
 
